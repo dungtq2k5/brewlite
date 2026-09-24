@@ -1,0 +1,11 @@
+docs/
+dist/
+coverage/
+pnpm-lock.yaml
+**/generated/
+.turbo/
+**/prisma/migrations/
+.kilo/
+cspell.json
+# markdownlint owns markdown (MD060 compact tables); prettier would re-pad them.
+*.md

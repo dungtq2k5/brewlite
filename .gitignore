@@ -1,0 +1,5 @@
+/graphify-out
+node_modules
+.env
+docs/archive/
+cspell.json
