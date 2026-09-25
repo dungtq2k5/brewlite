@@ -570,6 +570,7 @@ Every service serves these — backend services on `OPS_PORT`, the gateway on it
 | :---- | :---- |
 | **A — backend (P0)** | §0 · §1.1, §1.2 (not the password route), §1.3 · §2 · §3.1–3.3, §3.5, §3.6 · §4 · §5 · §6 · §7 · §8 · §9 (not `ListPaymentsForOrder`) · §10 · §11 |
 | **B — frontend** | consumes Phase A through the generated client; no new routes |
+| **C — handover** | no new routes; the Compose `apps` profile runs everything, the README, the J1 demo |
 | **P1** | `PATCH /users/me/password` · §3.4 admin orders and reports · `pointsToRedeem` on quote and order · `ListPaymentsForOrder` |
 
 ---
