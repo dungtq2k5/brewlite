@@ -1,0 +1,9 @@
+version: v2
+modules:
+  - path: proto
+lint:
+  use:
+    - STANDARD
+  except:
+    # conventions §5.1: the package is fixed as brewlite.<service>, unversioned.
+    - PACKAGE_VERSION_SUFFIX

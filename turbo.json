@@ -1,0 +1,56 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "globalPassThroughEnv": ["DATABASE_URL*", "PRISMA_DB", "NODE_ENV"],
+  "tasks": {
+    "db:generate": {
+      "outputs": ["generated/**"],
+      "cache": false
+    },
+    "build": {
+      "dependsOn": ["^build", "db:generate"],
+      "outputs": ["dist/**"]
+    },
+    "typecheck": {
+      "dependsOn": ["^build", "db:generate"],
+      "outputs": []
+    },
+    "lint": {
+      "dependsOn": ["^build", "db:generate"],
+      "outputs": []
+    },
+    "dev": {
+      "dependsOn": ["^build", "db:generate"],
+      "cache": false,
+      "persistent": true
+    },
+    "test": {
+      "dependsOn": ["db:generate"],
+      "outputs": ["coverage/**"]
+    },
+    "test:integration": {
+      "dependsOn": ["db:generate"],
+      "cache": false
+    },
+    "db:migrate:dev": {
+      "cache": false
+    },
+    "db:objects": {
+      "cache": false
+    },
+    "db:deploy": {
+      "cache": false
+    },
+    "db:setup": {
+      "cache": false
+    },
+    "db:drift": {
+      "cache": false
+    },
+    "proto:generate": {
+      "outputs": ["src/generated/**"]
+    },
+    "proto:lint": {
+      "outputs": []
+    }
+  }
+}

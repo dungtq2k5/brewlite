@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package brewlite.catalog;
+
+import "brewlite/common/localized_text.proto";
+
+// 02 adds ListProducts, GetProduct, PriceItems to this service.
+service MenuService {
+  rpc ListCategories(ListCategoriesRequest) returns (ListCategoriesResponse);
+}
+
+message ListCategoriesRequest {}
+
+message ListCategoriesResponse {
+  repeated Category categories = 1;
+}
+
+message Category {
+  string id = 1;
+  brewlite.common.LocalizedText name = 2;
+}

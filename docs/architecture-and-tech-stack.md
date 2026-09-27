@@ -24,15 +24,16 @@ BrewLite is one **TypeScript monorepo**: a Next.js web app, a NestJS gateway, fo
 - **Language:** **TypeScript**, `strict: true` everywhere, no `any` in merged code.
 - **Runtime:** **Node.js 24 LTS**, pinned at **24.14.0** in `.nvmrc`, `engines`, every Dockerfile and every CI job.
 - **Package manager:** **pnpm 10** with workspaces, version pinned by `packageManager` in the root `package.json` and enabled through `corepack`.
-  - ⚠️ pnpm 10 skips dependency build scripts unless allowed. Set `strictDepBuilds: true` and list what may build (`@swc/core`, `prisma`, `@prisma/engines`, `esbuild`, …) so a skipped native build fails the install instead of failing at runtime.
+  - ⚠️ pnpm 10 skips dependency build scripts unless allowed. Set `strictDepBuilds: true` and list what may build (`@swc/core`, `prisma`, `@prisma/engines`, `esbuild`, `protobufjs`, `@bufbuild/buf`, `simple-git-hooks`, `@scarf/scarf`) so a skipped native build fails the install instead of failing at runtime. Both settings live in **`pnpm-workspace.yaml`**. ⚠️ `ignoredBuiltDependencies` only silences the prompt — under `strictDepBuilds` an unlisted package still fails the install, so a package is either allowed or the install fails.
 - **Monorepo tooling:** **Turborepo 2** — task graph and output caching (`build`, `typecheck`, `test`, `db:generate`). 📌 [ADR 0003](./decisions/0003-one-pnpm-turborepo-monorepo-with-a-fixed-layout.md).
   - ⚠️ Turbo's strict env mode hides variables from tasks: `turbo.json` lists `DATABASE_URL*`, `PRISMA_DB` and `NODE_ENV` in `globalPassThroughEnv`, or Prisma tasks see them unset.
 - **Compiler:** **SWC everywhere** — the Nest CLI's SWC builder with `typeCheck: true` for every Nest service, Next.js's own SWC-based compiler for the web app, `unplugin-swc` inside Vitest. 📌 [ADR 0012](./decisions/0012-swc-compiles-everything-and-nest-packages-are-commonjs.md).
   - ⚠️ SWC strips types without checking them. `typeCheck: true` and a separate `pnpm typecheck` in CI are what stop a broken signature from shipping.
 - **Module format:** Nest services and the shared packages they import are **CommonJS**; the web app is ESM, which imports CommonJS packages without trouble.
 - **Containers:** **Docker + Compose v2** — one `docker compose up` gives Postgres, Redis, NATS and the Firebase emulators.
-- **Quality:** **ESLint 9** flat config + **Prettier**, one shared config in `packages/config`; **lint-staged** on a pre-commit hook; **markdownlint-cli2** for docs, with one custom rule — `brewlite-table-delimiter`, in `packages/config/markdownlint/table-delimiter.mjs` with its Vitest spec — that makes every table delimiter cell `:----` and fixes offending rows under `--fix`; **Conventional Commits** enforced by commitlint.
-- **Pinned majors** (🔬 verify exact versions at scaffold, then record them here): NestJS **11**, Prisma **7**, TypeScript **5.9**, Next.js **16**, React **19**, i18next **25** + react-i18next **16**, Tailwind CSS **4**, DaisyUI **5**, zod **4**, nestjs-zod **5**, Orval **7+**, Vitest **4**, BullMQ **5**, `stripe` (Node) **22**, `firebase-admin` **13**, `firebase` (web) **12**, PostgreSQL **18**, Redis **8**, NATS **2.x** with JetStream. A new major is an upgrade decision, never a side effect of `pnpm add`.
+- **Quality:** **ESLint 9** flat config + **Prettier**, one shared config in `packages/config`; **lint-staged** on a pre-commit hook and **commitlint** on commit-msg, both run by **`simple-git-hooks`** (one block in the root `package.json`); **markdownlint-cli2 ≥ 0.23** for docs (0.15 mis-loads an `.mjs` custom rule under Node 24's `require(esm)`), with one custom rule — `brewlite-table-delimiter`, in `packages/config/markdownlint/table-delimiter.mjs` with its Vitest spec — that makes every table delimiter cell `:----` and fixes offending rows under `--fix`; **Conventional Commits** enforced by commitlint.
+- **Verified at scaffold (2026-09-25):** TypeScript 5.9.3, NestJS 11.2, Prisma 7.10, zod 4.6, nestjs-zod 5.5, `@nestjs/swagger` 11.4, Express 5.2, Vitest 4.1, Turborepo 2.11, `@grpc/grpc-js` 1.14, buf 1.73, pnpm 10.34.5. The rest are verified by the doc that first installs them.
+- **Pinned majors:** NestJS **11**, Prisma **7**, TypeScript **5.9**, Next.js **16**, React **19**, i18next **25** + react-i18next **16**, Tailwind CSS **4**, DaisyUI **5**, zod **4**, nestjs-zod **5**, Orval **7+**, Vitest **4**, BullMQ **5**, `stripe` (Node) **22**, `firebase-admin` **13**, `firebase` (web) **12**, PostgreSQL **18**, Redis **8**, NATS **2.x** with JetStream. A new major is an upgrade decision, never a side effect of `pnpm add`.
 
 ### 1.1 Repository layout
 
@@ -114,7 +115,7 @@ The full event and RPC contracts are in [`api-endpoints-plan.md`](./api-endpoint
 
 📌 [ADR 0005](./decisions/0005-grpc-for-synchronous-calls-and-jetstream-for-events.md).
 
-- `@nestjs/microservices` + `@grpc/grpc-js`. `.proto` files live in `packages/contracts/proto/brewlite/<service>/`; **ts-proto** (with its NestJS output) generates the TypeScript for both ends, through **`buf generate`**; `buf lint` runs in CI. Generated code is committed and regenerated in CI with a diff check.
+- `@nestjs/microservices` + `@grpc/grpc-js`. `.proto` files live in `packages/contracts/proto/brewlite/<service>/`; **ts-proto** (with its NestJS output) generates the TypeScript for both ends, through **`buf generate`** (options `nestJs`, `addGrpcMetadata`, `useDate=false`, `esModuleInterop`, `stringEnums`, `forceLong=string`); `buf lint` runs in CI with `STANDARD` minus `PACKAGE_VERSION_SUFFIX` — packages are `brewlite.<service>`, unversioned. Messages shared by two services (`LocalizedText`) live in `brewlite.common`. Generated code is committed and regenerated in CI with a diff check.
 - Use gRPC when **the caller needs the answer to continue**: pricing a cart, reserving stock, checking an order is payable.
 - Every call goes through `BaseGrpcClient` from `nest-common`: a **2 s deadline**, the caller context and `x-request-id` as metadata, and connection failures mapped to `UNAVAILABLE`.
 - ⚠️ A stopped container does not refuse a connection; it stays silent until the deadline. A deadline on a channel that never connected is reported as `503 UPSTREAM_UNAVAILABLE`, not `504` — the peer is down, not slow.
@@ -226,7 +227,7 @@ payment  → brewlite_payment  + brewlite_payment_test  + brewlite_payment_shado
 - The generator is **`prisma-client`** with an explicit `output` — ours is `../generated/prisma` (outside `src/`, git-ignored) — and **`moduleFormat = "cjs"`**.
 - **The URL is not in `schema.prisma`.** It lives in `prisma.config.ts`, which imports `dotenv/config` (Prisma no longer loads `.env`).
 - `migrate dev` no longer runs `generate` or the seed; both are explicit scripts.
-- ⚠️ The SWC builder compiles only `src/` unless told otherwise: each service's `nest-cli.json` sets the builder's `filenames: ["src", "generated"]`, or `dist` has no Prisma client.
+- ⚠️ The SWC builder compiles only `src/` unless told otherwise: each service's `nest-cli.json` sets `compilerOptions.builder: { type: 'swc', options: { filenames: ['src', 'generated'] } }` — nested under `options`, not top-level — or `dist` has no Prisma client. Both directories keep their prefix in `dist`, so the entry point is **`dist/src/main.js`**.
 
 The template every service copies:
 
@@ -262,7 +263,7 @@ datasource db {
 ```
 
 - Whatever Prisma cannot express — partial unique indexes, `CHECK` constraints, sequences — lives in `services/<svc>/prisma/sql/schema-objects.sql`, applied after `migrate deploy` by `pnpm db:objects` (rdm-spec §2.8).
-- 🔬 Verify at scaffold: `@default(uuid(7))`, and `autoincrement()` on a non-id column (the order number), on the pinned Prisma 7.
+- `@default(uuid(7))` works on Prisma 7.10 (verified). 🔬 Still to verify: `autoincrement()` on a non-id column (the order number).
 
 ### 3.3 Redis
 
@@ -446,14 +447,14 @@ Locally the SDK talks to the **Firebase Auth emulator**, which offers fake Googl
 1. `pnpm install --frozen-lockfile`
 2. `turbo run lint typecheck test` (affected packages)
 3. `pnpm lint:md` and the repo guard specs
-4. Integration tests against Postgres, Redis and NATS service containers
+4. Integration tests against the project's own Compose stack (`docker compose up -d --wait`) — the same file as local, not separate CI service containers
 5. `turbo run build`
 6. OpenAPI + Orval and `buf generate` drift checks — regenerate, fail on a non-empty diff
 7. Prisma migration drift check per service
 
 **Practices:** trunk-based, short branches, one review required, Conventional Commits.
 
-**Deployment:** the course requires the whole system to run from `docker compose` — the `apps` profile builds `web` and the five services from `Dockerfile.web` and `Dockerfile.service` (`ARG SERVICE`) and runs them beside the infrastructure. A cloud deployment is P2 and out of this document's scope.
+**Deployment:** the course requires the whole system to run from `docker compose` — the `apps` profile builds `web` and the five services from `Dockerfile.web` and `Dockerfile.service` (`ARG SERVICE`) and runs them beside the infrastructure. The runtime stage is `pnpm --filter @brewlite/<svc> --prod deploy --legacy` (pnpm 10 refuses a non-injected workspace without `--legacy`) and **never migrates** — `pnpm db:setup` on the host or in CI does. ⚠️ `.dockerignore` excludes `services/*/generated` (the Prisma client, rebuilt in the image) but **not** `packages/contracts/src/generated` (committed gRPC code the build needs). ⚠️ Every package reached only through a `tsconfig` `extends` (`packages/config`) is a declared `workspace:*` devDependency, or `turbo prune --docker` leaves it out of the build context. A cloud deployment is P2 and out of this document's scope.
 
 ---
 
@@ -474,6 +475,7 @@ Every Nest service declares its variables in `src/config/env.schema.ts` (zod), l
 | `NATS_URL_TEST` | catalog, ordering, payment | `nats://localhost:24223` — integration tests never publish to the development broker |
 | `GRPC_URL` | identity, catalog, ordering, payment | own bind address, e.g. `0.0.0.0:25052` |
 | `OPS_PORT` | identity, catalog, ordering, payment | `/health*` and `/version` |
+| `GIT_SHA`, `BUILT_AT` | all services | optional, shown by `/version`; Docker build arguments, `unknown` when unset |
 | `IDENTITY_GRPC_URL`, `CATALOG_GRPC_URL`, `ORDERING_GRPC_URL`, `PAYMENT_GRPC_URL` | gateway; `CATALOG_GRPC_URL` also ordering; `ORDERING_GRPC_URL` also payment | peer addresses |
 | `PORT` | gateway | `23100` |
 | `GLOBAL_PREFIX` | gateway | `api`; never hard-coded elsewhere |

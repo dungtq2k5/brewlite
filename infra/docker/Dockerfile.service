@@ -1,0 +1,41 @@
+# Multi-stage, one file for every Nest service. Build with --build-arg SERVICE=<name>.
+ARG SERVICE
+
+FROM node:24.14.0-alpine AS prune
+ARG SERVICE
+WORKDIR /repo
+RUN corepack enable
+COPY . .
+RUN npx turbo prune @brewlite/${SERVICE} --docker
+
+FROM node:24.14.0-alpine AS build
+ARG SERVICE
+WORKDIR /repo
+RUN corepack enable
+COPY --from=prune /repo/out/json/ .
+COPY --from=prune /repo/out/pnpm-lock.yaml ./pnpm-lock.yaml
+COPY --from=prune /repo/out/pnpm-workspace.yaml ./pnpm-workspace.yaml
+RUN pnpm install --frozen-lockfile
+COPY --from=prune /repo/out/full/ .
+# `build` depends on `db:generate` (turbo.json). db:generate only reads the schema —
+# DATABASE_URL is never dialled — but prisma.config.ts still requires the variables to
+# resolve, so build time gets placeholders.
+ENV DATABASE_URL=postgresql://build:build@localhost:5432/build
+ENV DATABASE_URL_SHADOW=postgresql://build:build@localhost:5432/build_shadow
+RUN pnpm turbo run build --filter @brewlite/${SERVICE}
+RUN pnpm --filter @brewlite/${SERVICE} --prod deploy /repo/deploy --legacy
+
+FROM node:24.14.0-alpine AS runtime
+ARG SERVICE
+ARG GIT_SHA=unknown
+ARG BUILT_AT=unknown
+ENV GIT_SHA=${GIT_SHA}
+ENV BUILT_AT=${BUILT_AT}
+ENV NODE_ENV=production
+WORKDIR /app
+USER node
+COPY --from=build --chown=node:node /repo/deploy/dist ./dist
+COPY --from=build --chown=node:node /repo/deploy/package.json ./package.json
+COPY --from=build --chown=node:node /repo/deploy/node_modules ./node_modules
+COPY --from=build --chown=node:node /repo/packages/contracts/proto ./node_modules/@brewlite/contracts/proto
+CMD ["node", "dist/src/main.js"]

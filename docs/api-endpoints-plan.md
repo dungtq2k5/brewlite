@@ -79,7 +79,7 @@ Every route declares exactly one:
 
 `limit` / `pageSize` default 20, max 100. `sort` is `field` or `-field` from a per-route allowlist; anything else is `400`. The cursor is opaque — clients never parse it.
 
-Bounded lists with no pagination — the menu (`MAX_MENU_PRODUCTS`, 200), the staff board (100) — say so in their row.
+Bounded lists with no pagination — the menu (`MAX_MENU_PRODUCTS`, 200), categories (`MAX_MENU_CATEGORIES`, 50), the staff board (100) — say so in their row.
 
 ### 0.5 Identifiers
 
@@ -208,7 +208,7 @@ ProductDetail  = ProductSummary & {
 
 | Method | Path | Description | Auth |
 | :---- | :---- | :---- | :---- |
-| GET | `/categories` | Active categories, by `sort_order`: `{ id, name: LocalizedText }[]`. | PUBLIC · `PUBLIC_READ` |
+| GET | `/categories` | Active categories, by `sort_order` then `id`: `{ id, name: LocalizedText }[]`, bounded by `MAX_MENU_CATEGORIES`. | PUBLIC · `PUBLIC_READ` |
 | GET | `/products` | The menu: every live product in an active category, `?categoryId=` optional, ordered by category then `sort_order` — `ProductSummary[]`, bounded by `MAX_MENU_PRODUCTS`. Sold-out products are included with `isSoldOut: true`. Served from the Redis menu cache. | PUBLIC · `PUBLIC_READ` |
 | GET | `/products/:id` | `ProductDetail`. A deleted product, or one in a deleted or inactive category, is `404`. | PUBLIC · `PUBLIC_READ` |
 

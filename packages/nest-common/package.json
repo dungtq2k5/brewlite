@@ -1,0 +1,43 @@
+{
+  "name": "@brewlite/nest-common",
+  "version": "0.0.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run --root ."
+  },
+  "dependencies": {
+    "@brewlite/contracts": "workspace:*",
+    "@grpc/grpc-js": "^1.12.4",
+    "@grpc/proto-loader": "^0.7.13",
+    "@nestjs/common": "^11.0.1",
+    "@nestjs/config": "^4.0.0",
+    "@nestjs/core": "^11.0.1",
+    "@nestjs/microservices": "^11.0.1",
+    "@nestjs/swagger": "^11.0.0",
+    "helmet": "^8.0.0",
+    "nestjs-pino": "^4.4.0",
+    "nestjs-zod": "^5.0.1",
+    "pino": "^9.6.0",
+    "pino-http": "^10.4.0",
+    "rxjs": "^7.8.1",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@brewlite/config": "workspace:*",
+    "@nestjs/platform-express": "^11.0.1",
+    "@nestjs/testing": "^11.0.1",
+    "@types/express": "^5.0.0",
+    "@types/node": "^24.0.0",
+    "express": "^5.0.1",
+    "unplugin-swc": "^1.5.1",
+    "vitest": "^4.0.0"
+  }
+}

@@ -3,3 +3,7 @@ node_modules
 .env
 docs/archive/
 cspell.json
+dist/
+.turbo/
+coverage/
+services/*/generated/

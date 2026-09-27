@@ -208,7 +208,7 @@ if (order.userId !== caller.userId) throw rpcError('PERMISSION_DENIED', { requir
 - Enum members are prefixed with the enum name (`ORDER_STATUS_PAID`) and the zero member is `…_UNSPECIFIED`, which a service **MUST** reject as invalid input, never default.
 - `int64` fields (`order_no`) are strings in TypeScript; the mapper converts with a safe-integer check.
 - Protobuf has no `null`. The mapper converts `undefined` → `null` field by field, so response shapes stay stable.
-- The loader runs with `oneofs: false`, or every `optional` field arrives with a synthetic `_field` key.
+- The loader runs with `oneofs: false`, or every `optional` field arrives with a synthetic `_field` key. Its options are **one constant**, `PROTO_LOADER_OPTIONS` in `nest-common`, shared by server and client — `longs: String` pairs with ts-proto's `forceLong=string`, `enums: String` with `stringEnums`. A mismatch compiles and then compares a number with a string at runtime.
 
 ### 5.2 Calling a peer
 
@@ -224,7 +224,7 @@ return ids.map((id) => byId.get(id) ?? null);
 
 ### 5.3 Errors across the boundary
 
-A service throws only through `rpcError(code, details?)`. `ERRORS[code]` in `packages/contracts` holds the gRPC status, the HTTP status and the `details` schema, so a code can never travel with two statuses:
+A service throws only through `rpcError(code, details?)`. `ERRORS[code]` in `packages/contracts` holds the gRPC status, the HTTP status and the `details` schema, so a code can never travel with two statuses. Only the code crosses the wire — trailing metadata `bl-error-code`, plus `bl-error-details-bin` (UTF-8 JSON) when there are details — and the gateway looks the HTTP status up in the same registry:
 
 ```ts
 throw rpcError('OUT_OF_STOCK', { products: [{ productId, available: 0 }] });
@@ -268,6 +268,7 @@ As defined in api-endpoints-plan §0.3. A global interceptor wraps success as `{
 - Query and path values arrive as strings: `z.coerce.number()`, the shared `zBooleanParam` — never `Boolean(value)`, which reads `"false"` as `true`.
 - **Nullable and optional are different.** A response field is `.nullable()` (key always present), never `.optional()`. A request field is `.optional()` only when absence means "leave unchanged". A PATCH schema **MUST NOT** default a field — the default would overwrite the stored value on every unrelated update.
 - Every id from outside is parsed with `zUuidV7`, including `Idempotency-Key`.
+- **Import `nestjs-zod` only through `@brewlite/nest-common`**, which re-exports it. pnpm can install two physical copies across workspace packages, and then `instanceof ZodValidationException` is silently `false` and validation errors become `500`s.
 - User-entered text is NFC-normalised by `normalizeText()` before validation.
 
 ### 6.3 Auth markers and guards
@@ -577,7 +578,7 @@ Every durable consumer is a `JetStreamConsumer` subclass registered in `main.ts`
 
 **Builds** ([ADR 0012](./decisions/0012-swc-compiles-everything-and-nest-packages-are-commonjs.md)):
 
-- Every Nest service uses the shared Nest CLI preset: **SWC builder, `typeCheck: true`**. **MUST NOT** turn `typeCheck` off.
+- Every Nest service's `nest-cli.json` uses the **SWC builder with `typeCheck: true`** (architecture §3.2 has the exact shape). **MUST NOT** turn `typeCheck` off.
 - **Type-only imports MUST use `import type`** (`@typescript-eslint/consistent-type-imports`) — except a class injected through a constructor, whose metadata `import type` would erase, making Nest inject `undefined`. The lint rule is configured with `emitDecoratorMetadata` so its autofix leaves those alone.
 - Shared packages are compiled to `dist` (CommonJS + `.d.ts`); services never import a sibling's `src`.
 - Generated gRPC code and the Orval client are **committed** and checked for drift in CI; the Prisma client is **not** (`generated/`, git-ignored).

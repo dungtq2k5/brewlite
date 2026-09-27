@@ -1,0 +1,23 @@
+packages:
+  - apps/*
+  - services/*
+  - packages/*
+
+strictDepBuilds: true
+
+# Populated after the first install names what it wants to run; each entry is
+# allowed because its build script is required for the package to work.
+onlyBuiltDependencies:
+  - '@swc/core'
+  - esbuild
+  - prisma
+  - '@prisma/engines'
+  - simple-git-hooks
+  - '@bufbuild/buf'
+  - protobufjs
+  - '@scarf/scarf'
+
+# `ignoredBuiltDependencies` only silences the "would you like to allow this?" warning —
+# strictDepBuilds still fails the install unless the package is also listed above, so
+# @scarf/scarf (a telemetry-ping postinstall, harmless either way) is just allowed too.
+

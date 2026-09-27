@@ -1,0 +1,11 @@
+node_modules
+**/node_modules
+**/dist
+**/.turbo
+**/coverage
+.git
+docs/
+
+# Committed gRPC codegen (packages/contracts/src/generated) ships in the image and must
+# NOT be excluded — only the per-service, git-ignored Prisma client output is.
+services/*/generated

@@ -136,7 +136,7 @@ Every transition inserts one `order_status_history` (O-3) row in the same transa
 ### 2.2 Timestamps
 
 - `created_at TIMESTAMPTZ(3) NOT NULL DEFAULT now()` on every table.
-- `updated_at TIMESTAMPTZ(3) NOT NULL` on every mutable table, maintained by Prisma `@updatedAt`. Append-only tables have **no** `updated_at` — its absence documents that the row is never edited.
+- `updated_at TIMESTAMPTZ(3) NOT NULL DEFAULT now()` on every mutable table, maintained by Prisma `@updatedAt` — declared `@default(now()) @updatedAt`, because `@updatedAt` alone gives no database default and a raw insert fails `NOT NULL`. Append-only tables have **no** `updated_at` — its absence documents that the row is never edited.
 - Always `TIMESTAMPTZ`, stored in UTC. A calendar day (the sales report) is computed in **`Asia/Ho_Chi_Minh`** through the shared `businessDay()` helper, never the server's zone.
 
 ### 2.3 Strings
@@ -297,7 +297,7 @@ Everything Prisma cannot declare — partial unique indexes, `CHECK` constraints
 | **id** | UUID | PK | — |
 | **name_en** | VARCHAR(60) | NOT NULL | *Coffee*, *Tea*, *Blended*. §2.10 — unique among live categories (`categories_name_en_live_key`). |
 | **name_vi** | VARCHAR(60) | NOT NULL | *Cà phê*, *Trà*, *Đá xay*. §2.10 (`categories_name_vi_live_key`). |
-| **sort_order** | SMALLINT | NOT NULL, 0 | Menu order, ascending, then the name in the reader's locale. |
+| **sort_order** | SMALLINT | NOT NULL, 0 | Menu order, ascending, then `id` (creation order) — the API takes no locale, so the server cannot sort by a name. |
 | **is_active** | BOOLEAN | NOT NULL, true | An inactive category and all its products are hidden from the menu — the reversible *hide for now*; deleting is *gone*. |
 | **created_at** | TIMESTAMPTZ(3) | NOT NULL, now() | — |
 | **updated_at** | TIMESTAMPTZ(3) | NOT NULL | — |
