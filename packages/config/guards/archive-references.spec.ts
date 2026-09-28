@@ -20,7 +20,7 @@ function check(files: string[]): Violation[] {
     if (file.endsWith('.md')) {
       for (const [i, line] of content.split('\n').entries()) {
         if (MARKDOWN_LINK_TO_ARCHIVE.test(line)) {
-          violations.push({ file, line: i + 1, message: 'links into docs/archive/' });
+          violations.push({ file, line: i + 1, message: 'links into the archived docs tree' });
         }
       }
     } else {
@@ -52,7 +52,7 @@ function plant(relativePath: string, content: string) {
 
 describe('archive-references', () => {
   it('reports each planted violation by file and line', () => {
-    plant('docs/__lint-tmp-archive-link.md', '# x\n\nSee [the plan](./archive/impls/01.md).\n');
+    plant('docs/__lint-tmp-archive-link.md', '# x\n\nSee [the plan](./archive/plan.md).\n');
     // Built by concatenation so this guard's own source never contains the phrase it
     // forbids — the corpus check below would otherwise flag this very file.
     const forbiddenPhrase = ['impl', 'doc 01 §6'].join(' ');
@@ -74,8 +74,10 @@ describe('archive-references', () => {
     );
   });
 
-  it('conforming shapes pass: prose mentioning docs/archive/ in a .md file, no link', () => {
-    plant('docs/__lint-tmp-prose.md', '`docs/archive/` is git-ignored scratch.\n');
+  it('conforming shapes pass: prose mentioning the archived-docs path in a .md file, no link', () => {
+    // Built by concatenation so this guard's own source never contains the phrase it
+    // forbids — the corpus check below would otherwise flag this very file.
+    plant('docs/__lint-tmp-prose.md', '`docs' + '/archive/` is git-ignored scratch.\n');
     expect(check(['docs/__lint-tmp-prose.md'])).toEqual([]);
   });
 

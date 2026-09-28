@@ -72,7 +72,7 @@ brewlite/
 
 ### 1.2 Running beside other projects
 
-📌 [ADR 0027](./decisions/0027-host-ports-sit-in-the-2xxxx-range.md). This machine runs other stacks (Wayfare on `1xxxx`, Synapsedesk on its own set), so every host port BrewLite publishes is in the **2xxxx** range and every container is named `brewlite-<name>`. Inside the Compose network everything keeps its default port (`postgres:5432`, `nats:4222`).
+📌 [ADR 0027](./decisions/0027-host-ports-sit-in-the-2xxxx-range.md). This machine runs other stacks (Wayfare on `1xxxx`, Synapsedesk on its own set), so every host port BrewLite publishes is in the **2xxxx** range and every container is named `brewlite-<name>`. Inside the Compose network everything keeps its default port (`postgres:5432`, `nats:4222`). Every host port is published on `127.0.0.1` — nothing BrewLite runs is meant to be reachable from outside this machine.
 
 | Component | Host port | In-network |
 | :---- | :---- | :---- |
