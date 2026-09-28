@@ -24,6 +24,8 @@ export function rpcError<C extends ErrorCode>(
   if (definition.details) {
     const parsed: unknown = definition.details.parse(args[0]);
     metadata.set('bl-error-details-bin', Buffer.from(JSON.stringify(parsed), 'utf8'));
+  } else if (args[0] !== undefined) {
+    throw new Error(`rpcError: ${code} takes no details`);
   }
   return new RpcException({
     code: definition.grpc as unknown as (typeof GrpcStatus)[keyof typeof GrpcStatus],

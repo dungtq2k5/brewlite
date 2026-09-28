@@ -49,8 +49,10 @@ describe('rpcError', () => {
     }).toThrow();
   });
 
-  it('is a compile error to pass details to a code that takes none', () => {
-    // @ts-expect-error — INTERNAL takes no details
-    rpcError('INTERNAL', { x: 1 });
+  it('refuses details for a code that takes none — at compile time AND at runtime', () => {
+    expect(() =>
+      // @ts-expect-error — INTERNAL takes no details
+      rpcError('INTERNAL', { x: 1 }),
+    ).toThrow('INTERNAL takes no details');
   });
 });
