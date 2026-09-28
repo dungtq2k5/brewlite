@@ -54,7 +54,7 @@ Every route declares exactly one:
 ```
 
 - **`code` is the contract; `message` is not.** Codes are `SCREAMING_SNAKE`, registered in `ERRORS` in `packages/contracts` with their HTTP status, gRPC status and `details` schema (§7). The web app renders Vietnamese text from the code. `message` is English, for developers, and generic in production.
-- Validation failures are `400 VALIDATION_FAILED` with `details.issues: [{ path, code }]` — `path` a JSON pointer, `code` a zod issue code.
+- Validation failures are `400 VALIDATION_FAILED` with `details.issues: [{ path, code }]` — `path` an RFC 6901 JSON pointer (`''` for the root, `~0` / `~1` escapes), `code` a zod issue code.
 - `204` responses have no body. Ops routes (§11) are not wrapped.
 
 | HTTP | Used for |

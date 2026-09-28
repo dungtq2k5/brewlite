@@ -556,7 +556,7 @@ Everything Prisma cannot declare — partial unique indexes, `CHECK` constraints
 | **payment_id** | UUID | NOT NULL, **UNIQUE**, FK ➔ payments.id, RESTRICT | One refund per payment — a redelivered cancel event hits the unique index and does nothing. |
 | **order_id** | UUID | NOT NULL | ref ➔ ordering.orders.id. |
 | **amount_vnd** | INT | NOT NULL | Always the full `payments.amount_vnd` — partial refunds are out of scope. |
-| **reason** | VARCHAR(24) | NOT NULL | `STAFF_CANCELLED` (a paid order cancelled by staff) \| `ORDER_NOT_PAYABLE` (a payment that succeeded after its order was cancelled). |
+| **reason** | VARCHAR(24) | NOT NULL | `STAFF_CANCELLED \| ORDER_NOT_PAYABLE` — a paid order cancelled by staff, or a payment that succeeded after its order was cancelled. |
 | **status** | VARCHAR(16) | NOT NULL, `'PENDING'` | `PENDING \| SUCCEEDED \| FAILED` |
 | **stripe_refund_id** | VARCHAR(255) | Nullable, **UNIQUE** | NULL for `FAKE`, which succeeds at once. |
 | **created_at** | TIMESTAMPTZ(3) | NOT NULL, now() | — |

@@ -29,7 +29,7 @@ function fakeContext(): ExecutionContext {
 /**
  * Registered FIRST in `main.ts` = runs LAST on the way out. This chains the two
  * interceptors exactly that way and asserts the raw value is validated BEFORE the
- * envelope wraps it — the guard against reordering (impl doc 01 §9.1).
+ * envelope wraps it — the guard against reordering.
  */
 describe('response pipeline order (validation before envelope)', () => {
   it('wraps the already-validated value as { data }', async () => {

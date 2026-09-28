@@ -97,38 +97,73 @@ export const baseConfig = tseslint.config(
       ],
     },
   },
-  {
-    // Both `no-restricted-syntax` selectors live in one config object — flat config
-    // replaces (never merges) a rule set by the same name across matching objects, so a
-    // second block here would silently drop this one's selector for any overlapping file.
-    files: ['**/*.ts'],
-    ignores: [
-      'packages/nest-common/**',
-      '**/env.schema.ts',
-      '**/main.ts',
-      '**/prisma.config.ts',
-      '**/vitest.config.mts',
-      '**/test/setup/**',
-      '**/scripts/**',
-      // Deliberately redirects a client to an unreachable port for one e2e case.
-      '**/catalog-unavailable.e2e.spec.ts',
-    ],
-    rules: {
-      'no-restricted-syntax': [
-        'error',
-        {
-          selector: "NewExpression[callee.name='RpcException']",
-          message:
-            'Hand-built gRPC errors are forbidden — throw rpcError() instead (conventions §5.3).',
+  // Both `no-restricted-syntax` selector groups below join every config object that
+  // touches this rule name — flat config REPLACES (never merges) a rule set by the same
+  // name across matching objects, so a block that forgets a selector silently drops it
+  // for any file that block matches (conventions §3.2, §16.4 lint check).
+  (() => {
+    const SORT_SELECTOR = {
+      selector: "CallExpression[callee.property.name='sort'][arguments.length=0]",
+      message:
+        'A bare .sort() sorts by String(x) in code-unit order, silently wrong for numbers (conventions §3.2).',
+    };
+    const LOCALE_COMPARE_SELECTOR = {
+      selector: "CallExpression[callee.property.name='localeCompare']",
+      message:
+        'localeCompare() is locale-dependent ordering of a machine string — use compareStrings() (conventions §3.2).',
+    };
+    // ponytail: no `**/test/**` carve-out for this selector (the doc's spec wants one) —
+    // nothing in the repo currently calls delete()/deleteMany() from a test, so the
+    // narrower scope adds config complexity with no current payoff. A test that
+    // legitimately needs a raw delete gets an inline eslint-disable-next-line with a `//`
+    // comment (conventions §13.2's pattern), add the carve-out if that becomes common.
+    const HARD_DELETE_SELECTOR = {
+      selector:
+        'CallExpression[callee.property.name=/^(delete|deleteMany)$/][callee.object.property.name=/^(user|category|product|topping|promotion)$/]',
+      message: 'A hard delete of a soft-deletable model is forbidden (conventions §7.3).',
+    };
+    const SHARED_SYNTAX = [SORT_SELECTOR, LOCALE_COMPARE_SELECTOR, HARD_DELETE_SELECTOR];
+
+    return [
+      {
+        files: ['**/*.ts'],
+        rules: {
+          'no-restricted-syntax': ['error', ...SHARED_SYNTAX],
         },
-        {
-          selector: "MemberExpression[object.object.name='process'][object.property.name='env']",
-          message:
-            'Read configuration through the zod env schema, not process.env directly (conventions §12).',
+      },
+      {
+        files: ['**/*.ts'],
+        ignores: [
+          'packages/nest-common/**',
+          '**/env.schema.ts',
+          '**/main.ts',
+          '**/prisma.config.ts',
+          '**/vitest.config.mts',
+          '**/test/setup/**',
+          '**/scripts/**',
+          // Deliberately redirects a client to an unreachable port for one e2e case.
+          '**/catalog-unavailable.e2e.spec.ts',
+        ],
+        rules: {
+          'no-restricted-syntax': [
+            'error',
+            ...SHARED_SYNTAX,
+            {
+              selector: "NewExpression[callee.name='RpcException']",
+              message:
+                'Hand-built gRPC errors are forbidden — throw rpcError() instead (conventions §5.3).',
+            },
+            {
+              selector:
+                "MemberExpression[object.object.name='process'][object.property.name='env']",
+              message:
+                'Read configuration through the zod env schema, not process.env directly (conventions §12).',
+            },
+          ],
         },
-      ],
-    },
-  },
+      },
+    ];
+  })(),
 );
 
 export default baseConfig;

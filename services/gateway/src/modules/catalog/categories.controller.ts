@@ -6,7 +6,7 @@ import { CategoryResponseDto } from './dto/category-response.dto.js';
 
 /**
  * No `@Auth('PUBLIC')` marker and no `PUBLIC_READ` rate limit yet — the marker system
- * and the throttler arrive in 03, which must mark this route (impl doc 01 §9.2).
+ * and the throttler need identity's auth guard first, and must mark this route once it exists.
  */
 @Controller('categories')
 export class CategoriesController {

@@ -4,7 +4,7 @@ import type { NextFunction, Request, Response } from 'express';
 /**
  * One helmet middleware, chosen by path — a second `helmet()` scoped to `/docs` cannot
  * loosen a header the global one already set, and helmet's default CSP blocks Swagger
- * UI's inline scripts (impl doc 01 §9.1).
+ * UI's inline scripts.
  */
 export function pathAwareHelmet() {
   const strict = helmet();

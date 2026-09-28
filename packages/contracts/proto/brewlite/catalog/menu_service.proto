@@ -4,7 +4,7 @@ package brewlite.catalog;
 
 import "brewlite/common/localized_text.proto";
 
-// 02 adds ListProducts, GetProduct, PriceItems to this service.
+// This service will grow ListProducts, GetProduct and PriceItems as the catalog service does.
 service MenuService {
   rpc ListCategories(ListCategoriesRequest) returns (ListCategoriesResponse);
 }

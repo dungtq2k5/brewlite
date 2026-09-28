@@ -4,9 +4,9 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 /**
- * The one unstubbed case (impl doc 01 §10): a real `CatalogServiceGrpcClient` against a
- * closed port must answer 503 within the 2 s deadline, never 504 — the channel never
- * reached `READY` (architecture §2.2).
+ * The one unstubbed case: a real `CatalogServiceGrpcClient` against a closed port must
+ * answer 503 within the 2 s deadline, never 504 — the channel never reached `READY`
+ * (architecture §2.2).
  */
 describe('gateway e2e — catalog peer unreachable', () => {
   let app: NestExpressApplication;

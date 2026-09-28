@@ -7,7 +7,7 @@ import { CatalogModule } from './modules/catalog/catalog.module.js';
   imports: [
     createConfigModule(envSchema),
     BrewliteLoggerModule,
-    // No dependency declared yet — readiness equals liveness (03 adds Redis, 07 NATS).
+    // No dependency declared yet — readiness equals liveness until Redis and NATS join.
     OpsModule.forRoot({ packageJsonDir: __dirname }),
     CatalogModule,
   ],

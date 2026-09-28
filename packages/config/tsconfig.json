@@ -2,7 +2,11 @@
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
     "outDir": "dist",
-    "rootDir": "."
+    "rootDir": ".",
+    "baseUrl": ".",
+    "paths": {
+      "@brewlite/contracts": ["../contracts/src/index.ts"]
+    }
   },
   "include": ["**/*.ts", "**/*.mts"]
 }

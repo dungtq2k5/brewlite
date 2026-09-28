@@ -43,6 +43,9 @@ jobs:
 
       - run: pnpm test
 
+      - name: Guard specs
+        run: pnpm --filter @brewlite/config exec vitest run --project guards
+
       - name: Regenerate the OpenAPI document and fail on drift
         run: pnpm --filter @brewlite/gateway openapi:emit && git diff --exit-code
 

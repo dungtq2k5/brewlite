@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { ZodValidationException } from 'nestjs-zod';
-import { ERRORS, type ErrorCode } from '@brewlite/contracts';
+import { ERRORS, GrpcStatus, type ErrorCode } from '@brewlite/contracts';
 import {
   isGrpcServiceError,
   readErrorCode,
@@ -20,8 +20,14 @@ interface ZodIssueLike {
   code: string;
 }
 
+/** RFC 6901: `''` for the root; each segment escapes `~` → `~0` and `/` → `~1`. */
+function toJsonPointer(path: (string | number)[]): string {
+  if (path.length === 0) return '';
+  return `/${path.map((segment) => String(segment).replaceAll('~', '~0').replaceAll('/', '~1')).join('/')}`;
+}
+
 /**
- * The gateway half of `rpcError` (conventions §5.3, impl doc 01 §6.4). Every response
+ * The gateway half of `rpcError` (conventions §5.3). Every response
  * carries `requestId`. Production silence (§13.3): every `5xx` and `403` gets a generic
  * message, keeping its `code`; no stack leaves the process.
  */
@@ -56,7 +62,7 @@ export class ErrorFilter implements ExceptionFilter {
     if (exception instanceof ZodValidationException) {
       const zodError = exception.getZodError() as { issues: ZodIssueLike[] };
       const issues = zodError.issues.map((issue) => ({
-        path: `/${issue.path.join('/')}`,
+        path: toJsonPointer(issue.path),
         code: issue.code,
       }));
       return { status: 400, code: 'VALIDATION_FAILED', details: { issues } };
@@ -78,8 +84,15 @@ export class ErrorFilter implements ExceptionFilter {
         const rawDetails = readErrorDetails(exception);
         if (!definition.details) return { status: definition.http, code: errorCode };
         const parsed = definition.details.safeParse(rawDetails);
-        if (parsed.success)
+        if (parsed.success) {
+          // The required permission is not named in production (api-endpoints-plan §7,
+          // conventions §13.3). ACCOUNT_LOCKED, the other 403 with details, keeps its
+          // details — the user needs to know when the lock lifts.
+          if (this.isProduction && errorCode === 'PERMISSION_DENIED') {
+            return { status: definition.http, code: errorCode };
+          }
           return { status: definition.http, code: errorCode, details: parsed.data };
+        }
         this.logger.error({ requestId, blCode }, 'gRPC error details failed their schema');
         return { status: 500, code: 'INTERNAL' };
       }
@@ -87,10 +100,12 @@ export class ErrorFilter implements ExceptionFilter {
         this.logger.error({ requestId, blCode }, 'Unknown bl-error-code crossed the boundary');
         return { status: 500, code: 'INTERNAL' };
       }
-      if (exception.code === 14 /* UNAVAILABLE */)
+      if (exception.code === GrpcStatus.UNAVAILABLE) {
         return { status: 503, code: 'UPSTREAM_UNAVAILABLE' };
-      if (exception.code === 4 /* DEADLINE_EXCEEDED */)
+      }
+      if (exception.code === GrpcStatus.DEADLINE_EXCEEDED) {
         return { status: 504, code: 'UPSTREAM_TIMEOUT' };
+      }
     }
 
     this.logger.error({ requestId, err: exception }, 'Unhandled exception');

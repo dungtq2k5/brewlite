@@ -39,8 +39,7 @@ function findPackageJson(startDir: string): { name?: string; version?: string } 
 /**
  * `GET /health`, `GET /health/ready`, `GET /version` — all `VERSION_NEUTRAL`,
  * `@SkipEnvelope()`, excluded from the global prefix. Backend services serve them on
- * `OPS_PORT`; the gateway serves them on its own `PORT` and opens no second listener
- * (impl doc 01 §6.5).
+ * `OPS_PORT`; the gateway serves them on its own `PORT` and opens no second listener.
  */
 @ApiExcludeController()
 @Controller()

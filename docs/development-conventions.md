@@ -150,6 +150,7 @@ The web app imports it, so it **MUST NOT** import `node:*` or any Node-only pack
   export const ORDER_STATUSES = Object.values(OrderStatus);
   ```
 
+- Every enumerated **column** has its enum in `enums.ts`; enums that exist only inside an error's `details` (`ResourceKind`, `PromoInvalidReason`, …) live in `error-details.ts`. The order's refund view and the refund row are different enums, `OrderRefundStatus` and `RefundStatus`. A subset is derived from the enum (`STAFF_BOARD_STATUSES`), never retyped.
 - A literal map used as keys (event subjects, SSE event names, rate-limit classes) is `as const` plus a derived union.
 - **Every limit the edge validates and the database bounds is one constant** — `ORDER_NOTE_MAX_LENGTH`, `MAX_QTY_PER_LINE` — imported by the zod schema and named in the rdm-spec column. Never a `200` typed twice.
 - **A field typed `string` where a union exists is a bug.** Narrow at the boundary by parsing (zod, `parseEnum`), never by casting.
@@ -224,7 +225,7 @@ return ids.map((id) => byId.get(id) ?? null);
 
 ### 5.3 Errors across the boundary
 
-A service throws only through `rpcError(code, details?)`. `ERRORS[code]` in `packages/contracts` holds the gRPC status, the HTTP status and the `details` schema, so a code can never travel with two statuses. Only the code crosses the wire — trailing metadata `bl-error-code`, plus `bl-error-details-bin` (UTF-8 JSON) when there are details — and the gateway looks the HTTP status up in the same registry:
+A service throws only through `rpcError(code, details?)`. `ERRORS[code]` in `packages/contracts` holds the gRPC status, the HTTP status and the `details` schema, so a code can never travel with two statuses. Only the code crosses the wire — trailing metadata `bl-error-code`, plus `bl-error-details-bin` (UTF-8 JSON) when there are details — and the gateway looks the HTTP status up in the same registry. `rpcError` is typed by the code — a code with a `details` schema requires details, one without refuses them — and parses the details at the call, so a wrong shape fails where it was built:
 
 ```ts
 throw rpcError('OUT_OF_STOCK', { products: [{ productId, available: 0 }] });
@@ -685,16 +686,17 @@ Graded evidence (product-overview F10). Each is its own named integration test a
 
 ### 16.4 Guard specs
 
-A guard spec turns a repo-wide rule into a failing test. Guards live in `packages/config/guards/` and run as the Vitest project `unit:guards`, in `pnpm test` and as a named CI step. Each has four tests: the rule holds over the corpus; planted violations are reported; conforming shapes pass; the corpus is real (non-empty, contains a named file). The corpus comes from `git ls-files`, never a directory walk.
+A guard spec turns a repo-wide rule into a failing test. Guards live in `packages/config/guards/` and run as the Vitest project `guards`, in `pnpm test` and as a named CI step. A guard that reads `@brewlite/contracts` reaches its source through a TypeScript `paths` alias, never a package dependency — `contracts` already depends on `config`, and the reverse would be a cycle. Each has four tests: the rule holds over the corpus; planted violations are reported; conforming shapes pass; the corpus is real (non-empty, contains a named file). The corpus comes from `git ls-files`, never a directory walk.
 
 | Guard | Rule |
 | :---- | :---- |
 | `adr-structure.spec.ts` | every ADR matches `docs/decisions/TEMPLATE.md` and has a row in `docs/README.md` |
-| `archive-references.spec.ts` | nothing tracked cites `docs/archive/` |
+| `archive-references.spec.ts` | no markdown file links into `docs/archive/`; no other tracked file names it or cites an implementation doc |
 | `module-files.spec.ts` | every file under `services/*/src/modules/` has a known role; `domain/` imports no Nest or Prisma; no `*.repository.ts` |
 | `env-contract.spec.ts` | the env schema, `.env.example` and architecture §10 list the same variables |
-| `i18n-keys.spec.ts` | `apps/web/src/i18n/locales/en` and `vi` have the same namespaces and the same keys (plural suffixes normalised), and every code in `ERRORS` has an `errors` key |
-| `api-contract-sync.spec.ts` | api-endpoints-plan §7, §8 and §10 agree with `ERRORS`, the event registry and `PERMISSIONS` |
+| `rdm-contract-sync.spec.ts` | every enumerated column in rdm-spec §3 (a leading backticked `A \| B` span) equals its enum in `packages/contracts`, and every `…_MAX_LENGTH` constant equals its column's `VARCHAR(n)` |
+| `i18n-keys.spec.ts` | once the web app exists: `apps/web/src/i18n/locales/en` and `vi` have the same namespaces and the same keys (plural suffixes normalised), and every code in `ERRORS` has an `errors` key |
+| `api-contract-sync.spec.ts` | api-endpoints-plan §7, §10 and §0.8 agree with `ERRORS` (codes and HTTP status), `PERMISSIONS` / `ROLE_PERMISSIONS` and `RATE_LIMITS`; §8 against the event registry once it exists |
 
 ---
 

@@ -11,7 +11,7 @@ import { SKIP_ENVELOPE_KEY } from './skip-envelope.decorator.js';
 /**
  * Wraps a handler's raw return value as `{ data }`. Registered FIRST in `main.ts` so it
  * runs LAST on the way out — after `ResponseValidationInterceptor` has already checked
- * the raw value (§9.1 of impl doc 01).
+ * the raw value.
  */
 @Injectable()
 export class ResponseEnvelopeInterceptor implements NestInterceptor {

@@ -142,7 +142,7 @@ zod schema (gateway dto/) ─nestjs-zod─▶ DTO class + runtime validation
 ```
 
 - Request and response shapes are **zod schemas**, turned into Nest DTOs by **nestjs-zod**, so the schema that validates is the schema that is documented.
-- `pnpm --filter @brewlite/gateway openapi:emit` builds the OpenAPI document **without listening** and writes `services/gateway/openapi.json`. That file is committed; CI regenerates it and the Orval output and fails on any diff. A backend change that breaks the client **fails the web app's type check**.
+- `pnpm --filter @brewlite/gateway openapi:emit` builds the OpenAPI document **without listening** and writes `services/gateway/openapi.json`, **formatted with Prettier** so it matches `format:check` byte for byte. That file is committed; CI regenerates it and the Orval output and fails on any diff. A backend change that breaks the client **fails the web app's type check**.
 - **Orval** generates with the `fetch` client and a custom mutator (base URL, bearer token, `Idempotency-Key`), plus zod schemas the web app reuses for form validation. No TanStack Query hooks.
 - **Prefix and versioning:** `GLOBAL_PREFIX` (`api`) + Nest URI versioning, `defaultVersion: '1'` → `/api/v1/...`. A breaking change versions one route, never the API. Ops routes and the Stripe webhook are version-neutral.
 - Swagger UI at `/docs`, JSON at `/docs-json` — off in production.

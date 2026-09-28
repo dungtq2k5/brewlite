@@ -31,6 +31,20 @@ function serviceError(code: number, metadataEntries: [string, string | Buffer][]
   return Object.assign(new Error('boom'), { code, metadata, details: 'boom' });
 }
 
+function accountLockedError() {
+  return serviceError(7, [
+    ['bl-error-code', 'ACCOUNT_LOCKED'],
+    ['bl-error-details-bin', Buffer.from(JSON.stringify({ lockedUntil: null }), 'utf8')],
+  ]);
+}
+
+function permissionDeniedError() {
+  return serviceError(7, [
+    ['bl-error-code', 'PERMISSION_DENIED'],
+    ['bl-error-details-bin', Buffer.from(JSON.stringify({ required: ['user.manage'] }), 'utf8')],
+  ]);
+}
+
 describe('ErrorFilter', () => {
   it('maps a Zod validation exception to 400 VALIDATION_FAILED with issues', () => {
     const filter = new ErrorFilter(false);
@@ -118,5 +132,60 @@ describe('ErrorFilter', () => {
     const { host, res } = fakeHost();
     filter.catch(new Error('x'), host);
     expect(body(res).error.message).toBe('INTERNAL');
+  });
+
+  describe('JSON pointers (RFC 6901)', () => {
+    it('is "" for the root', () => {
+      const filter = new ErrorFilter(false);
+      const { host, res } = fakeHost();
+      const zodError = z.number().safeParse('not a number').error!;
+      filter.catch(new ZodValidationException(zodError), host);
+      const issues = (body(res).error.details as { issues: { path: string }[] }).issues;
+      expect(issues[0]?.path).toBe('');
+    });
+
+    it('joins nested array/object segments with a leading /', () => {
+      const filter = new ErrorFilter(false);
+      const { host, res } = fakeHost();
+      const schema = z.object({ items: z.array(z.object({ qty: z.number() })) });
+      const zodError = schema.safeParse({ items: [{ qty: 'bad' }] }).error!;
+      filter.catch(new ZodValidationException(zodError), host);
+      const issues = (body(res).error.details as { issues: { path: string }[] }).issues;
+      expect(issues[0]?.path).toBe('/items/0/qty');
+    });
+
+    it('escapes ~ and / inside a key', () => {
+      const filter = new ErrorFilter(false);
+      const { host, res } = fakeHost();
+      const schema = z.object({ 'a/b': z.object({ 'c~d': z.number() }) });
+      const zodError = schema.safeParse({ 'a/b': { 'c~d': 'bad' } }).error!;
+      filter.catch(new ZodValidationException(zodError), host);
+      const issues = (body(res).error.details as { issues: { path: string }[] }).issues;
+      expect(issues[0]?.path).toBe('/a~1b/c~0d');
+    });
+  });
+
+  describe('PERMISSION_DENIED production silence', () => {
+    it('outside production, names the required permission', () => {
+      const filter = new ErrorFilter(false);
+      const { host, res } = fakeHost();
+      filter.catch(permissionDeniedError(), host);
+      expect(body(res).error.details).toEqual({ required: ['user.manage'] });
+    });
+
+    it('in production, drops the details but keeps the code', () => {
+      const filter = new ErrorFilter(true);
+      const { host, res } = fakeHost();
+      filter.catch(permissionDeniedError(), host);
+      expect(body(res).error.code).toBe('PERMISSION_DENIED');
+      expect(body(res).error.details).toBeUndefined();
+    });
+
+    it('ACCOUNT_LOCKED keeps its details even in production', () => {
+      const filter = new ErrorFilter(true);
+      const { host, res } = fakeHost();
+      filter.catch(accountLockedError(), host);
+      expect(body(res).error.details).toEqual({ lockedUntil: null });
+    });
   });
 });

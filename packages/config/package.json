@@ -9,7 +9,6 @@
   "files": [
     "tsconfig.base.json",
     "eslint.config.mjs",
-    "nest-cli.preset.json",
     "vitest.preset.ts",
     "markdownlint"
   ],
@@ -22,6 +21,7 @@
   },
   "devDependencies": {
     "markdownlint": "^0.37.4",
+    "unplugin-swc": "^1.5.1",
     "vitest": "^4.0.0"
   }
 }

@@ -26,13 +26,13 @@ export interface Category {
 
 export const BREWLITE_CATALOG_PACKAGE_NAME = "brewlite.catalog";
 
-/** 02 adds ListProducts, GetProduct, PriceItems to this service. */
+/** This service will grow ListProducts, GetProduct and PriceItems as the catalog service does. */
 
 export interface MenuServiceClient {
   listCategories(request: ListCategoriesRequest, metadata?: Metadata): Observable<ListCategoriesResponse>;
 }
 
-/** 02 adds ListProducts, GetProduct, PriceItems to this service. */
+/** This service will grow ListProducts, GetProduct and PriceItems as the catalog service does. */
 
 export interface MenuServiceController {
   listCategories(

@@ -10,7 +10,7 @@ const VALID_REQUEST_ID = /^[A-Za-z0-9._-]{1,64}$/;
  * UUIDv7. Sets it on the response and hands it to `nestjs-pino` (`genReqId`) and
  * `BaseGrpcClient`. An invalid header is replaced, not refused. The rest of the request
  * runs inside `runWithRequestId` so every log line — not only pino-http's own
- * request/response pair — carries it via the logger's `mixin` (impl doc 01 check 6).
+ * request/response pair — carries it via the logger's `mixin`.
  */
 export function requestIdMiddleware(req: Request, res: Response, next: NextFunction): void {
   const header = req.header('x-request-id');

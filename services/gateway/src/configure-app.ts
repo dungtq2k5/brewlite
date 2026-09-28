@@ -15,7 +15,7 @@ import type { Env } from './config/env.schema.js';
 
 /**
  * The pipeline shared by `main.ts` and the e2e tests, so a test proves the same
- * configuration that actually runs in production (impl doc 01 §9.1).
+ * configuration that actually runs in production.
  */
 export function configureApp(app: NestExpressApplication): {
   isProduction: boolean;

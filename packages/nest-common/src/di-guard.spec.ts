@@ -3,7 +3,7 @@ import { Test } from '@nestjs/testing';
 import { describe, expect, it } from 'vitest';
 
 /**
- * The DI trap guard (conventions §2, impl doc 01 §2): a class injected through a
+ * The DI trap guard (conventions §2): a class injected through a
  * constructor must not become `import type`, or its metadata becomes `Object` and Nest
  * injects `undefined`. This boots a real module and checks the dependency actually
  * arrived — a config regression here fails this test, not a production boot.
