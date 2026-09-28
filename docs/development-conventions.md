@@ -206,7 +206,7 @@ if (order.userId !== caller.userId) throw rpcError('PERMISSION_DENIED', { requir
 `.proto` files live in `packages/contracts/proto/brewlite/<service>/`, `package brewlite.<service>;`. Change the proto → `pnpm proto:generate` → fix both ends. **Never hand-edit generated code.** `buf lint` runs in CI.
 
 - Every RPC has its own `…Request` / `…Response` message, even when two would be identical.
-- Enum members are prefixed with the enum name (`ORDER_STATUS_PAID`) and the zero member is `…_UNSPECIFIED`, which a service **MUST** reject as invalid input, never default.
+- A domain enum crosses gRPC as a plain `string` field, not a proto `enum` — a `stringEnums` proto enum arrives as `'PRODUCT_SIZE_M'`, not the contracts value `'M'`, so every enum would need a bridge table both ways. The receiver parses it with `parseEnum(Enum, value)`, which refuses anything unknown.
 - `int64` fields (`order_no`) are strings in TypeScript; the mapper converts with a safe-integer check.
 - Protobuf has no `null`. The mapper converts `undefined` → `null` field by field, so response shapes stay stable.
 - The loader runs with `oneofs: false`, or every `optional` field arrives with a synthetic `_field` key. Its options are **one constant**, `PROTO_LOADER_OPTIONS` in `nest-common`, shared by server and client — `longs: String` pairs with ts-proto's `forceLong=string`, `enums: String` with `stringEnums`. A mismatch compiles and then compares a number with a string at runtime.
@@ -391,7 +391,7 @@ if (count === 0) { /* re-read: short → OUT_OF_STOCK; else retry, max STOCK_RES
 ### 7.8 Query hygiene
 
 - `select` the columns you need. A `findMany` on `users` without `select` loads `password_hash`.
-- Filter and sort in the database, never in JavaScript.
+- Filter and sort in the database, never in JavaScript. **The one exception:** the cached public menu (architecture §2.6) — the cache holds the whole menu (bounded at `MAX_MENU_PRODUCTS`), and a `categoryId` filter is applied to the cached array, because filtering in SQL would mean a query, and therefore a cache, per category.
 - A list query has a `take`. An unbounded `findMany` is a bug even when today's table is small.
 - **Read back after a transaction, not inside it**, when the response needs several relations.
 - A multi-row invariant that is not a single conditional update (a promotion's `max_uses` and per-customer limit) takes a **row lock** — `SELECT … FOR UPDATE` in a `lock…` method taking `tx` — before reading what it checks.

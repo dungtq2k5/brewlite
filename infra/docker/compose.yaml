@@ -68,12 +68,15 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       NODE_ENV: production
       LOG_LEVEL: info
       DATABASE_URL: postgresql://brewlite:brewlite@postgres:5432/brewlite_catalog
       GRPC_URL: 0.0.0.0:25052
       OPS_PORT: '23102'
+      REDIS_URL: redis://redis:6379/0
     ports:
       - '127.0.0.1:23102:23102'
       - '127.0.0.1:25052:25052'

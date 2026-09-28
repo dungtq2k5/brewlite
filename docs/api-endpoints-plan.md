@@ -383,7 +383,7 @@ web ──POST /orders + Idempotency-Key──▶ gateway ──PlaceOrder──
 ordering:
   1. (user, key) exists?  same request_hash → return it (200) · different → 422 IDEMPOTENCY_KEY_REUSED
   2. orderId = newId()
-  3. catalog.PriceItems(lines)                  → priced lines, or PRODUCT_UNAVAILABLE / OPTION_INVALID
+  3. catalog.PriceItems(lines)                  → priced lines, or PRODUCT_UNAVAILABLE / OPTION_INVALID / OUT_OF_STOCK (read-only check)
   4. validate promo (read-only), compute totals → PROMO_CODE_INVALID / ORDER_TOTAL_TOO_LOW
   5. catalog.ReserveStock(orderId, lines)       → HELD reservations, or OUT_OF_STOCK / STOCK_CONTENDED
   6. transaction: lock + re-validate promotion, used_count + 1, insert O-1 PENDING, O-2, O-3
@@ -527,6 +527,8 @@ gRPC packages are `brewlite.<service>`; protos in `packages/contracts/proto/brew
 | `ordering.OrderService.GetOrderStatus(orderId)` | catalog (orphan sweep) | the sweep must not guess | skip the row; the next run retries |
 | `payment.PaymentService.ListPaymentsForOrder(orderId)` | gateway (composition, §3.4) | — | `payments: null`, `meta.degraded` |
 
+`PriceItems` also runs a read-only `OUT_OF_STOCK` check (summed per counted product across the caller's lines) so the quote can refuse early — the reservation in `ReserveStock` stays the authority, since stock can change between the two calls. It returns every field O-2 snapshots — both product and topping names, base price, size delta, unit price — so ordering never reads catalog again to build an order line (rdm-spec §1.4).
+
 Every call has a **2 s deadline** and goes through `BaseGrpcClient` (development-conventions §5.2).
 
 ---
@@ -558,7 +560,7 @@ Every service serves these — backend services on `OPS_PORT`, the gateway on it
 | Method | Path | Description | Auth |
 | :---- | :---- | :---- | :---- |
 | GET | `/health` | Liveness: the process is up. | PUBLIC |
-| GET | `/health/ready` | Readiness: **this service's own** dependencies — its database, Redis, NATS. Never a gRPC peer. The gateway checks Redis and NATS. | PUBLIC |
+| GET | `/health/ready` | Readiness: **this service's own** dependencies — its database, Redis, NATS. Never a gRPC peer. The gateway checks Redis and NATS. Only a dependency the service cannot serve without — catalog's menu reads survive Redis being down (architecture §2.6), so Redis joins catalog's readiness only once a background job needs it. | PUBLIC |
 | GET | `/version` | `{ service, version, gitSha, builtAt }`. | PUBLIC |
 | GET | `/docs`, `/docs-json` | Swagger UI and the OpenAPI document. Gateway only; `SWAGGER_ENABLED=false` in production. | PUBLIC |
 

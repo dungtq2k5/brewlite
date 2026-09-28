@@ -6,6 +6,7 @@ export * from './grpc/proto-loader-options.js';
 export * from './grpc/base-grpc.client.js';
 export * from './grpc/request-id.js';
 export * from './grpc/request-context.js';
+export * from './grpc/grpc-request-context.interceptor.js';
 export * from './http/request-id.middleware.js';
 export * from './http/path-aware-helmet.js';
 export * from './http/response-envelope.interceptor.js';

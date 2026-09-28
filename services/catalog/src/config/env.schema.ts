@@ -8,6 +8,8 @@ export const envSchema = z.object({
   DATABASE_URL_SHADOW: z.string().url().optional(),
   GRPC_URL: z.string(),
   OPS_PORT: z.coerce.number().int().positive(),
+  REDIS_URL: z.string().url(),
+  REDIS_URL_TEST: z.string().url().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

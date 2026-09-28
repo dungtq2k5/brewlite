@@ -19,5 +19,71 @@ model Category {
   deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(3)
   deletedById String?   @map("deleted_by_id") @db.Uuid /// ref ➔ identity.users.id — no FK
 
+  products Product[]
+
   @@map("categories")
+}
+
+model Product {
+  id            String    @id @default(uuid(7)) @db.Uuid
+  categoryId    String    @map("category_id") @db.Uuid
+  nameEn        String    @map("name_en") @db.VarChar(100)
+  nameVi        String    @map("name_vi") @db.VarChar(100)
+  descriptionEn String?   @map("description_en") @db.VarChar(500)
+  descriptionVi String?   @map("description_vi") @db.VarChar(500)
+  basePriceVnd  Int       @map("base_price_vnd")
+  imagePath     String?   @map("image_path") @db.VarChar(255)
+  isAvailable   Boolean   @default(true) @map("is_available")
+  stockQty      Int?      @map("stock_qty")
+  version       Int       @default(0)
+  sortOrder     Int       @default(0) @map("sort_order") @db.SmallInt
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt     DateTime? @map("deleted_at") @db.Timestamptz(3)
+  deletedById   String?   @map("deleted_by_id") @db.Uuid /// ref ➔ identity.users.id — no FK
+
+  category Category        @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  sizes    ProductSize[]
+  toppings ProductTopping[]
+
+  @@index([categoryId])
+  @@map("products")
+}
+
+model ProductSize {
+  productId     String @map("product_id") @db.Uuid
+  size          String @db.VarChar(1) /// ProductSize in @brewlite/contracts
+  priceDeltaVnd Int    @map("price_delta_vnd")
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@id([productId, size])
+  @@map("product_sizes")
+}
+
+model Topping {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  nameEn      String    @map("name_en") @db.VarChar(60)
+  nameVi      String    @map("name_vi") @db.VarChar(60)
+  priceVnd    Int       @map("price_vnd")
+  isAvailable Boolean   @default(true) @map("is_available")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(3)
+  deletedById String?   @map("deleted_by_id") @db.Uuid /// ref ➔ identity.users.id — no FK
+
+  products ProductTopping[]
+
+  @@map("toppings")
+}
+
+model ProductTopping {
+  productId String @map("product_id") @db.Uuid
+  toppingId String @map("topping_id") @db.Uuid
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  topping Topping @relation(fields: [toppingId], references: [id], onDelete: Cascade)
+
+  @@id([productId, toppingId])
+  @@map("product_toppings")
 }

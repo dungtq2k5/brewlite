@@ -6,7 +6,7 @@
     "builder": {
       "type": "swc",
       "options": {
-        "filenames": ["src", "generated"]
+        "filenames": ["src", "generated", "prisma/seed"]
       }
     },
     "typeCheck": true,

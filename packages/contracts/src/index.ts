@@ -10,3 +10,4 @@ export * from './constants.js';
 export * from './text.js';
 export * from './ids.js';
 export * from './localized-text.js';
+export * from './pricing/compute-unit-price.js';

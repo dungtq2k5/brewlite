@@ -138,6 +138,7 @@ export const baseConfig = tseslint.config(
           '**/env.schema.ts',
           '**/main.ts',
           '**/prisma.config.ts',
+          '**/prisma/seed/**',
           '**/vitest.config.mts',
           '**/test/setup/**',
           '**/scripts/**',

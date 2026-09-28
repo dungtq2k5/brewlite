@@ -179,7 +179,8 @@ GATEWAY (no database)
 📌 [ADR 0023](./decisions/0023-redis-holds-only-reconstructible-state.md). One Redis, three jobs, all reconstructible:
 
 - **Rate limits** — `@nestjs/throttler` in the gateway with Redis storage, so limits hold across replicas. Classes in api-endpoints-plan §0.8.
-- **Cache** — catalog caches the public menu (`catalog:menu`) and deletes the key after every menu write commits, and when a product's stock crosses zero. `MENU_CACHE_TTL_MS` is only the backstop. **The web app caches no API data**: one cache layer, one place to invalidate.
+- **Cache** — catalog caches the public menu (`catalog:menu`) and deletes the key after every menu write commits, and when a product's stock crosses zero. `MENU_CACHE_TTL_MS` is only the backstop. A cache read or write never fails the request it backs: on any Redis error the call logs one `warn` and falls back to the database. **The web app caches no API data**: one cache layer, one place to invalidate.
+- **`/health/ready` lists only what a service cannot serve without.** Catalog's menu reads survive a Redis outage (the line above), so Redis is not in catalog's readiness until a background job (below) makes it required.
 - **Background jobs** — **BullMQ** via `@nestjs/bullmq`, as repeatable jobs with stable ids (never `@Cron`, which fires once per replica):
 
 | Job | Service | Every | Does |
@@ -470,7 +471,8 @@ Every Nest service declares its variables in `src/config/env.schema.ts` (zod), l
 | `DATABASE_URL_TEST` | same | same server, `brewlite_<svc>_test` |
 | `DATABASE_URL_SHADOW` | same | `brewlite_<svc>_shadow`, drift check only |
 | `PRISMA_DB` | Prisma CLI only | `working` (default) or `test` |
-| `REDIS_URL` | gateway, identity, catalog, ordering, payment | `redis://localhost:26379` |
+| `REDIS_URL` | gateway, identity, catalog, ordering, payment | `redis://localhost:26379/0` |
+| `REDIS_URL_TEST` | catalog | `redis://localhost:26379/15` — database 15 of the same server, so integration tests never touch the development cache |
 | `NATS_URL` | gateway, catalog, ordering, payment | `nats://localhost:24222` |
 | `NATS_URL_TEST` | catalog, ordering, payment | `nats://localhost:24223` — integration tests never publish to the development broker |
 | `GRPC_URL` | identity, catalog, ordering, payment | own bind address, e.g. `0.0.0.0:25052` |
