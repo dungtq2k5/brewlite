@@ -32,6 +32,7 @@ export const STOCK_RESERVE_MAX_RETRIES = 5;
 // api-endpoints-plan §0.4
 export const MAX_MENU_PRODUCTS = 200;
 export const MAX_MENU_CATEGORIES = 50;
+export const MAX_ADMIN_TOPPINGS = 100;
 export const STAFF_BOARD_MAX_ORDERS = 100;
 export const DEFAULT_PAGE_SIZE = 20;
 export const MAX_PAGE_SIZE = 100;

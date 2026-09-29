@@ -25,6 +25,7 @@ import {
   toProtoProductDetail,
   toProtoProductSummary,
 } from './product.mapper.js';
+import { ImageUrlBuilder } from './image-url-builder.service.js';
 import { MenuCache } from './menu-cache.service.js';
 import { toJsonPointer, zPriceItemsRequest } from './domain/price-items-request.js';
 
@@ -40,6 +41,7 @@ export class MenuService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly cache: MenuCache,
+    private readonly imageUrls: ImageUrlBuilder,
   ) {}
 
   async listCategories(_request: ListCategoriesRequest): Promise<ListCategoriesResponse> {
@@ -65,7 +67,9 @@ export class MenuService {
       take: MAX_MENU_PRODUCTS,
       select: PRODUCT_SUMMARY_SELECT,
     });
-    return { products: rows.map(toProtoProductSummary) };
+    return {
+      products: rows.map((row) => toProtoProductSummary(row, this.imageUrls.build(row.imagePath))),
+    };
   }
 
   async getProduct(request: GetProductRequest): Promise<GetProductResponse> {
@@ -74,7 +78,7 @@ export class MenuService {
       select: PRODUCT_DETAIL_SELECT,
     });
     if (!row) throw rpcError('RESOURCE_NOT_FOUND', { resource: 'PRODUCT' });
-    return { product: toProtoProductDetail(row) };
+    return { product: toProtoProductDetail(row, this.imageUrls.build(row.imagePath)) };
   }
 
   async priceItems(request: PriceItemsRequest): Promise<PriceItemsResponse> {

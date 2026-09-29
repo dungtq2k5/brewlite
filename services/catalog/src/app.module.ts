@@ -8,7 +8,9 @@ import {
 import { envSchema } from './config/env.schema.js';
 import { PrismaModule } from './modules/prisma/prisma.module.js';
 import { PrismaService } from './modules/prisma/prisma.service.js';
+import { AdminMenuModule } from './modules/admin-menu/admin-menu.module.js';
 import { MenuModule } from './modules/menu/menu.module.js';
+import { StockModule } from './modules/stock/stock.module.js';
 
 @Module({
   imports: [
@@ -30,6 +32,8 @@ import { MenuModule } from './modules/menu/menu.module.js';
       ],
     }),
     MenuModule,
+    StockModule,
+    AdminMenuModule,
   ],
 })
 export class AppModule {}

@@ -26,7 +26,7 @@ import type {
 import type { Prisma } from '../../../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ADMIN_USER_SELECT, toProtoAdminUser, type AdminUserRow } from './admin-user.mapper.js';
-import { isEffectiveAdmin } from './effective-admin.js';
+import { isEffectiveAdmin } from './domain/effective-admin.js';
 
 const zSearchQuery = zText(100);
 const zLockReason = zText(LOCK_REASON_MAX_LENGTH);

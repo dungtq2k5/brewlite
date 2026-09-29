@@ -79,7 +79,7 @@ Every route declares exactly one:
 
 `limit` / `pageSize` default 20, max 100. `sort` is `field` or `-field` from a per-route allowlist; anything else is `400`. The cursor is opaque — clients never parse it.
 
-Bounded lists with no pagination — the menu (`MAX_MENU_PRODUCTS`, 200), categories (`MAX_MENU_CATEGORIES`, 50), the staff board (100) — say so in their row.
+Bounded lists with no pagination — the menu (`MAX_MENU_PRODUCTS`, 200), categories (`MAX_MENU_CATEGORIES`, 50), the staff board (100), `GET /admin/categories` (`MAX_MENU_CATEGORIES`) and `GET /admin/toppings` (`MAX_ADMIN_TOPPINGS`, 100) — say so in their row. `GET /admin/products` is the one admin list large enough to page.
 
 ### 0.5 Identifiers
 
@@ -225,12 +225,12 @@ ProductDetail  = ProductSummary & {
 
 | Method | Path | Description | Auth |
 | :---- | :---- | :---- | :---- |
-| GET | `/admin/categories` | All live categories, including inactive; `?deleted=true` lists only deleted ones. | perm:`menu.manage` |
+| GET | `/admin/categories` | All live categories, including inactive; `?deleted=true` lists only deleted ones. Bounded (`MAX_MENU_CATEGORIES`), not paged. | perm:`menu.manage` |
 | POST | `/admin/categories` | `{ name: LocalizedText, sortOrder?, isActive? }` — both languages required. `409 CATEGORY_NAME_TAKEN` (`details.locale`). | perm:`menu.manage` |
 | PATCH | `/admin/categories/:id` | `{ name?: LocalizedText, sortOrder?, isActive? }` — a name is replaced as a whole pair, never one language. | perm:`menu.manage` |
 | DELETE | `/admin/categories/:id` | Soft delete → `204`. `409 CATEGORY_IN_USE` while any live product belongs to it. | perm:`menu.manage` |
 | POST | `/admin/categories/:id/restore` | `204`. `409 CATEGORY_NAME_TAKEN` if a live category took the name meanwhile. | perm:`menu.manage` |
-| GET | `/admin/products` | `?q=&categoryId=&deleted=`, page style (`deleted` defaults to `false`). Full rows including stock and `imageUrl`. | perm:`menu.manage` |
+| GET | `/admin/products` | `?q=&categoryId=&deleted=`, page style (`deleted` defaults to `false`). Sort allowlist `sortOrder \| nameEn \| createdAt \| basePriceVnd`, default `sortOrder`. Full rows including stock and `imageUrl`. | perm:`menu.manage` |
 | GET | `/admin/products/:id` | Full row + sizes + allowed topping ids. | perm:`menu.manage` |
 | POST | `/admin/products` | `{ categoryId, name: LocalizedText, description?: LocalizedText, basePriceVnd, sizes: [{ size, priceDeltaVnd }], toppingIds: [], stockQty?, sortOrder? }` — at least one size. `409 PRODUCT_NAME_TAKEN` (`details.locale`); `422 RESOURCE_REFERENCE_INVALID` for an unknown category or topping. | perm:`menu.manage` |
 | PATCH | `/admin/products/:id` | `{ categoryId?, name?: LocalizedText, description?: LocalizedText \| null, basePriceVnd?, sortOrder? }` — pairs replaced whole; `description: null` clears both. **Stock is not editable here** — it has its own versioned route (§2.2). A price change never touches existing orders (rdm-spec §1.4). | perm:`menu.manage` |
@@ -239,14 +239,16 @@ ProductDetail  = ProductSummary & {
 | PUT | `/admin/products/:id/image` | `multipart/form-data`, field `file`, ≤ 2 MB, JPEG / PNG / WebP by **magic bytes**, else `422 IMAGE_INVALID`. → `{ imageUrl }`. Replaces and deletes the previous image. | perm:`menu.manage` |
 | DELETE | `/admin/products/:id/image` | `204`. | perm:`menu.manage` |
 | DELETE | `/admin/products/:id` | Soft delete → `204`. Removes it from the menu; existing orders and held reservations are unaffected. | perm:`menu.manage` |
-| POST | `/admin/products/:id/restore` | `204`. `409 PRODUCT_NAME_TAKEN` if a live product took the name meanwhile; `409 INVALID_STATE` if its category is deleted (restore the category first). | perm:`menu.manage` |
-| GET | `/admin/toppings` | All live, `?deleted=true` for deleted ones. | perm:`menu.manage` |
+| POST | `/admin/products/:id/restore` | `204`. `409 PRODUCT_NAME_TAKEN` if a live product took the name meanwhile; `409 INVALID_STATE` (`details.status: 'CATEGORY_DELETED'`) if its category is deleted (restore the category first). | perm:`menu.manage` |
+| GET | `/admin/toppings` | All live, `?deleted=true` for deleted ones. Bounded (`MAX_ADMIN_TOPPINGS`, 100), not paged. | perm:`menu.manage` |
 | POST | `/admin/toppings` | `{ name: LocalizedText, priceVnd }`. `409 TOPPING_NAME_TAKEN` (`details.locale`). | perm:`menu.manage` |
 | PATCH | `/admin/toppings/:id` | `{ name?: LocalizedText, priceVnd?, isAvailable? }`. | perm:`menu.manage` |
 | DELETE | `/admin/toppings/:id` | Soft delete → `204`. | perm:`menu.manage` |
 | POST | `/admin/toppings/:id/restore` | `204`. `409 TOPPING_NAME_TAKEN` on a name clash. | perm:`menu.manage` |
 
-Every write here invalidates the menu cache after it commits.
+Every write here invalidates the menu cache after it commits — a failed invalidation never fails the write.
+
+A write to a deleted category, product or topping (any `PATCH`/`PUT`, plus `SetImage`/`ClearImage`) is refused `409 INVALID_STATE` (`details.status: 'DELETED'`); restoring one that is not deleted is refused the same way (`details.status: 'ACTIVE'`).
 
 ---
 
@@ -452,7 +454,7 @@ Every code is one entry in `ERRORS` in `packages/contracts`: HTTP status, gRPC s
 | `CURRENT_PASSWORD_INCORRECT` | 403 | — | identity *(P1)* |
 | `ROUTE_NOT_FOUND` | 404 | — | gateway; payment (`fake-confirm` when disabled) |
 | `RESOURCE_NOT_FOUND` | 404 | `resource: USER \| CATEGORY \| PRODUCT \| TOPPING \| ORDER \| PROMOTION \| PAYMENT` | any service |
-| `INVALID_STATE` | 409 | `status` — the current status | ordering, payment |
+| `INVALID_STATE` | 409 | `status` — the current status | ordering, payment, catalog (`DELETED` \| `ACTIVE` \| `CATEGORY_DELETED`) |
 | `EMAIL_TAKEN` | 409 | — | identity |
 | `LAST_ADMIN` | 409 | — | identity |
 | `CATEGORY_NAME_TAKEN`, `PRODUCT_NAME_TAKEN`, `TOPPING_NAME_TAKEN` | 409 | `locale: en \| vi` — which name clashed | catalog |

@@ -11,6 +11,7 @@ export const PRODUCT_SUMMARY_SELECT = {
   nameEn: true,
   nameVi: true,
   basePriceVnd: true,
+  imagePath: true,
   isAvailable: true,
   stockQty: true,
   sizes: { select: { priceDeltaVnd: true } },
@@ -40,20 +41,26 @@ function fromPriceVnd(row: { basePriceVnd: number; sizes: { priceDeltaVnd: numbe
   return row.basePriceVnd + minDelta;
 }
 
-export function toProtoProductSummary(row: ProductSummaryRow): ProductSummary {
+export function toProtoProductSummary(
+  row: ProductSummaryRow,
+  imageUrl: string | undefined,
+): ProductSummary {
   return {
     id: row.id,
     categoryId: row.categoryId,
     name: { en: row.nameEn, vi: row.nameVi },
-    imageUrl: undefined,
+    imageUrl,
     fromPriceVnd: fromPriceVnd(row),
     isSoldOut: isSoldOut(row),
   };
 }
 
-export function toProtoProductDetail(row: ProductDetailRow): ProductDetail {
+export function toProtoProductDetail(
+  row: ProductDetailRow,
+  imageUrl: string | undefined,
+): ProductDetail {
   return {
-    summary: toProtoProductSummary(row),
+    summary: toProtoProductSummary(row, imageUrl),
     description:
       row.descriptionEn === null || row.descriptionVi === null
         ? undefined

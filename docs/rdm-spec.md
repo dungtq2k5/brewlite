@@ -329,6 +329,7 @@ Everything Prisma cannot declare — partial unique indexes, `CHECK` constraints
 
 - **A product is sellable** when `deleted_at IS NULL`, `is_available`, its category is live and `is_active`, `stock_qty IS NULL OR stock_qty > 0`, and it has at least one size (C-3). The menu returns unsellable-but-live products with `isSoldOut: true`; `PriceItems` refuses them.
 - A write that moves `stock_qty` to or from 0 invalidates the menu cache.
+- **A deleted category never gains a live product.** Deleting a category (its `CATEGORY_IN_USE` check) and creating or restoring a product into a category (its liveness check) both lock the category row first — `SELECT … FOR UPDATE` for the delete, `FOR SHARE` for a create/restore — inside the same transaction as the check, so the two writes serialize instead of racing.
 
 #### Table C-3: product_sizes
 

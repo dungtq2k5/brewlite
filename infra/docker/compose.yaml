@@ -58,7 +58,6 @@ services:
       retries: 30
 
   firebase:
-    profiles: ['apps']
     build:
       context: firebase
       dockerfile: Dockerfile
@@ -89,6 +88,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      firebase:
+        condition: service_healthy
     environment:
       NODE_ENV: production
       LOG_LEVEL: info
@@ -96,6 +97,13 @@ services:
       GRPC_URL: 0.0.0.0:25052
       OPS_PORT: '23102'
       REDIS_URL: redis://redis:6379/0
+      FIREBASE_PROJECT_ID: demo-brewlite
+      FIREBASE_STORAGE_BUCKET: demo-brewlite.appspot.com
+      FIREBASE_STORAGE_EMULATOR_HOST: firebase:29199
+      # The browser, not catalog, fetches the image — it reaches the emulator through
+      # the host port, so this stays a localhost URL even inside the `apps` profile
+      # (architecture §3.4).
+      STORAGE_PUBLIC_BASE_URL: http://localhost:29199
     ports:
       - '127.0.0.1:23102:23102'
       - '127.0.0.1:25052:25052'

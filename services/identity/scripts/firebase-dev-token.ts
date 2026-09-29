@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // pnpm --filter @brewlite/identity firebase:dev-token — prints a real emulator-issued ID
 // token for a fake Google/Apple sign-in, for `curl` against POST /auth/firebase without a
-// browser. Development only (doc 03a §2.6).
+// browser. Development only — refuses without FIREBASE_AUTH_EMULATOR_HOST (architecture §5).
 import { config } from 'dotenv';
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';

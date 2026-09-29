@@ -9,6 +9,7 @@ function summaryRow(overrides: Partial<ProductSummaryRow> = {}): ProductSummaryR
     nameEn: 'Iced milk coffee',
     nameVi: 'Cà phê sữa đá',
     basePriceVnd: 29_000,
+    imagePath: null,
     isAvailable: true,
     stockQty: null,
     sizes: [{ priceDeltaVnd: 0 }],
@@ -18,15 +19,17 @@ function summaryRow(overrides: Partial<ProductSummaryRow> = {}): ProductSummaryR
 
 describe('toProtoProductSummary', () => {
   it('isSoldOut when isAvailable is false', () => {
-    expect(toProtoProductSummary(summaryRow({ isAvailable: false })).isSoldOut).toBe(true);
+    expect(toProtoProductSummary(summaryRow({ isAvailable: false }), undefined).isSoldOut).toBe(
+      true,
+    );
   });
 
   it('isSoldOut when stockQty is 0', () => {
-    expect(toProtoProductSummary(summaryRow({ stockQty: 0 })).isSoldOut).toBe(true);
+    expect(toProtoProductSummary(summaryRow({ stockQty: 0 }), undefined).isSoldOut).toBe(true);
   });
 
   it('not sold out when stockQty is null (uncounted)', () => {
-    expect(toProtoProductSummary(summaryRow({ stockQty: null })).isSoldOut).toBe(false);
+    expect(toProtoProductSummary(summaryRow({ stockQty: null }), undefined).isSoldOut).toBe(false);
   });
 
   it('fromPriceVnd is base price plus the smallest size delta', () => {
@@ -34,11 +37,17 @@ describe('toProtoProductSummary', () => {
       basePriceVnd: 35_000,
       sizes: [{ priceDeltaVnd: 6_000 }, { priceDeltaVnd: 0 }, { priceDeltaVnd: 10_000 }],
     });
-    expect(toProtoProductSummary(row).fromPriceVnd).toBe(35_000);
+    expect(toProtoProductSummary(row, undefined).fromPriceVnd).toBe(35_000);
   });
 
-  it('imageUrl is always undefined (null on the wire) in this doc', () => {
-    expect(toProtoProductSummary(summaryRow()).imageUrl).toBeUndefined();
+  it('carries the imageUrl it is given', () => {
+    expect(toProtoProductSummary(summaryRow(), 'http://localhost:29199/x').imageUrl).toBe(
+      'http://localhost:29199/x',
+    );
+  });
+
+  it('imageUrl is undefined when none is given', () => {
+    expect(toProtoProductSummary(summaryRow(), undefined).imageUrl).toBeUndefined();
   });
 });
 
@@ -59,18 +68,22 @@ function detailRow(overrides: Partial<ProductDetailRow> = {}): ProductDetailRow 
 
 describe('toProtoProductDetail', () => {
   it('sizes come out S, M, L regardless of row order', () => {
-    const detail = toProtoProductDetail(detailRow());
+    const detail = toProtoProductDetail(detailRow(), undefined);
     expect(detail.sizes.map((s) => s.size)).toEqual(['S', 'M', 'L']);
   });
 
   it('description is undefined when both columns are null', () => {
-    const detail = toProtoProductDetail(detailRow({ descriptionEn: null, descriptionVi: null }));
+    const detail = toProtoProductDetail(
+      detailRow({ descriptionEn: null, descriptionVi: null }),
+      undefined,
+    );
     expect(detail.description).toBeUndefined();
   });
 
   it('description carries both languages when set', () => {
     const detail = toProtoProductDetail(
       detailRow({ descriptionEn: 'Sweet and cold', descriptionVi: 'Ngọt và lạnh' }),
+      undefined,
     );
     expect(detail.description).toEqual({ en: 'Sweet and cold', vi: 'Ngọt và lạnh' });
   });
@@ -89,6 +102,7 @@ describe('toProtoProductDetail', () => {
           },
         ],
       }),
+      undefined,
     );
     expect(detail.toppings).toEqual([
       {

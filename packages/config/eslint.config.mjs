@@ -50,6 +50,7 @@ export const baseConfig = tseslint.config(
       '**/prisma.service.ts',
       '**/prisma/seed/**',
       '**/*.mapper.ts',
+      '**/domain/*.ts',
       '**/test/setup/**',
     ],
     rules: {
@@ -79,6 +80,24 @@ export const baseConfig = tseslint.config(
               allowTypeImports: true,
               message:
                 'A mapper imports Prisma types only, never the runtime client (conventions §2.1).',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ['**/domain/*.ts'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['**/generated/prisma*'],
+              allowTypeImports: true,
+              message:
+                'A domain helper imports Prisma types only, never the runtime client (conventions §2.1).',
             },
           ],
         },
@@ -160,6 +179,8 @@ export const baseConfig = tseslint.config(
           '**/rate-limit-redis-down.e2e.spec.ts',
           '**/users-routes.e2e.spec.ts',
           '**/admin-users.e2e.spec.ts',
+          '**/staff-routes.e2e.spec.ts',
+          '**/admin-catalog.e2e.spec.ts',
         ],
         rules: {
           'no-restricted-syntax': [

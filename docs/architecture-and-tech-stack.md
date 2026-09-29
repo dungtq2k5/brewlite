@@ -72,7 +72,7 @@ brewlite/
 
 ### 1.2 Running beside other projects
 
-📌 [ADR 0027](./decisions/0027-host-ports-sit-in-the-2xxxx-range.md). This machine runs other stacks (Wayfare on `1xxxx`, Synapsedesk on its own set), so every host port BrewLite publishes is in the **2xxxx** range and every container is named `brewlite-<name>`. Inside the Compose network everything keeps its default port (`postgres:5432`, `nats:4222`). Every host port is published on `127.0.0.1` — nothing BrewLite runs is meant to be reachable from outside this machine. ⚠️ Run `docker compose` from the repository root, where `compose.yaml` sets `name: brewlite`; from `infra/docker` pass `-p brewlite`, or Compose creates a second project and network (`docker_default`) beside the running one.
+📌 [ADR 0027](./decisions/0027-host-ports-sit-in-the-2xxxx-range.md). This machine runs other stacks (Wayfare on `1xxxx`, Synapsedesk on its own set), so every host port BrewLite publishes is in the **2xxxx** range and every container is named `brewlite-<name>`. Inside the Compose network everything keeps its default port (`postgres:5432`, `nats:4222`). Every host port is published on `127.0.0.1` — nothing BrewLite runs is meant to be reachable from outside this machine. ⚠️ Run `docker compose` from the repository root, where `compose.yaml` sets `name: brewlite`; from `infra/docker` pass `-p brewlite`, or Compose creates a second project and network (`docker_default`) beside the running one. ⚠️ To stop the `apps` containers, stop them by name — `docker compose stop identity catalog gateway` — never `docker compose --profile apps down`, which removes the **whole** project, infrastructure included.
 
 | Component | Host port | In-network |
 | :---- | :---- | :---- |
@@ -88,6 +88,7 @@ brewlite/
 
 - gRPC ports sit below the OS's ephemeral range (Linux 32768–60999), so no outgoing connection can be holding one when a service starts.
 - ⚠️ The Firebase emulators listen on the **same** port inside and outside the container (set in `infra/docker/firebase/firebase.json`): the Storage emulator writes its own host and port into download URLs, and a remapped port produces URLs that point nowhere.
+- The Firebase emulators are **infrastructure**, like Postgres and Redis — a plain `docker compose up` (no `apps` profile) starts them, since identity's Firebase Auth tests and catalog's Storage tests both need them without building or running any service image.
 
 ---
 
@@ -179,7 +180,7 @@ GATEWAY (no database)
 📌 [ADR 0023](./decisions/0023-redis-holds-only-reconstructible-state.md). One Redis, three jobs, all reconstructible:
 
 - **Rate limits** — the gateway's own `RateLimitGuard` (conventions §6.3), not `@nestjs/throttler`: a fixed window on ioredis, `INCR` + `PEXPIRE NX` per key `gw:rl:<class>:<kind>:<value>`, so limits hold across replicas. Classes in api-endpoints-plan §0.8. A Redis error fails **open** with one `error` log line — a rate limiter must not take the shop down — so the gateway declares no readiness dependency on Redis.
-- **Cache** — catalog caches the public menu (`catalog:menu`) and deletes the key after every menu write commits, and when a product's stock crosses zero. `MENU_CACHE_TTL_MS` is only the backstop. A cache read or write never fails the request it backs: on any Redis error the call logs one `warn` and falls back to the database. **The web app caches no API data**: one cache layer, one place to invalidate.
+- **Cache** — catalog caches the public menu (`catalog:menu`) and deletes the key after every catalog write commits — one rule, every category/product/topping/stock write, not a per-write decision of whether the cache would show it — and when a product's stock crosses zero. `MENU_CACHE_TTL_MS` is only the backstop. A cache read or write never fails the request it backs: on any Redis error the call logs one `warn` and falls back to the database — a failed invalidation never fails the write that triggered it. **The web app caches no API data**: one cache layer, one place to invalidate.
 - **`/health/ready` lists only what a service cannot serve without.** Catalog's menu reads survive a Redis outage (the line above), so Redis is not in catalog's readiness until a background job (below) makes it required.
 - **Background jobs** — **BullMQ** via `@nestjs/bullmq`, as repeatable jobs with stable ids (never `@Cron`, which fires once per replica):
 
@@ -275,7 +276,7 @@ One Redis 8 container, `maxmemory-policy noeviction` (BullMQ requires it). Key p
 
 📌 [ADR 0025](./decisions/0025-product-images-live-in-firebase-storage.md).
 
-- An admin uploads through the gateway (`multipart/form-data`, ≤ `PRODUCT_IMAGE_MAX_BYTES`); the gateway passes the bytes to catalog over gRPC; catalog **checks the magic bytes** (JPEG, PNG or WebP — never the extension or the declared type), writes `products/<productId>/<newId>.<ext>` with `firebase-admin`, stores the path, and deletes the previous image.
+- An admin uploads through the gateway (`multipart/form-data`, ≤ `PRODUCT_IMAGE_MAX_BYTES`); the gateway passes the bytes to catalog over gRPC; catalog **checks the magic bytes** (JPEG, PNG or WebP — never the extension or the declared type), writes `products/<productId>/<newId>.<ext>` with `firebase-admin`, stores the path, and deletes the previous image — **in that order**: the new object exists before the row points at it, and the old object is deleted only after the row commits, so no moment has the row pointing at nothing. A crash between the upload and the write, or a failed old-object delete, leaves an accepted orphan object — never a broken image; a bucket sweep is P2.
 - Clients read images at `${STORAGE_PUBLIC_BASE_URL}/v0/b/<bucket>/o/<encoded path>?alt=media`. Storage security rules **allow public read of `products/**` and deny every write** — the Admin SDK bypasses rules, so only catalog can write.
 - Locally the **Firebase Storage emulator** stands in for the bucket (`FIREBASE_STORAGE_EMULATOR_HOST`); the same code runs against both.
 - ⚠️ A user-supplied filename never becomes an object name.

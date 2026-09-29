@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package brewlite.catalog;
+
+import "brewlite/common/localized_text.proto";
+
+// 05 adds ReserveStock, ReleaseStock to this service.
+service StockService {
+  rpc ListStaffProducts(ListStaffProductsRequest) returns (ListStaffProductsResponse);
+  rpc SetProductAvailability(SetProductAvailabilityRequest) returns (SetProductAvailabilityResponse);
+  rpc SetStockQty(SetStockQtyRequest) returns (SetStockQtyResponse);
+  rpc SetToppingAvailability(SetToppingAvailabilityRequest) returns (SetToppingAvailabilityResponse);
+}
+
+message StaffProduct {
+  string id = 1;
+  string category_id = 2;
+  brewlite.common.LocalizedText name = 3;
+  bool is_available = 4;
+  optional int32 stock_qty = 5;
+  int32 version = 6;
+}
+
+message ListStaffProductsRequest {}
+message ListStaffProductsResponse { repeated StaffProduct products = 1; }
+
+message SetProductAvailabilityRequest {
+  string id = 1;
+  bool is_available = 2;
+}
+message SetProductAvailabilityResponse { StaffProduct product = 1; }
+
+message SetStockQtyRequest {
+  string id = 1;
+  optional int32 stock_qty = 2;
+  int32 expected_version = 3;
+}
+message SetStockQtyResponse { StaffProduct product = 1; }
+
+message StaffTopping {
+  string id = 1;
+  brewlite.common.LocalizedText name = 2;
+  int32 price_vnd = 3;
+  bool is_available = 4;
+}
+
+message SetToppingAvailabilityRequest {
+  string id = 1;
+  bool is_available = 2;
+}
+message SetToppingAvailabilityResponse { StaffTopping topping = 1; }

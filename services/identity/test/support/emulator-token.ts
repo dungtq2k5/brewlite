@@ -2,8 +2,8 @@
  * Signs a fake user into the **Auth emulator** and returns a real ID token — used by
  * `firebase:dev-token` (a human at a terminal) and the integration suite (checks 2–5),
  * so both exercise the real `verifyIdToken`, not a mock. Refuses without
- * `FIREBASE_AUTH_EMULATOR_HOST` (doc 03a §2.6) — this must never run against a real
- * project.
+ * `FIREBASE_AUTH_EMULATOR_HOST` — this must never run against a real project
+ * (architecture §5).
  */
 export interface EmulatorTokenOptions {
   provider: 'google.com' | 'apple.com';

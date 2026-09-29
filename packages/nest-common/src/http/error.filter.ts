@@ -5,6 +5,7 @@ import {
   Catch,
   Logger,
   NotFoundException,
+  PayloadTooLargeException,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { ZodValidationException } from 'nestjs-zod';
@@ -81,6 +82,10 @@ export class ErrorFilter implements ExceptionFilter {
       return { status: 400, code: 'MALFORMED_REQUEST' };
     }
 
+    if (this.isMulterFileTooLargeError(exception)) {
+      return { status: 422, code: 'IMAGE_INVALID', details: { reason: 'SIZE' } };
+    }
+
     if (exception instanceof NotFoundException) {
       return { status: 404, code: 'ROUTE_NOT_FOUND' };
     }
@@ -119,6 +124,16 @@ export class ErrorFilter implements ExceptionFilter {
 
     this.logger.error({ requestId, err: exception }, 'Unhandled exception');
     return { status: 500, code: 'INTERNAL' };
+  }
+
+  /**
+   * The one place multer errors are recognised. `FileInterceptor` already
+   * translates multer's `LIMIT_FILE_SIZE` into a `PayloadTooLargeException` before it
+   * ever reaches a filter (`multer.utils.js`'s `transformException`) — there is no raw
+   * `MulterError` to catch here.
+   */
+  private isMulterFileTooLargeError(exception: unknown): boolean {
+    return exception instanceof PayloadTooLargeException;
   }
 
   /**
