@@ -397,15 +397,15 @@ Everything Prisma cannot declare — partial unique indexes, `CHECK` constraints
 | Field | Type | Constraints / Default | Description & business logic |
 | :---- | :---- | :---- | :---- |
 | **id** | UUID | PK | — |
-| **order_no** | BIGINT | NOT NULL, **UNIQUE**, from `orders_order_no_seq` (starts at 1000) | The number people read: `#1042`. Never an id, never reused, not reset daily. |
+| **order_no** | BIGINT | NOT NULL, **UNIQUE**, from `orders_order_no_seq` (starts at 1000) | The number people read: `#1042`. Never an id, never reused, not reset daily. The start is set idempotently (`setval` only if `last_value < 1000`), so re-running the bump on an already-seeded sequence never reuses a number. |
 | **user_id** | UUID | NOT NULL | ref ➔ identity.users.id — from the access token, never from input. |
 | **status** | VARCHAR(16) | NOT NULL, `'PENDING'` | `PENDING \| PAYMENT_FAILED \| PAID \| PREPARING \| READY \| COMPLETED \| CANCELLED` — transitions per §1.5. |
 | **subtotal_vnd** | INT | NOT NULL | Σ O-2 `line_total_vnd`. |
 | **promo_discount_vnd** | INT | NOT NULL, 0 | — |
 | **points_redeemed** | INT | NOT NULL, 0 | *(P1)* Points spent on this order. |
 | **points_discount_vnd** | INT | NOT NULL, 0 | *(P1)* `points_redeemed × LOYALTY_POINT_VALUE_VND`. |
-| **total_vnd** | INT | NOT NULL | `CHECK (total_vnd = subtotal_vnd − promo_discount_vnd − points_discount_vnd)` and `CHECK (total_vnd >= 10000)` (`MIN_PAYABLE_VND`). What payment charges — payment never computes an amount. |
-| **promotion_id** | UUID | Nullable, FK ➔ promotions.id, RESTRICT | — |
+| **total_vnd** | INT | NOT NULL | `CHECK (total_vnd = subtotal_vnd − promo_discount_vnd − points_discount_vnd)` and `CHECK (total_vnd >= 10000)` (`MIN_PAYABLE_VND`). The upper bound, `MAX_ORDER_TOTAL_VND`, is ordering's refusal (`ORDER_TOTAL_TOO_HIGH`), not a constraint — the `INT` column is the floor under it. What payment charges — payment never computes an amount. |
+| **promotion_id** | UUID | Nullable, FK ➔ promotions.id, RESTRICT — added once O-4 (`promotions`) exists; until then the column exists and is always `NULL` | — |
 | **promo_code** | VARCHAR(32) | Nullable | Snapshot of the code as applied. `CHECK ((promotion_id IS NULL) = (promo_code IS NULL))`. |
 | **note** | VARCHAR(200) | Nullable | The customer's note to the barista. |
 | **idempotency_key** | UUID | NOT NULL | `UNIQUE (user_id, idempotency_key)` (§1.7). |

@@ -22,3 +22,12 @@ export function zPageQuery<const F extends readonly [string, ...string[]]>(
 
 /** `z.coerce.boolean()` reads the string `"false"` as `true` — this reads the literal instead (conventions §6.2). */
 export const zBooleanParam = z.enum(['true', 'false']).transform((v) => v === 'true');
+
+/**
+ * `cursor`/`limit` for a customer list that grows without bound (api-endpoints-plan §0.4).
+ * The cursor is opaque — clients never parse it, so its shape here is only a length bound.
+ */
+export const zCursorQuery = z.object({
+  cursor: z.string().base64url().max(64).optional(),
+  limit: z.coerce.number().int().min(1).max(MAX_PAGE_SIZE).default(DEFAULT_PAGE_SIZE),
+});

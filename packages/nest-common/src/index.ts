@@ -4,6 +4,7 @@ export * from './errors/rpc-error.js';
 export * from './errors/api-error.js';
 export * from './errors/grpc-service-error.js';
 export * from './crypto/tokens.js';
+export * from './crypto/content-hash.js';
 export * from './grpc/proto-loader-options.js';
 export * from './grpc/base-grpc.client.js';
 export * from './grpc/request-id.js';
@@ -25,6 +26,7 @@ export * from './health/ops.module.js';
 export * from './health/readiness.js';
 export * from './prisma/live.js';
 export * from './prisma/unique-violation.js';
+export * from './outbox/outbox.service.js';
 
 /**
  * Re-exported from nest-common's own resolved copy — a service importing `nestjs-zod`

@@ -1,0 +1,95 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Order {
+  id                String    @id @default(uuid(7)) @db.Uuid
+  orderNo           BigInt    @unique @default(autoincrement()) @map("order_no")
+  userId            String    @map("user_id") @db.Uuid /// ref ➔ identity.users.id — no FK
+  status            String    @default("PENDING") @db.VarChar(16) /// OrderStatus in @brewlite/contracts
+  subtotalVnd       Int       @map("subtotal_vnd")
+  promoDiscountVnd  Int       @default(0) @map("promo_discount_vnd")
+  pointsRedeemed    Int       @default(0) @map("points_redeemed")
+  pointsDiscountVnd Int       @default(0) @map("points_discount_vnd")
+  totalVnd          Int       @map("total_vnd")
+  promotionId       String?   @map("promotion_id") @db.Uuid /// O-4 — no FK yet (05a adds promotions)
+  promoCode         String?   @map("promo_code") @db.VarChar(32)
+  note              String?   @db.VarChar(200)
+  idempotencyKey    String    @map("idempotency_key") @db.Uuid
+  requestHash       String    @map("request_hash") @db.Char(64)
+  currentPaymentId  String?   @map("current_payment_id") @db.Uuid /// ref ➔ payment.payments.id — no FK
+  expiresAt         DateTime  @map("expires_at") @db.Timestamptz(3)
+  paidAt            DateTime? @map("paid_at") @db.Timestamptz(3)
+  cancelledAt       DateTime? @map("cancelled_at") @db.Timestamptz(3)
+  cancelReason      String?   @map("cancel_reason") @db.VarChar(16) /// CancelReason in @brewlite/contracts
+  cancelNote        String?   @map("cancel_note") @db.VarChar(200)
+  refundStatus      String    @default("NONE") @map("refund_status") @db.VarChar(16) /// OrderRefundStatus in @brewlite/contracts
+  pointsEarned      Int       @default(0) @map("points_earned")
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  items   OrderItem[]
+  history OrderStatusHistory[]
+
+  @@unique([userId, idempotencyKey], map: "orders_user_idempotency_key")
+  @@index([userId, id(sort: Desc)])
+  @@map("orders")
+}
+
+model OrderItem {
+  id              String @id @default(uuid(7)) @db.Uuid
+  orderId         String @map("order_id") @db.Uuid
+  lineNo          Int    @map("line_no") @db.SmallInt
+  productId       String @map("product_id") @db.Uuid /// ref ➔ catalog.products.id
+  productNameEn   String @map("product_name_en") @db.VarChar(100)
+  productNameVi   String @map("product_name_vi") @db.VarChar(100)
+  size            String @db.VarChar(1) /// ProductSize in @brewlite/contracts
+  basePriceVnd    Int    @map("base_price_vnd")
+  sizeDeltaVnd    Int    @map("size_delta_vnd")
+  toppings        Json   @default("[]") /// OrderItemToppings in @brewlite/contracts, parsed on every read (rdm-spec §2.5)
+  unitPriceVnd    Int    @map("unit_price_vnd")
+  qty             Int    @db.SmallInt
+  lineTotalVnd    Int    @map("line_total_vnd")
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@unique([orderId, lineNo])
+  @@index([orderId])
+  @@map("order_items")
+}
+
+model OrderStatusHistory {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  orderId     String   @map("order_id") @db.Uuid
+  fromStatus  String?  @map("from_status") @db.VarChar(16) /// OrderStatus in @brewlite/contracts — NULL only on creation
+  toStatus    String   @map("to_status") @db.VarChar(16) /// OrderStatus in @brewlite/contracts
+  actorType   String   @map("actor_type") @db.VarChar(16) /// OrderActorType in @brewlite/contracts
+  actorUserId String?  @map("actor_user_id") @db.Uuid /// ref ➔ identity.users.id
+  note        String?  @db.VarChar(200)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, id])
+  @@map("order_status_history")
+}
+
+model OutboxEvent {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  subject      String    @db.VarChar(128)
+  payload      Json
+  aggregateId  String    @map("aggregate_id") @db.Uuid
+  requestId    String?   @map("request_id") @db.VarChar(64)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  publishedAt  DateTime? @map("published_at") @db.Timestamptz(3)
+  attempts     Int       @default(0)
+  lastError    String?   @map("last_error") @db.VarChar(500)
+
+  @@map("outbox_events")
+}

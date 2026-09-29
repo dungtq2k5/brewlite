@@ -122,3 +122,26 @@ BEGIN
       CHECK (price_vnd BETWEEN 0 AND 10000000);
   END IF;
 END $$;
+
+-- C-6: qty > 0, status is one of the three values.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'stock_reservations_qty_ck'
+  ) THEN
+    ALTER TABLE stock_reservations
+      ADD CONSTRAINT stock_reservations_qty_ck
+      CHECK (qty > 0);
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'stock_reservations_status_ck'
+  ) THEN
+    ALTER TABLE stock_reservations
+      ADD CONSTRAINT stock_reservations_status_ck
+      CHECK (status IN ('HELD', 'CONFIRMED', 'RELEASED'));
+  END IF;
+END $$;
+
+-- C-6: the orphan sweep's query (05b).
+CREATE INDEX IF NOT EXISTS stock_reservations_held_idx
+  ON stock_reservations (created_at) WHERE status = 'HELD';

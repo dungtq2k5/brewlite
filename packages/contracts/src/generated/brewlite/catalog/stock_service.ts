@@ -63,9 +63,36 @@ export interface SetToppingAvailabilityResponse {
   topping: StaffTopping | undefined;
 }
 
-export const BREWLITE_CATALOG_PACKAGE_NAME = "brewlite.catalog";
+export interface StockReservation {
+  orderId: string;
+  productId: string;
+  qty: number;
+  status: string;
+}
 
-/** 05 adds ReserveStock, ReleaseStock to this service. */
+export interface ReserveStockLine {
+  productId: string;
+  qty: number;
+}
+
+export interface ReserveStockRequest {
+  orderId: string;
+  lines: ReserveStockLine[];
+}
+
+export interface ReserveStockResponse {
+  reservations: StockReservation[];
+}
+
+export interface ReleaseStockRequest {
+  orderId: string;
+}
+
+export interface ReleaseStockResponse {
+  reservations: StockReservation[];
+}
+
+export const BREWLITE_CATALOG_PACKAGE_NAME = "brewlite.catalog";
 
 export interface StockServiceClient {
   listStaffProducts(request: ListStaffProductsRequest, metadata?: Metadata): Observable<ListStaffProductsResponse>;
@@ -81,9 +108,11 @@ export interface StockServiceClient {
     request: SetToppingAvailabilityRequest,
     metadata?: Metadata,
   ): Observable<SetToppingAvailabilityResponse>;
-}
 
-/** 05 adds ReserveStock, ReleaseStock to this service. */
+  reserveStock(request: ReserveStockRequest, metadata?: Metadata): Observable<ReserveStockResponse>;
+
+  releaseStock(request: ReleaseStockRequest, metadata?: Metadata): Observable<ReleaseStockResponse>;
+}
 
 export interface StockServiceController {
   listStaffProducts(
@@ -111,6 +140,16 @@ export interface StockServiceController {
     | Promise<SetToppingAvailabilityResponse>
     | Observable<SetToppingAvailabilityResponse>
     | SetToppingAvailabilityResponse;
+
+  reserveStock(
+    request: ReserveStockRequest,
+    metadata?: Metadata,
+  ): Promise<ReserveStockResponse> | Observable<ReserveStockResponse> | ReserveStockResponse;
+
+  releaseStock(
+    request: ReleaseStockRequest,
+    metadata?: Metadata,
+  ): Promise<ReleaseStockResponse> | Observable<ReleaseStockResponse> | ReleaseStockResponse;
 }
 
 export function StockServiceControllerMethods() {
@@ -120,6 +159,8 @@ export function StockServiceControllerMethods() {
       "setProductAvailability",
       "setStockQty",
       "setToppingAvailability",
+      "reserveStock",
+      "releaseStock",
     ];
     for (const method of grpcMethods) {
       const descriptor: any = Reflect.getOwnPropertyDescriptor(constructor.prototype, method);

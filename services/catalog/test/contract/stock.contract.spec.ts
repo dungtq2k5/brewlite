@@ -9,6 +9,10 @@ import { BaseGrpcClient, PROTO_LOADER_OPTIONS } from '@brewlite/nest-common';
 import type {
   ListStaffProductsRequest,
   ListStaffProductsResponse,
+  ReleaseStockRequest,
+  ReleaseStockResponse,
+  ReserveStockRequest,
+  ReserveStockResponse,
   SetProductAvailabilityRequest,
   SetProductAvailabilityResponse,
   SetStockQtyRequest,
@@ -60,6 +64,12 @@ class TestStockClient extends BaseGrpcClient {
     request: SetToppingAvailabilityRequest,
   ): Promise<SetToppingAvailabilityResponse> {
     return this.call('setToppingAvailability', request);
+  }
+  reserveStock(request: ReserveStockRequest): Promise<ReserveStockResponse> {
+    return this.call('reserveStock', request);
+  }
+  releaseStock(request: ReleaseStockRequest): Promise<ReleaseStockResponse> {
+    return this.call('releaseStock', request);
   }
 }
 
@@ -126,5 +136,26 @@ describe('StockService gRPC contract', () => {
     });
     const res = await client.setToppingAvailability({ id: topping.id, isAvailable: false });
     expect(res.topping?.isAvailable).toBe(false);
+  });
+
+  it('completes a real ReserveStock round trip, then ReleaseStock returns the stock', async () => {
+    const product = await seedProduct();
+    await prisma.product.update({ where: { id: product.id }, data: { stockQty: 5 } });
+    const orderId = newId();
+
+    const reserved = await client.reserveStock({
+      orderId,
+      lines: [{ productId: product.id, qty: 2 }],
+    });
+    expect(reserved.reservations).toHaveLength(1);
+    expect(reserved.reservations[0]).toEqual({
+      orderId,
+      productId: product.id,
+      qty: 2,
+      status: 'HELD',
+    });
+
+    const released = await client.releaseStock({ orderId });
+    expect(released.reservations[0]?.status).toBe('RELEASED');
   });
 });

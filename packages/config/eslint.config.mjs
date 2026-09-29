@@ -181,6 +181,7 @@ export const baseConfig = tseslint.config(
           '**/admin-users.e2e.spec.ts',
           '**/staff-routes.e2e.spec.ts',
           '**/admin-catalog.e2e.spec.ts',
+          '**/orders-routes.e2e.spec.ts',
         ],
         rules: {
           'no-restricted-syntax': [

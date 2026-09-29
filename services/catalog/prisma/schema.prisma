@@ -42,9 +42,10 @@ model Product {
   deletedAt     DateTime? @map("deleted_at") @db.Timestamptz(3)
   deletedById   String?   @map("deleted_by_id") @db.Uuid /// ref ➔ identity.users.id — no FK
 
-  category Category        @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  sizes    ProductSize[]
-  toppings ProductTopping[]
+  category     Category           @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  sizes        ProductSize[]
+  toppings     ProductTopping[]
+  reservations StockReservation[]
 
   @@index([categoryId])
   @@map("products")
@@ -86,4 +87,18 @@ model ProductTopping {
 
   @@id([productId, toppingId])
   @@map("product_toppings")
+}
+
+model StockReservation {
+  orderId   String   @map("order_id") @db.Uuid /// ref ➔ ordering.orders.id — no FK; ordering generates this before the order row exists
+  productId String   @map("product_id") @db.Uuid
+  qty       Int
+  status    String   @default("HELD") @db.VarChar(16) /// ReservationStatus in @brewlite/contracts
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@id([orderId, productId])
+  @@map("stock_reservations")
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   ERRORS,
+  EVENT_SCHEMAS,
   PERMISSIONS,
   ROLE_PERMISSIONS,
   RATE_LIMITS,
@@ -209,8 +210,43 @@ function checkRateLimits(doc: string): Violation[] {
   return violations;
 }
 
+function checkEvents(doc: string): Violation[] {
+  const violations: Violation[] = [];
+  const rows = tableRows(doc, '## 8. JetStream events');
+  const docSubjects = new Map<string, number>();
+  for (const row of rows) {
+    for (const subject of backticked(row.cells[0] ?? '')) docSubjects.set(subject, row.line);
+  }
+
+  const codeSubjects = new Set(Object.keys(EVENT_SCHEMAS));
+  for (const [subject, line] of docSubjects) {
+    if (!codeSubjects.has(subject)) {
+      violations.push({
+        file: FILE,
+        line,
+        message: `${subject} is in api-endpoints-plan §8 but not declared in EVENT_SCHEMAS`,
+      });
+    }
+  }
+  for (const subject of codeSubjects) {
+    if (!docSubjects.has(subject)) {
+      violations.push({
+        file: FILE,
+        line: 0,
+        message: `${subject} is declared in EVENT_SCHEMAS but not in api-endpoints-plan §8`,
+      });
+    }
+  }
+  return violations;
+}
+
 function check(doc: string): Violation[] {
-  return [...checkErrors(doc), ...checkPermissions(doc), ...checkRateLimits(doc)];
+  return [
+    ...checkErrors(doc),
+    ...checkPermissions(doc),
+    ...checkRateLimits(doc),
+    ...checkEvents(doc),
+  ];
 }
 
 describe('api-contract-sync', () => {
@@ -226,6 +262,19 @@ describe('api-contract-sync', () => {
       violations.some(
         (v) =>
           v.message.includes('VALIDATION_FAILED') &&
+          v.message.includes('not in api-endpoints-plan'),
+      ),
+    ).toBe(true);
+  });
+
+  it('reports an event subject renamed in the doc so a declared subject is no longer covered', () => {
+    const doc = readRepoFile(FILE);
+    const mutated = doc.replace('`ordering.payment.rejected`', '`ordering.payment.renamed`');
+    const violations = check(mutated);
+    expect(
+      violations.some(
+        (v) =>
+          v.message.includes('ordering.payment.rejected') &&
           v.message.includes('not in api-endpoints-plan'),
       ),
     ).toBe(true);

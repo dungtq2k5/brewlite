@@ -163,6 +163,11 @@ export const ERRORS = {
     grpc: GrpcStatus.FAILED_PRECONDITION,
     details: z.object({ minimumVnd: zVnd }),
   },
+  ORDER_TOTAL_TOO_HIGH: {
+    http: 422,
+    grpc: GrpcStatus.FAILED_PRECONDITION,
+    details: z.object({ maximumVnd: zVnd }),
+  },
   IMAGE_INVALID: {
     http: 422,
     grpc: GrpcStatus.FAILED_PRECONDITION,

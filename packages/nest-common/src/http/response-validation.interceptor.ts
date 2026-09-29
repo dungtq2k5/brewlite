@@ -40,7 +40,7 @@ export class ResponseValidationInterceptor implements NestInterceptor {
     return next.handle().pipe(
       map((value) => {
         if (value instanceof Paged) {
-          return Paged.page(this.validate(schema, value.items) as unknown[], value.meta);
+          return value.withItems(this.validate(schema, value.items) as unknown[]);
         }
         return this.validate(schema, value);
       }),

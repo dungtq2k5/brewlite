@@ -406,6 +406,7 @@ Product decisions, not implementation details. Each is one constant in `packages
 | `MAX_TOPPINGS_PER_LINE` | 3 | A drink, not a sundae. |
 | `ORDER_NOTE_MAX_LENGTH` | 200 chars | "Ít đá, ít ngọt" fits. |
 | `MIN_PAYABLE_VND` | 10,000₫ | No free or near-free charges after discounts; also above Stripe's minimum charge (to verify, §12). |
+| `MAX_ORDER_TOTAL_VND` | 5,000,000₫ | A café order above this is a mistake or abuse, not a real cart; also keeps the total well under the `INT` column's overflow point. |
 | `LOYALTY_EARN_STEP_VND` | 10,000₫ | 1 point per 10,000₫ paid. |
 | `LOYALTY_POINT_VALUE_VND` | 1,000₫ | *(P1)* 1 point = 1,000₫ off — 10% back. |
 | `LOYALTY_MAX_REDEEM_PERCENT` | 50% | *(P1)* Points pay at most half an order. |

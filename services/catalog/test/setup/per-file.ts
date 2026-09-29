@@ -21,7 +21,7 @@ if (getApps().length === 0) {
 
 beforeEach(async () => {
   await prisma.$executeRawUnsafe(
-    'TRUNCATE TABLE categories, products, product_sizes, toppings, product_toppings RESTART IDENTITY CASCADE',
+    'TRUNCATE TABLE categories, products, product_sizes, toppings, product_toppings, stock_reservations RESTART IDENTITY CASCADE',
   );
   await testRedis.flushdb();
   // The emulator's bucket does not exist until the first object is ever written to it —

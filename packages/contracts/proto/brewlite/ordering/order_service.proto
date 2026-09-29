@@ -1,0 +1,107 @@
+syntax = "proto3";
+
+package brewlite.ordering;
+
+import "brewlite/common/localized_text.proto";
+
+service OrderService {
+  rpc Quote(QuoteRequest) returns (QuoteResponse);
+  rpc PlaceOrder(PlaceOrderRequest) returns (PlaceOrderResponse);
+  rpc ListMyOrders(ListMyOrdersRequest) returns (ListMyOrdersResponse);
+  rpc GetOrder(GetOrderRequest) returns (GetOrderResponse);
+  rpc CancelOrder(CancelOrderRequest) returns (CancelOrderResponse);
+}
+
+message CartLine {
+  string product_id = 1;
+  string size = 2;
+  repeated string topping_ids = 3;
+  int32 qty = 4;
+}
+
+message OrderLineTopping {
+  string topping_id = 1;
+  brewlite.common.LocalizedText name = 2;
+  int32 price_vnd = 3;
+}
+
+message OrderLine {
+  string product_id = 1;
+  brewlite.common.LocalizedText product_name = 2;
+  string size = 3;
+  repeated OrderLineTopping toppings = 4;
+  int32 unit_price_vnd = 5;
+  int32 qty = 6;
+  int32 line_total_vnd = 7;
+}
+
+message OrderHistoryEntry {
+  optional string from_status = 1;
+  string to_status = 2;
+  string actor_type = 3;
+  optional string note = 4;
+  string created_at = 5;
+}
+
+message QuoteRequest {
+  repeated CartLine items = 1;
+  optional string promo_code = 2;
+}
+message QuoteResponse {
+  repeated OrderLine lines = 1;
+  int64 subtotal_vnd = 2;
+  int32 promo_discount_vnd = 3;
+  int32 points_discount_vnd = 4;
+  int64 total_vnd = 5;
+  optional string promo_code = 6;
+  int32 points_earnable = 7;
+}
+
+message Order {
+  string id = 1;
+  string order_no = 2; // int64 as a string (conventions §5.1)
+  string status = 3;
+  repeated OrderLine lines = 4;
+  int64 subtotal_vnd = 5;
+  int32 promo_discount_vnd = 6;
+  int32 points_discount_vnd = 7;
+  int64 total_vnd = 8;
+  optional string promo_code = 9;
+  int32 points_earnable = 10;
+  optional string note = 11;
+  optional string expires_at = 12;
+  optional string paid_at = 13;
+  string created_at = 14;
+  optional string cancel_reason = 15;
+  optional string cancel_note = 16;
+  string refund_status = 17;
+  int32 points_earned = 18;
+  repeated OrderHistoryEntry history = 19;
+}
+
+message PlaceOrderRequest {
+  repeated CartLine items = 1;
+  optional string promo_code = 2;
+  optional string note = 3;
+  string idempotency_key = 4;
+}
+message PlaceOrderResponse {
+  Order order = 1;
+  bool created = 2;
+}
+
+message ListMyOrdersRequest {
+  optional string cursor = 1;
+  int32 limit = 2;
+  optional string status = 3;
+}
+message ListMyOrdersResponse {
+  repeated Order orders = 1;
+  optional string next_cursor = 2;
+}
+
+message GetOrderRequest { string id = 1; }
+message GetOrderResponse { Order order = 1; }
+
+message CancelOrderRequest { string id = 1; }
+message CancelOrderResponse { Order order = 1; }

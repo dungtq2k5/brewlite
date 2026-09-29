@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "test": "vitest run --root .",
     "test:integration": "vitest run -c vitest.integration.config.mts",
-    "db:generate": "prisma generate && node scripts/fix-prisma-client-import.mjs",
+    "db:generate": "prisma generate && brewlite-fix-prisma-imports .",
     "db:migrate:dev": "prisma migrate dev && pnpm db:objects",
     "db:objects": "prisma db execute --file prisma/sql/schema-objects.sql",
     "db:deploy": "prisma migrate deploy && pnpm db:objects",

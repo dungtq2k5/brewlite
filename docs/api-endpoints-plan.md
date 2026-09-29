@@ -284,7 +284,7 @@ Order = Quote & {
 
 | Method | Path | Description | Auth |
 | :---- | :---- | :---- | :---- |
-| POST | `/orders/quote` | `{ items: CartLine[], promoCode?, pointsToRedeem? }` → `Quote`. Prices through catalog and validates the code; **writes nothing and reserves nothing**. Refusals, in this order: `422 PRODUCT_UNAVAILABLE` (`details.productIds`), `422 OPTION_INVALID` (`details.lineIndex`, `details.reason: SIZE \| TOPPING \| TOO_MANY_TOPPINGS`), `409 OUT_OF_STOCK` (read-only check, `details.products`), `422 PROMO_CODE_INVALID` (`details.reason`, rdm-spec O-4), `422 POINTS_INSUFFICIENT` *(P1)*, `422 ORDER_TOTAL_TOO_LOW`. The web app marks the named lines unavailable. | USER · `ORDER_WRITE` |
+| POST | `/orders/quote` | `{ items: CartLine[], promoCode?, pointsToRedeem? }` → `Quote`. Prices through catalog and validates the code; **writes nothing and reserves nothing**. Refusals, in this order: `422 PRODUCT_UNAVAILABLE` (`details.productIds`), `422 OPTION_INVALID` (`details.lineIndex`, `details.reason: SIZE \| TOPPING \| TOO_MANY_TOPPINGS`), `409 OUT_OF_STOCK` (read-only check, `details.products`), `422 PROMO_CODE_INVALID` (`details.reason`, rdm-spec O-4), `422 POINTS_INSUFFICIENT` *(P1)*, `422 ORDER_TOTAL_TOO_LOW`, `422 ORDER_TOTAL_TOO_HIGH` (`details.maximumVnd`). The web app marks the named lines unavailable. | USER · `ORDER_WRITE` |
 | POST | `/orders` ⟳ | `{ items, promoCode?, pointsToRedeem?, note? }` → `201 Order` (`PENDING`). The same refusals as the quote, where `OUT_OF_STOCK` now comes from the actual reservation, plus `409 STOCK_CONTENDED` when the optimistic lock kept losing (retry with the same key). The sequence is §6.1. | USER · `ORDER_WRITE` |
 | GET | `/orders/me` | Cursor style, newest first, `?status=` optional. Each item is the `Order` without `history`. | USER |
 | GET | `/orders/:id` | `Order`. Someone else's → `404`. | USER |
@@ -386,8 +386,9 @@ ordering:
   1. (user, key) exists?  same request_hash → return it (200) · different → 422 IDEMPOTENCY_KEY_REUSED
   2. orderId = newId()
   3. catalog.PriceItems(lines)                  → priced lines, or PRODUCT_UNAVAILABLE / OPTION_INVALID / OUT_OF_STOCK (read-only check)
-  4. validate promo (read-only), compute totals → PROMO_CODE_INVALID / ORDER_TOTAL_TOO_LOW
-  5. catalog.ReserveStock(orderId, lines)       → HELD reservations, or OUT_OF_STOCK / STOCK_CONTENDED
+  4. validate promo (read-only), compute totals → PROMO_CODE_INVALID / ORDER_TOTAL_TOO_LOW / ORDER_TOTAL_TOO_HIGH
+  5. catalog.ReserveStock(orderId, lines)       → HELD reservations, or OUT_OF_STOCK (every short product named) / STOCK_CONTENDED / PRODUCT_UNAVAILABLE
+       a timed-out ReserveStock may still have committed → ReleaseStock(orderId) even on this refusal path
   6. transaction: lock + re-validate promotion, used_count + 1, insert O-1 PENDING, O-2, O-3
        on any failure from here (including P2002 on the idempotency key):
          catalog.ReleaseStock(orderId)          (best effort — the orphan sweep is the backstop)
@@ -471,6 +472,7 @@ Every code is one entry in `ERRORS` in `packages/contracts`: HTTP status, gRPC s
 | `PROMO_MAX_USES_BELOW_USED` | 422 | `usedCount` | ordering |
 | `POINTS_INSUFFICIENT` | 422 | `balance` | ordering *(P1)* |
 | `ORDER_TOTAL_TOO_LOW` | 422 | `minimumVnd` | ordering |
+| `ORDER_TOTAL_TOO_HIGH` | 422 | `maximumVnd` | ordering |
 | `IMAGE_INVALID` | 422 | `reason: TYPE \| SIZE` | gateway, catalog |
 | `RESOURCE_REFERENCE_INVALID` | 422 | `field` | catalog |
 | `RATE_LIMITED` | 429 | `retryAfterSeconds` | gateway |
@@ -489,7 +491,7 @@ Streams: `ORDERING` (`ordering.>`), `PAYMENT` (`payment.>`), 7 days, 2-minute du
 
 | Subject | Publisher | Payload (besides `eventId`, `occurredAt`) | Consumers → effect |
 | :---- | :---- | :---- | :---- |
-| `ordering.order.status_changed` | ordering | `orderId, orderNo, userId, from, to, actorType, paymentId?, cancelReason?` — one event per transition | catalog → `to: PAID` confirms reservations, `to: CANCELLED` releases them · payment → `from: PAID, to: CANCELLED` refunds `paymentId` (`STAFF_CANCELLED`) · gateway → SSE frame (ephemeral) |
+| `ordering.order.status_changed` | ordering | `orderId, orderNo, userId, from, to, actorType, paymentId?, cancelReason?` — one event per transition. **Order creation itself emits nothing** (`from: null`) — nothing consumes it, since a customer's own page reads the order it just made; the first published event of an order's life is its first transition (e.g. `PENDING → PAID`) | catalog → `to: PAID` confirms reservations, `to: CANCELLED` releases them · payment → `from: PAID, to: CANCELLED` refunds `paymentId` (`STAFF_CANCELLED`) · gateway → SSE frame (ephemeral) |
 | `ordering.payment.rejected` | ordering | `orderId, paymentId, orderStatus` — a payment succeeded for an order that was no longer payable | payment → refund (`ORDER_NOT_PAYABLE`) |
 | `payment.payment.succeeded` | payment | `paymentId, orderId, userId, amountVnd, method` | ordering → `PAID` (§6.2), or `ordering.payment.rejected` |
 | `payment.payment.failed` | payment | `paymentId, orderId, reason: ASYNC_FAILED \| EXPIRED \| SIMULATED` | ordering → `PAYMENT_FAILED`, only if the order is `PENDING` and `current_payment_id = paymentId` |
@@ -523,7 +525,7 @@ gRPC packages are `brewlite.<service>`; protos in `packages/contracts/proto/brew
 | RPC | Caller | Why synchronous | If it fails |
 | :---- | :---- | :---- | :---- |
 | `catalog.MenuService.PriceItems(lines)` | ordering (quote, place) | an order cannot exist without authoritative prices | refuse the request (`503`) |
-| `catalog.StockService.ReserveStock(orderId, lines)` | ordering (place) | the customer must know now whether it is in stock | refuse the order (`503`), then `ReleaseStock` in case the reservation did commit |
+| `catalog.StockService.ReserveStock(orderId, lines)` | ordering (place) | the customer must know now whether it is in stock | `OUT_OF_STOCK` names every short product, not just the first; a deleted/inactive product is `PRODUCT_UNAVAILABLE` instead. A `503` (or any deadline-exceeded refusal) is followed by `ReleaseStock` in case the reservation did commit |
 | `catalog.StockService.ReleaseStock(orderId)` | ordering (compensation only) | undo a reservation whose order was never written | log; the orphan sweep releases it later |
 | `ordering.OrderService.BeginPayment(orderId, userId, paymentId)` | payment | the amount and the payability must be current | refuse the payment (`503`); no payment row is written |
 | `ordering.OrderService.GetOrderStatus(orderId)` | catalog (orphan sweep) | the sweep must not guess | skip the row; the next run retries |

@@ -123,7 +123,7 @@ services/gateway/src/modules/orders/
 
 ### 3.1 Search before you write
 
-Before writing a helper, **MUST** search `packages/`. Ids, money arithmetic, unit pricing, hashing, email normalisation and the business day already exist; a second implementation disagrees with the first on the one input where it matters.
+Before writing a helper, **MUST** search `packages/`. Ids, money arithmetic, unit pricing, hashing (including `contentHash`, a canonical-JSON SHA-256 for idempotency keys), email normalisation and the business day already exist; a second implementation disagrees with the first on the one input where it matters.
 
 Import by package name, **never** by a relative path across a package or service boundary:
 
@@ -254,7 +254,7 @@ throw rpcError('INVALID_STATE', { status: current });
 
 As defined in api-endpoints-plan §0.3. A global interceptor wraps success as `{ data, meta? }`; a global filter builds `{ error: { code, message, details?, requestId } }`.
 
-- Handlers return raw data, or `Paged.cursor(items, next)` / `Paged.page(items, meta)` (`packages/nest-common`) — a page query is built with `zPageQuery(sortFields, defaultSort?)` (`packages/contracts`), which bounds `page`/`pageSize` and allowlists `sort` (each field, plus `-field` for descending). Returning `{ data }` yourself double-wraps.
+- Handlers return raw data, or `Paged.cursor(items, next)` / `Paged.page(items, meta)` (`packages/nest-common`) — an offset query is built with `zPageQuery(sortFields, defaultSort?)` (`packages/contracts`), which bounds `page`/`pageSize` and allowlists `sort` (each field, plus `-field` for descending); a cursor query is built with `zCursorQuery` (`cursor?: base64url ≤ 64 chars`, `limit`), for endpoints ordered by id rather than sorted, like `GET /orders/me`. Returning `{ data }` yourself double-wraps.
 - Every thrown error carries an `ErrorCode`. A new code is added to `ERRORS`, to api-endpoints-plan §7, and to the web app's `errors` namespace **in both locales** in the same PR.
 - **MUST NOT** put a user-facing sentence in `message`. It is English, for developers.
 - `@SkipEnvelope()` is for ops routes and the SSE streams only.

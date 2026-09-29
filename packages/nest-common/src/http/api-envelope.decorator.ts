@@ -7,18 +7,20 @@ export interface ApiEnvelopeOptions {
   list?: boolean;
   /** The handler returns a `Paged` — `data` is documented as a list, plus a `meta` page block. */
   paged?: boolean;
+  /** The handler returns a `Paged.cursor` — `data` is a list, plus a `meta.nextCursor` block. */
+  cursor?: boolean;
 }
 
 /**
- * Documents the response envelope (`{ data }`, or `{ data, meta }` for `paged`) around a
- * DTO and attaches it as the route's `@ZodSerializerDto` schema, so OpenAPI and
+ * Documents the response envelope (`{ data }`, `{ data, meta }` for `paged`/`cursor`)
+ * around a DTO and attaches it as the route's `@ZodSerializerDto` schema, so OpenAPI and
  * `ResponseValidationInterceptor` read the same definition (conventions §6.5).
  */
 export function ApiEnvelope(
   dto: ZodDto,
-  { status = 200, list = false, paged = false }: ApiEnvelopeOptions = {},
+  { status = 200, list = false, paged = false, cursor = false }: ApiEnvelopeOptions = {},
 ) {
-  const isList = list || paged;
+  const isList = list || paged || cursor;
   return applyDecorators(
     ZodSerializerDto(isList ? [dto] : dto),
     ApiExtraModels(dto),
@@ -39,6 +41,13 @@ export function ApiEnvelope(
                 total: { type: 'integer' },
               },
               required: ['page', 'pageSize', 'total'],
+            },
+          }),
+          ...(cursor && {
+            meta: {
+              type: 'object',
+              properties: { nextCursor: { type: 'string', nullable: true } },
+              required: ['nextCursor'],
             },
           }),
         },

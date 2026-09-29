@@ -13,6 +13,7 @@ export const envSchema = z.object({
   TRUST_PROXY_HOPS: z.coerce.number().int().nonnegative(),
   CATALOG_GRPC_URL: z.string(),
   IDENTITY_GRPC_URL: z.string(),
+  ORDERING_GRPC_URL: z.string(),
   JWT_PUBLIC_KEY: z.string().min(1),
   REDIS_URL: z.string().url(),
   REDIS_URL_TEST: z.string().url().optional(),
