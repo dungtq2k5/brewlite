@@ -57,6 +57,25 @@ services:
       timeout: 3s
       retries: 30
 
+  firebase:
+    profiles: ['apps']
+    build:
+      context: firebase
+      dockerfile: Dockerfile
+    container_name: brewlite-firebase
+    # Same port number inside and out — the Storage emulator writes its own host and
+    # port into URLs it returns (architecture §1.2).
+    ports:
+      - '127.0.0.1:29000:29000'
+      - '127.0.0.1:29099:29099'
+      - '127.0.0.1:29199:29199'
+      - '127.0.0.1:29400:29400'
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:29400/emulators']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
   catalog:
     profiles: ['apps']
     build:
@@ -97,15 +116,23 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      firebase:
+        condition: service_healthy
     env_file:
       - path: ../../services/identity/.env
         required: false
     environment:
-      NODE_ENV: production
+      # The `apps` profile is a local demo, not a deployment — identity alone runs
+      # `development` here so it can use the Auth emulator; every other service in this
+      # profile still runs `production`. `NODE_ENV=production` would refuse to boot with
+      # `FIREBASE_AUTH_EMULATOR_HOST` set (architecture §5).
+      NODE_ENV: development
       LOG_LEVEL: info
       DATABASE_URL: postgresql://brewlite:brewlite@postgres:5432/brewlite_identity
       GRPC_URL: 0.0.0.0:25051
       OPS_PORT: '23101'
+      FIREBASE_PROJECT_ID: demo-brewlite
+      FIREBASE_AUTH_EMULATOR_HOST: firebase:29099
     ports:
       - '127.0.0.1:23101:23101'
       - '127.0.0.1:25051:25051'

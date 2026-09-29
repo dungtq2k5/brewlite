@@ -20,6 +20,7 @@ export default defineProject({
     name: 'gateway',
     include: ['src/**/*.spec.ts', 'test/e2e/**/*.spec.ts'],
     environment: 'node',
+    setupFiles: ['test/setup/global.ts'],
     fileParallelism: false,
   },
 });

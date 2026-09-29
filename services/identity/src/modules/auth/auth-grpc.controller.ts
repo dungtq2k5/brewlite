@@ -11,6 +11,8 @@ import {
   type RefreshResponse,
   type RegisterRequest,
   type RegisterResponse,
+  type SignInWithFirebaseRequest,
+  type SignInWithFirebaseResponse,
 } from '@brewlite/contracts/generated/brewlite/identity/auth_service.js';
 import { AuthService } from './auth.service.js';
 
@@ -26,6 +28,10 @@ export class AuthGrpcController implements AuthServiceController {
 
   login(request: LoginRequest): Promise<LoginResponse> {
     return this.auth.login(request);
+  }
+
+  signInWithFirebase(request: SignInWithFirebaseRequest): Promise<SignInWithFirebaseResponse> {
+    return this.auth.signInWithFirebase(request);
   }
 
   refresh(request: RefreshRequest): Promise<RefreshResponse> {

@@ -24,7 +24,7 @@ BrewLite is one **TypeScript monorepo**: a Next.js web app, a NestJS gateway, fo
 - **Language:** **TypeScript**, `strict: true` everywhere, no `any` in merged code.
 - **Runtime:** **Node.js 24 LTS**, pinned at **24.14.0** in `.nvmrc`, `engines`, every Dockerfile and every CI job.
 - **Package manager:** **pnpm 10** with workspaces, version pinned by `packageManager` in the root `package.json` and enabled through `corepack`.
-  - ⚠️ pnpm 10 skips dependency build scripts unless allowed. Set `strictDepBuilds: true` and list what may build (`@swc/core`, `prisma`, `@prisma/engines`, `esbuild`, `protobufjs`, `@bufbuild/buf`, `simple-git-hooks`, `@scarf/scarf`) so a skipped native build fails the install instead of failing at runtime. Both settings live in **`pnpm-workspace.yaml`**. ⚠️ `ignoredBuiltDependencies` only silences the prompt — under `strictDepBuilds` an unlisted package still fails the install, so a package is either allowed or the install fails.
+  - ⚠️ pnpm 10 skips dependency build scripts unless allowed. Set `strictDepBuilds: true` and list what may build (`@swc/core`, `prisma`, `@prisma/engines`, `esbuild`, `protobufjs`, `@bufbuild/buf`, `simple-git-hooks`, `@scarf/scarf`, `@firebase/util`) so a skipped native build fails the install instead of failing at runtime. Both settings live in **`pnpm-workspace.yaml`**. ⚠️ `ignoredBuiltDependencies` only silences the prompt — under `strictDepBuilds` an unlisted package still fails the install, so a package is either allowed or the install fails.
 - **Monorepo tooling:** **Turborepo 2** — task graph and output caching (`build`, `typecheck`, `test`, `db:generate`). 📌 [ADR 0003](./decisions/0003-one-pnpm-turborepo-monorepo-with-a-fixed-layout.md).
   - ⚠️ Turbo's strict env mode hides variables from tasks: `turbo.json` lists `DATABASE_URL*`, `PRISMA_DB` and `NODE_ENV` in `globalPassThroughEnv`, or Prisma tasks see them unset.
 - **Compiler:** **SWC everywhere** — the Nest CLI's SWC builder with `typeCheck: true` for every Nest service, Next.js's own SWC-based compiler for the web app, `unplugin-swc` inside Vitest. 📌 [ADR 0012](./decisions/0012-swc-compiles-everything-and-nest-packages-are-commonjs.md).
@@ -72,7 +72,7 @@ brewlite/
 
 ### 1.2 Running beside other projects
 
-📌 [ADR 0027](./decisions/0027-host-ports-sit-in-the-2xxxx-range.md). This machine runs other stacks (Wayfare on `1xxxx`, Synapsedesk on its own set), so every host port BrewLite publishes is in the **2xxxx** range and every container is named `brewlite-<name>`. Inside the Compose network everything keeps its default port (`postgres:5432`, `nats:4222`). Every host port is published on `127.0.0.1` — nothing BrewLite runs is meant to be reachable from outside this machine.
+📌 [ADR 0027](./decisions/0027-host-ports-sit-in-the-2xxxx-range.md). This machine runs other stacks (Wayfare on `1xxxx`, Synapsedesk on its own set), so every host port BrewLite publishes is in the **2xxxx** range and every container is named `brewlite-<name>`. Inside the Compose network everything keeps its default port (`postgres:5432`, `nats:4222`). Every host port is published on `127.0.0.1` — nothing BrewLite runs is meant to be reachable from outside this machine. ⚠️ Run `docker compose` from the repository root, where `compose.yaml` sets `name: brewlite`; from `infra/docker` pass `-p brewlite`, or Compose creates a second project and network (`docker_default`) beside the running one.
 
 | Component | Host port | In-network |
 | :---- | :---- | :---- |
@@ -229,6 +229,7 @@ payment  → brewlite_payment  + brewlite_payment_test  + brewlite_payment_shado
 - **The URL is not in `schema.prisma`.** It lives in `prisma.config.ts`, which imports `dotenv/config` (Prisma no longer loads `.env`).
 - `migrate dev` no longer runs `generate` or the seed; both are explicit scripts.
 - ⚠️ The SWC builder compiles only `src/` unless told otherwise: each service's `nest-cli.json` sets `compilerOptions.builder: { type: 'swc', options: { filenames: ['src', 'generated'] } }` — nested under `options`, not top-level — or `dist` has no Prisma client. Both directories keep their prefix in `dist`, so the entry point is **`dist/src/main.js`**.
+- ⚠️ **Prisma 7.10's generator can emit relative imports with a literal `.ts` extension** (seen on identity's schema, not catalog's, with the same generator block). SWC does not rewrite import specifiers, so the built image fails with `Cannot find module './internal/class.ts'` — and only the Docker build shows it. A service whose generated client has them chains `scripts/fix-prisma-client-import.mjs` onto its `db:generate`, rewriting `./x.ts` to `./x.js` before SWC runs. Remove it when a Prisma release fixes the generator.
 
 The template every service copies:
 
@@ -377,6 +378,7 @@ Locally the SDK talks to the **Firebase Auth emulator**, which offers fake Googl
 - **Refresh tokens:** 32 random bytes, base64url, stored only as a **SHA-256** hash in `sessions` (rdm-spec I-2), 30-day lifetime, **not rotated** — see [ADR 0014](./decisions/0014-the-web-server-is-the-gateways-only-client.md) for why rotation buys little when the token never leaves an `httpOnly` cookie, and what it would cost.
 - **Revocation:** sign-out deletes the session; a role change, a lock or a deactivation deletes all of the user's sessions, and sign-in and refresh refuse a locked or deactivated account. An access token already issued stays valid until it expires — **at most 15 minutes**, stated and accepted.
 - **Authorization:** three fixed roles, a static permission catalogue in `packages/contracts`, and `ROLE_PERMISSIONS` mapping one to the other in code ([ADR 0016](./decisions/0016-three-fixed-roles-and-a-compile-time-permission-catalogue.md)). Routes declare a **permission**, never a role.
+- **Google/Apple sign-in:** identity verifies the Firebase ID token with `firebase-admin`, then finds or links the account by verified email (ADR 0013) — Firebase only proves a sign-in, identity still issues its own tokens. `firebase-admin` accepts an **unsigned** token whenever `FIREBASE_AUTH_EMULATOR_HOST` is set, so identity **refuses to boot** when `NODE_ENV=production` and that variable is set — a forged token for any email would otherwise be accepted.
 - **Caller context:** the gateway passes `x-user-id`, `x-user-role` and `x-request-id` to services as gRPC metadata. Services trust it — they are unreachable except through the gateway — and **every ownership check happens in the service**, scoped in the query (`WHERE id = $1 AND user_id = $2`).
 - **Gateway guard order:** `AuthGuard → PermissionGuard → RateLimitGuard`, applied globally so no route opts out by omission. Route markers (`@Auth`, `@RequirePermission`, `@RateLimit`) live in `packages/nest-common` (conventions §6.3), since `OpsController` there needs them too; the guards that read them are the gateway's own. A boot-time check refuses to start the gateway if any route is missing a marker.
 - **HTTP hardening:** `helmet` on the gateway; strict CSP on the web app; `trust proxy` set to the exact hop count.
@@ -474,6 +476,7 @@ Every Nest service declares its variables in `src/config/env.schema.ts` (zod), l
 | `PRISMA_DB` | Prisma CLI only | `working` (default) or `test` |
 | `REDIS_URL` | gateway, identity, catalog, ordering, payment | `redis://localhost:26379/0` |
 | `REDIS_URL_TEST` | catalog | `redis://localhost:26379/15` — database 15 of the same server, so integration tests never touch the development cache |
+| `REDIS_URL_TEST` | gateway | `redis://localhost:26379/14` — its own database, so the gateway's e2e specs (the `RateLimitGuard`'s keys) never touch the development bucket **or** catalog's database 15, and the two suites can run in parallel under Turborepo |
 | `NATS_URL` | gateway, catalog, ordering, payment | `nats://localhost:24222` |
 | `NATS_URL_TEST` | catalog, ordering, payment | `nats://localhost:24223` — integration tests never publish to the development broker |
 | `GRPC_URL` | identity, catalog, ordering, payment | own bind address, e.g. `0.0.0.0:25052` |
@@ -489,7 +492,7 @@ Every Nest service declares its variables in `src/config/env.schema.ts` (zod), l
 | `JWT_KEY_ID` | identity | `kid` in every token header; written by `pnpm keys:dev` alongside `JWT_PRIVATE_KEY` |
 | `FIREBASE_PROJECT_ID` | identity, catalog | a `demo-brewlite` project id locally (emulator-only, no real project needed) |
 | `GOOGLE_APPLICATION_CREDENTIALS` | identity, catalog | service-account key path when talking to a real Firebase project; unset with the emulators |
-| `FIREBASE_AUTH_EMULATOR_HOST` | identity | `localhost:29099` locally; **unset** against a real project |
+| `FIREBASE_AUTH_EMULATOR_HOST` | identity | `localhost:29099` locally; **unset** against a real project — identity refuses to boot if this is set with `NODE_ENV=production`. The `apps` Compose profile runs identity alone with `NODE_ENV=development` so its local demo can still use the emulator |
 | `FIREBASE_STORAGE_BUCKET` | catalog | `demo-brewlite.appspot.com` locally |
 | `FIREBASE_STORAGE_EMULATOR_HOST` | catalog | `localhost:29199` locally; unset against a real project |
 | `STORAGE_PUBLIC_BASE_URL` | catalog | `http://localhost:29199` locally, `https://firebasestorage.googleapis.com` for real |

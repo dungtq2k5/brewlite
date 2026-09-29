@@ -15,6 +15,7 @@ export const envSchema = z.object({
   IDENTITY_GRPC_URL: z.string(),
   JWT_PUBLIC_KEY: z.string().min(1),
   REDIS_URL: z.string().url(),
+  REDIS_URL_TEST: z.string().url().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

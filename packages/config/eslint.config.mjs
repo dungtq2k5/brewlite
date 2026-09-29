@@ -148,6 +148,7 @@ export const baseConfig = tseslint.config(
           '**/prisma/seed/**',
           '**/vitest.config.mts',
           '**/test/setup/**',
+          '**/test/support/**',
           '**/scripts/**',
           // Deliberately redirects a client to an unreachable port for one e2e case.
           '**/catalog-unavailable.e2e.spec.ts',
@@ -158,6 +159,7 @@ export const baseConfig = tseslint.config(
           '**/route-markers.e2e.spec.ts',
           '**/rate-limit-redis-down.e2e.spec.ts',
           '**/users-routes.e2e.spec.ts',
+          '**/admin-users.e2e.spec.ts',
         ],
         rules: {
           'no-restricted-syntax': [

@@ -12,6 +12,7 @@ export * from './grpc/grpc-request-context.interceptor.js';
 export * from './grpc/caller.js';
 export * from './http/request-id.middleware.js';
 export * from './http/path-aware-helmet.js';
+export * from './http/paged.js';
 export * from './http/response-envelope.interceptor.js';
 export * from './http/skip-envelope.decorator.js';
 export * from './http/response-validation.interceptor.js';
@@ -23,6 +24,7 @@ export * from './http/setup-swagger.js';
 export * from './health/ops.module.js';
 export * from './health/readiness.js';
 export * from './prisma/live.js';
+export * from './prisma/unique-violation.js';
 
 /**
  * Re-exported from nest-common's own resolved copy — a service importing `nestjs-zod`

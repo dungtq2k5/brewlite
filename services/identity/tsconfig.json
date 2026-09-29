@@ -3,7 +3,18 @@
   "compilerOptions": {
     "rootDir": ".",
     "outDir": "dist",
-    "baseUrl": "./"
+    "baseUrl": "./",
+    // `nest build` uses SWC for emission (nest-cli.json) — tsc here only type-checks and
+    // never emits, so a dev-only script can import its shared test helper by its literal
+    // `.ts` extension (no build step turns it into `.js`).
+    "noEmit": true,
+    "allowImportingTsExtensions": true
   },
-  "include": ["src/**/*.ts", "test/**/*.ts", "prisma.config.ts", "prisma/seed/**/*.ts"]
+  "include": [
+    "src/**/*.ts",
+    "test/**/*.ts",
+    "prisma.config.ts",
+    "prisma/seed/**/*.ts",
+    "scripts/**/*.ts"
+  ]
 }

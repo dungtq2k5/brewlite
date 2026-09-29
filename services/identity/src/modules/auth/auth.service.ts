@@ -1,13 +1,21 @@
 import { Injectable, type OnModuleInit } from '@nestjs/common';
 import {
+  FULL_NAME_MAX_LENGTH,
   Locale,
   newId,
   normalizeEmail,
+  normalizeText,
   parseEnum,
   REFRESH_TOKEN_TTL_MS,
   Role,
 } from '@brewlite/contracts';
-import { generateToken, hashToken, rpcError } from '@brewlite/nest-common';
+import type { Me } from '@brewlite/contracts/generated/brewlite/identity/user_service.js';
+import {
+  generateToken,
+  hashToken,
+  isUniqueConstraintViolation,
+  rpcError,
+} from '@brewlite/nest-common';
 import type {
   LoginRequest,
   LoginResponse,
@@ -17,12 +25,27 @@ import type {
   RefreshResponse,
   RegisterRequest,
   RegisterResponse,
+  SignInWithFirebaseRequest,
+  SignInWithFirebaseResponse,
 } from '@brewlite/contracts/generated/brewlite/identity/auth_service.js';
+import type { User } from '../../../generated/prisma/client.js';
+import {
+  FirebaseAuthProvider,
+  type VerifiedFirebaseToken,
+} from '../../providers/auth/firebase.auth-provider.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ME_SELECT, toProtoMe } from '../users/user.mapper.js';
 import { UsersService } from '../users/users.service.js';
 import { hashPassword, verifyPassword } from './domain/password.js';
 import { TokenService } from './token.service.js';
+
+interface CompletedSignIn {
+  user: Me;
+  accessToken: string;
+  accessTokenExpiresAt: string;
+  refreshToken: string;
+  refreshTokenExpiresAt: string;
+}
 
 @Injectable()
 export class AuthService implements OnModuleInit {
@@ -32,6 +55,7 @@ export class AuthService implements OnModuleInit {
     private readonly prisma: PrismaService,
     private readonly tokens: TokenService,
     private readonly users: UsersService,
+    private readonly firebase: FirebaseAuthProvider,
   ) {}
 
   /** A cost-12 hash of a random string, computed once — so an unknown email still costs one bcrypt compare (conventions §9.1). */
@@ -70,7 +94,7 @@ export class AuthService implements OnModuleInit {
         return [createdUser, session] as const;
       });
     } catch (error) {
-      if (this.isUniqueViolation(error)) throw rpcError('EMAIL_TAKEN');
+      if (isUniqueConstraintViolation(error, 'email')) throw rpcError('EMAIL_TAKEN');
       throw error;
     }
 
@@ -102,6 +126,86 @@ export class AuthService implements OnModuleInit {
     const ok = await verifyPassword(request.password, user?.passwordHash ?? this.dummyHash);
     if (!user || !user.passwordHash || !ok) throw rpcError('INVALID_CREDENTIALS');
 
+    return this.completeSignIn(user);
+  }
+
+  /**
+   * *Continue with Google* / *Continue with Apple* (ADR 0013). Finds the account by
+   * Firebase uid, then by email — including a deactivated one, so its email never
+   * becomes a second account (step 7 below refuses it exactly as login does). A
+   * password account matching by email gets linked: its password is cleared and every
+   * session deleted, since the verified Firebase identity now owns the account.
+   */
+  async signInWithFirebase(
+    request: SignInWithFirebaseRequest,
+  ): Promise<SignInWithFirebaseResponse> {
+    const verified = await this.firebase.verify(request.idToken);
+    if (verified.provider !== 'google.com' && verified.provider !== 'apple.com') {
+      throw rpcError('FIREBASE_TOKEN_INVALID', { reason: 'PROVIDER' });
+    }
+    if (!verified.emailVerified) {
+      throw rpcError('FIREBASE_TOKEN_INVALID', { reason: 'EMAIL_UNVERIFIED' });
+    }
+
+    // Two tabs signing in for the first time race the insert — the loser's create hits
+    // the firebase_uid or email unique index; retried once, which then finds the winner.
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      let user: User;
+      let created = false;
+      try {
+        const found = await this.prisma.user.findFirst({
+          where: { OR: [{ firebaseUid: verified.uid }, { email: verified.email }] },
+        });
+        if (found === null) {
+          user = await this.prisma.user.create({
+            data: {
+              id: newId(),
+              email: verified.email,
+              firebaseUid: verified.uid,
+              fullName: this.firebaseFullName(verified),
+              role: Role.CUSTOMER,
+            },
+          });
+          created = true;
+        } else if (found.firebaseUid === verified.uid) {
+          user = found;
+        } else {
+          // Not yet linked, or linked to a different uid — Firebase normally gives one
+          // uid per email, so the latter means the Firebase user was deleted and
+          // recreated. Re-links either way: the verified email is the proof ADR 0013
+          // accepts, and refusing would lock the person out of their own account.
+          user = await this.prisma.$transaction(async (tx) => {
+            await tx.session.deleteMany({ where: { userId: found.id } });
+            return tx.user.update({
+              where: { id: found.id },
+              data: { firebaseUid: verified.uid, passwordHash: null },
+            });
+          });
+        }
+      } catch (error) {
+        if (attempt === 0 && isUniqueConstraintViolation(error)) continue;
+        throw error;
+      }
+      return { ...(await this.completeSignIn(user)), created };
+    }
+    throw new Error('unreachable: signInWithFirebase retry loop must return or throw');
+  }
+
+  private firebaseFullName(verified: VerifiedFirebaseToken): string {
+    const raw = verified.name ?? verified.email.split('@')[0];
+    return normalizeText(raw).slice(0, FULL_NAME_MAX_LENGTH);
+  }
+
+  /**
+   * Login's tail, shared with `signInWithFirebase` so the two sign-in paths cannot
+   * drift: lift an expired lock, refuse a locked or deactivated account, stamp
+   * `last_login_at`, issue a session and an access token.
+   */
+  private async completeSignIn(user: {
+    id: string;
+    role: string;
+    deletedAt: Date | null;
+  }): Promise<CompletedSignIn> {
     const unlocked = await this.liftExpiredLock(user.id);
     if (unlocked.isLocked) throw rpcError('ACCOUNT_LOCKED', { lockedUntil: unlocked.lockedUntil });
     if (user.deletedAt !== null) throw rpcError('ACCOUNT_DEACTIVATED');
@@ -188,14 +292,5 @@ export class AuthService implements OnModuleInit {
       refreshToken: { token, sessionId: session.id },
       refreshTokenExpiresAt: expiresAt.toISOString(),
     };
-  }
-
-  private isUniqueViolation(error: unknown): boolean {
-    return (
-      typeof error === 'object' &&
-      error !== null &&
-      'code' in error &&
-      (error as { code: unknown }).code === 'P2002'
-    );
   }
 }

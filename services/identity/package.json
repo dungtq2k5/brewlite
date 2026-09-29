@@ -9,14 +9,15 @@
     "lint": "eslint .",
     "test": "vitest run --root .",
     "test:integration": "vitest run -c vitest.integration.config.mts",
-    "db:generate": "prisma generate",
+    "db:generate": "prisma generate && node scripts/fix-prisma-client-import.mjs",
     "db:migrate:dev": "prisma migrate dev && pnpm db:objects",
     "db:objects": "prisma db execute --file prisma/sql/schema-objects.sql",
     "db:deploy": "prisma migrate deploy && pnpm db:objects",
     "db:setup": "pnpm db:generate && pnpm db:deploy && PRISMA_DB=test pnpm db:deploy",
     "db:drift": "prisma migrate diff --from-migrations prisma/migrations --to-schema prisma/schema.prisma --exit-code",
     "seed:dev": "node dist/prisma/seed/identity.seed.js",
-    "bootstrap:admin": "node dist/prisma/seed/bootstrap-admin.js"
+    "bootstrap:admin": "node dist/prisma/seed/bootstrap-admin.js",
+    "firebase:dev-token": "node scripts/firebase-dev-token.ts"
   },
   "dependencies": {
     "@brewlite/contracts": "workspace:*",
@@ -31,6 +32,7 @@
     "@prisma/adapter-pg": "^7.0.0",
     "@prisma/client": "^7.0.0",
     "bcryptjs": "^3.0.2",
+    "firebase-admin": "^14.0.0",
     "nestjs-pino": "^4.4.0",
     "pino-http": "^10.4.0",
     "reflect-metadata": "^0.2.2",

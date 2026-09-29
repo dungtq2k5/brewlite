@@ -254,7 +254,7 @@ throw rpcError('INVALID_STATE', { status: current });
 
 As defined in api-endpoints-plan §0.3. A global interceptor wraps success as `{ data, meta? }`; a global filter builds `{ error: { code, message, details?, requestId } }`.
 
-- Handlers return raw data, or `Paged.cursor(items, next)` / `Paged.page(items, meta)`. Returning `{ data }` yourself double-wraps.
+- Handlers return raw data, or `Paged.cursor(items, next)` / `Paged.page(items, meta)` (`packages/nest-common`) — a page query is built with `zPageQuery(sortFields, defaultSort?)` (`packages/contracts`), which bounds `page`/`pageSize` and allowlists `sort` (each field, plus `-field` for descending). Returning `{ data }` yourself double-wraps.
 - Every thrown error carries an `ErrorCode`. A new code is added to `ERRORS`, to api-endpoints-plan §7, and to the web app's `errors` namespace **in both locales** in the same PR.
 - **MUST NOT** put a user-facing sentence in `message`. It is English, for developers.
 - `@SkipEnvelope()` is for ops routes and the SSE streams only.
@@ -388,7 +388,7 @@ if (count === 0) { /* re-read: short → OUT_OF_STOCK; else retry, max STOCK_RES
 ### 7.7 Uniqueness
 
 - A rule that is "unique among live rows" is a **partial unique index** in `schema-objects.sql`, never `@unique`.
-- **The index is the enforcement; the pre-check is the error message.** Every insert that can conflict catches `P2002` with `isUniqueConstraintViolation(error)` and maps it to its specific code (`PRODUCT_NAME_TAKEN`) — or, for an idempotency key, returns the existing row.
+- **The index is the enforcement; the pre-check is the error message.** Every insert that can conflict catches `P2002` with `isUniqueConstraintViolation(error, target?)` (`packages/nest-common`) and maps it to its specific code (`PRODUCT_NAME_TAKEN`) — or, for an idempotency key, returns the existing row. `target` (a column name) narrows to one index, so a clash on a different column is never mistaken for the one being checked; it matches both the classic engine's `meta.target` array and the driver adapter's constraint-name shape.
 
 ### 7.8 Query hygiene
 

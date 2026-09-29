@@ -9,6 +9,7 @@ import { AppModule } from '../../src/app.module.js';
 import { RATE_LIMIT_REDIS_CLIENT } from '../../src/auth/rate-limit-redis.token.js';
 import { configureApp } from '../../src/configure-app.js';
 import { CatalogServiceGrpcClient } from '../../src/modules/catalog/catalog-service-grpc.client.js';
+import { testEnv } from '../setup/env.js';
 
 @Controller('test-only-auth-rate')
 @Auth('PUBLIC')
@@ -47,10 +48,9 @@ describe('gateway e2e — RateLimitGuard', () => {
     if (redisClient.status !== 'ready') {
       await new Promise((resolve) => redisClient.once('ready', resolve));
     }
-    // A clean slate, not the TTL — a prior run's buckets on this dev Redis would
-    // otherwise leave the shared `ip` key already saturated.
-    const keys = await redisClient.keys('gw:rl:AUTH:*');
-    if (keys.length > 0) await redisClient.del(...keys);
+    // A clean slate, not the TTL — the gateway's dedicated test database (14) is never
+    // shared with another spec run, but flushing keeps a re-run from starting saturated.
+    await redisClient.flushdb();
   });
 
   afterAll(async () => {
@@ -58,7 +58,7 @@ describe('gateway e2e — RateLimitGuard', () => {
   });
 
   it('the AUTH class tracks its ip and email buckets as two separate keys', async () => {
-    const redis = new Redis('redis://localhost:26379/0');
+    const redis = new Redis(testEnv.REDIS_URL_TEST);
     const email = `two-buckets-${Date.now()}@brewlite.test`;
     await request(app.getHttpServer()).post('/api/v1/test-only-auth-rate').send({ email });
 

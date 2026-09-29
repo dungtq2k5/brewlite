@@ -8,6 +8,7 @@ import {
 import { envSchema } from './config/env.schema.js';
 import { PrismaModule } from './modules/prisma/prisma.module.js';
 import { PrismaService } from './modules/prisma/prisma.service.js';
+import { AdminUsersModule } from './modules/admin-users/admin-users.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 
@@ -32,6 +33,7 @@ import { UsersModule } from './modules/users/users.module.js';
     }),
     AuthModule,
     UsersModule,
+    AdminUsersModule,
   ],
 })
 export class AppModule {}

@@ -16,6 +16,7 @@ onlyBuiltDependencies:
   - '@bufbuild/buf'
   - protobufjs
   - '@scarf/scarf'
+  - '@firebase/util'
 
 # `ignoredBuiltDependencies` only silences the "would you like to allow this?" warning —
 # strictDepBuilds still fails the install unless the package is also listed above, so

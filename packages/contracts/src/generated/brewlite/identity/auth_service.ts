@@ -40,6 +40,19 @@ export interface LoginResponse {
   refreshTokenExpiresAt: string;
 }
 
+export interface SignInWithFirebaseRequest {
+  idToken: string;
+}
+
+export interface SignInWithFirebaseResponse {
+  user: Me | undefined;
+  accessToken: string;
+  accessTokenExpiresAt: string;
+  refreshToken: string;
+  refreshTokenExpiresAt: string;
+  created: boolean;
+}
+
 export interface RefreshRequest {
   refreshToken: string;
 }
@@ -63,6 +76,8 @@ export interface AuthServiceClient {
 
   login(request: LoginRequest, metadata?: Metadata): Observable<LoginResponse>;
 
+  signInWithFirebase(request: SignInWithFirebaseRequest, metadata?: Metadata): Observable<SignInWithFirebaseResponse>;
+
   refresh(request: RefreshRequest, metadata?: Metadata): Observable<RefreshResponse>;
 
   logout(request: LogoutRequest, metadata?: Metadata): Observable<LogoutResponse>;
@@ -75,6 +90,11 @@ export interface AuthServiceController {
   ): Promise<RegisterResponse> | Observable<RegisterResponse> | RegisterResponse;
 
   login(request: LoginRequest, metadata?: Metadata): Promise<LoginResponse> | Observable<LoginResponse> | LoginResponse;
+
+  signInWithFirebase(
+    request: SignInWithFirebaseRequest,
+    metadata?: Metadata,
+  ): Promise<SignInWithFirebaseResponse> | Observable<SignInWithFirebaseResponse> | SignInWithFirebaseResponse;
 
   refresh(
     request: RefreshRequest,
@@ -89,7 +109,7 @@ export interface AuthServiceController {
 
 export function AuthServiceControllerMethods() {
   return function (constructor: Function) {
-    const grpcMethods: string[] = ["register", "login", "refresh", "logout"];
+    const grpcMethods: string[] = ["register", "login", "signInWithFirebase", "refresh", "logout"];
     for (const method of grpcMethods) {
       const descriptor: any = Reflect.getOwnPropertyDescriptor(constructor.prototype, method);
       GrpcMethod("AuthService", method)(constructor.prototype[method], method, descriptor);

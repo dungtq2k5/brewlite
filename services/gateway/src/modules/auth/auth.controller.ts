@@ -1,7 +1,8 @@
-import { Body, Controller, Header, HttpCode, Post, Req } from '@nestjs/common';
-import type { Request } from 'express';
+import { Body, Controller, Header, HttpCode, Post, Req, Res } from '@nestjs/common';
+import type { Request, Response } from 'express';
 import { ApiEnvelope, ApiErrors, Auth, RateLimit, SkipEnvelope } from '@brewlite/nest-common';
 import { AuthService } from './auth.service.js';
+import { FirebaseSignInDto } from './dto/firebase-sign-in.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RefreshTokenDto } from './dto/refresh-token.dto.js';
 import { RegisterDto } from './dto/register.dto.js';
@@ -29,6 +30,24 @@ export class AuthController {
   @Header('Cache-Control', 'private, no-store')
   login(@Body() dto: LoginDto, @Req() req: Request): Promise<SessionResponseDto> {
     return this.auth.login(dto, req.id as string | undefined);
+  }
+
+  @Post('firebase')
+  @RateLimit('AUTH')
+  @ApiEnvelope(SessionResponseDto)
+  @ApiErrors('FIREBASE_TOKEN_INVALID', 'ACCOUNT_LOCKED', 'ACCOUNT_DEACTIVATED')
+  @Header('Cache-Control', 'private, no-store')
+  async firebase(
+    @Body() dto: FirebaseSignInDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<SessionResponseDto> {
+    const { session, created } = await this.auth.signInWithFirebase(
+      dto,
+      req.id as string | undefined,
+    );
+    res.status(created ? 201 : 200);
+    return session;
   }
 
   @Post('refresh')

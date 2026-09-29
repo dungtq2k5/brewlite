@@ -7,6 +7,7 @@ import "brewlite/identity/user_service.proto";
 service AuthService {
   rpc Register(RegisterRequest) returns (RegisterResponse);
   rpc Login(LoginRequest) returns (LoginResponse);
+  rpc SignInWithFirebase(SignInWithFirebaseRequest) returns (SignInWithFirebaseResponse);
   rpc Refresh(RefreshRequest) returns (RefreshResponse);
   rpc Logout(LogoutRequest) returns (LogoutResponse);
 }
@@ -35,6 +36,16 @@ message LoginResponse {
   string access_token_expires_at = 3;
   string refresh_token = 4;
   string refresh_token_expires_at = 5;
+}
+
+message SignInWithFirebaseRequest { string id_token = 1; }
+message SignInWithFirebaseResponse {
+  Me user = 1;
+  string access_token = 2;
+  string access_token_expires_at = 3;
+  string refresh_token = 4;
+  string refresh_token_expires_at = 5;
+  bool created = 6;
 }
 
 message RefreshRequest { string refresh_token = 1; }

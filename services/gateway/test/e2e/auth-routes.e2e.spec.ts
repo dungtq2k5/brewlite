@@ -13,6 +13,7 @@ import { IdentityServiceGrpcClient } from '../../src/modules/auth/identity-servi
 const identityClientStub = {
   register: vi.fn(),
   login: vi.fn(),
+  signInWithFirebase: vi.fn(),
   refresh: vi.fn(),
   logout: vi.fn(),
 };
@@ -80,15 +81,15 @@ describe('gateway e2e — /auth routes', () => {
     if (redisClient.status !== 'ready') {
       await new Promise((resolve) => redisClient.once('ready', resolve));
     }
-    // A clean slate, not the TTL — a prior run's buckets on this dev Redis would
-    // otherwise leave the shared AUTH-class `ip` key already saturated.
-    const keys = await redisClient.keys('gw:rl:AUTH:*');
-    if (keys.length > 0) await redisClient.del(...keys);
+    // A clean slate, not the TTL — the gateway's dedicated test database (14) is never
+    // shared with another spec run, but flushing keeps a re-run from starting saturated.
+    await redisClient.flushdb();
   });
 
   afterEach(() => {
     identityClientStub.register.mockReset();
     identityClientStub.login.mockReset();
+    identityClientStub.signInWithFirebase.mockReset();
     identityClientStub.refresh.mockReset();
     identityClientStub.logout.mockReset();
   });
@@ -151,6 +152,35 @@ describe('gateway e2e — /auth routes', () => {
       .send({ email: 'locked@brewlite.test', password: 'password123' });
     expect(res.status).toBe(403);
     expect(res.body.error.details).toEqual({ lockedUntil });
+  });
+
+  it('POST /auth/firebase — 201 when created is true', async () => {
+    identityClientStub.signInWithFirebase.mockResolvedValue({ ...sessionProto(), created: true });
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/auth/firebase')
+      .send({ idToken: 'a-real-looking-token' });
+    expect(res.status).toBe(201);
+    expect(res.body.data.accessToken).toBeTruthy();
+    expect(res.headers['cache-control']).toBe('private, no-store');
+  });
+
+  it('POST /auth/firebase — 200 when created is false', async () => {
+    identityClientStub.signInWithFirebase.mockResolvedValue({ ...sessionProto(), created: false });
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/auth/firebase')
+      .send({ idToken: 'a-real-looking-token' });
+    expect(res.status).toBe(200);
+  });
+
+  it('POST /auth/firebase — 401 FIREBASE_TOKEN_INVALID with reason', async () => {
+    identityClientStub.signInWithFirebase.mockRejectedValue(
+      serviceError(16, 'FIREBASE_TOKEN_INVALID', { reason: 'PROVIDER' }),
+    );
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/auth/firebase')
+      .send({ idToken: 'a-real-looking-token' });
+    expect(res.status).toBe(401);
+    expect(res.body.error.details).toEqual({ reason: 'PROVIDER' });
   });
 
   it('POST /auth/refresh — 200 { accessToken, accessTokenExpiresAt }', async () => {
