@@ -13,6 +13,13 @@ export const baseConfig = tseslint.config(
   ...tseslint.configs.recommended,
   prettier,
   {
+    // Plain JS/MJS scripts run under Node; TS files get no-undef disabled by typescript-eslint.
+    files: ['**/*.{js,mjs,cjs}'],
+    languageOptions: {
+      globals: { console: 'readonly', process: 'readonly', Buffer: 'readonly', URL: 'readonly' },
+    },
+  },
+  {
     // Type-aware parsing is scoped to real TS source — root/package config scripts
     // (*.mjs, *.mts, *.cjs) are never part of a tsconfig `include` and don't need it.
     files: ['**/*.ts', '**/*.tsx'],
@@ -144,6 +151,13 @@ export const baseConfig = tseslint.config(
           '**/scripts/**',
           // Deliberately redirects a client to an unreachable port for one e2e case.
           '**/catalog-unavailable.e2e.spec.ts',
+          // Set JWT_PUBLIC_KEY / NODE_ENV before dynamically importing AppModule, so the
+          // test proves a real key pair and a real production/non-production build.
+          '**/auth-guard.e2e.spec.ts',
+          '**/auth-guard-production.e2e.spec.ts',
+          '**/route-markers.e2e.spec.ts',
+          '**/rate-limit-redis-down.e2e.spec.ts',
+          '**/users-routes.e2e.spec.ts',
         ],
         rules: {
           'no-restricted-syntax': [

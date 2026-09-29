@@ -1,15 +1,12 @@
 import { Controller, Get, Param, Query, Req } from '@nestjs/common';
 import type { Request } from 'express';
-import { ApiEnvelope, ApiErrors } from '@brewlite/nest-common';
+import { ApiEnvelope, ApiErrors, Auth } from '@brewlite/nest-common';
 import { ProductParamDto, ProductQueryDto } from './dto/product.dto.js';
 import { ProductDetailResponseDto, ProductSummaryResponseDto } from './dto/product-response.dto.js';
 import { ProductsService } from './products.service.js';
 
-/**
- * No `@Auth('PUBLIC')` marker and no `PUBLIC_READ` rate limit yet — the same divergence
- * as `GET /categories` (03's job for all three routes).
- */
 @Controller('products')
+@Auth('PUBLIC')
 export class ProductsController {
   constructor(private readonly products: ProductsService) {}
 

@@ -9,6 +9,7 @@ import {
 import type { Request, Response } from 'express';
 import { ZodValidationException } from 'nestjs-zod';
 import { ERRORS, GrpcStatus, type ErrorCode } from '@brewlite/contracts';
+import { ApiError } from '../errors/api-error.js';
 import {
   isGrpcServiceError,
   readErrorCode,
@@ -59,6 +60,14 @@ export class ErrorFilter implements ExceptionFilter {
     exception: unknown,
     requestId: string,
   ): { status: number; code: ErrorCode; details?: unknown } {
+    if (exception instanceof ApiError) {
+      const definition = ERRORS[exception.code];
+      if (this.isProduction && exception.code === 'PERMISSION_DENIED') {
+        return { status: definition.http, code: exception.code };
+      }
+      return { status: definition.http, code: exception.code, details: exception.details };
+    }
+
     if (exception instanceof ZodValidationException) {
       const zodError = exception.getZodError() as { issues: ZodIssueLike[] };
       const issues = zodError.issues.map((issue) => ({

@@ -11,3 +11,8 @@ export const PROTO_ROOT = join(
 );
 
 export const CATALOG_PROTO_FILES = [join(PROTO_ROOT, 'brewlite/catalog/menu_service.proto')];
+
+export const IDENTITY_PROTO_FILES = [
+  join(PROTO_ROOT, 'brewlite/identity/auth_service.proto'),
+  join(PROTO_ROOT, 'brewlite/identity/user_service.proto'),
+];

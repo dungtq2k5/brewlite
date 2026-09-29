@@ -101,7 +101,7 @@ Every amount is an integer number of đồng, in a field ending `Vnd` — `total
 
 ### 0.8 Rate limits
 
-`@nestjs/throttler` in the gateway with Redis storage. Every route has one class; the numbers are `RATE_LIMITS` in `packages/contracts`.
+The gateway's own `RateLimitGuard` (conventions §6.3): fixed window, `INCR` + `PEXPIRE NX` per key `gw:rl:<class>:<kind>:<value>` on ioredis, fail-open on a Redis outage. Every route has one class, set with `@RateLimit(class | 'NONE')`; the numbers are `RATE_LIMITS` in `packages/contracts`.
 
 | Class | Key | Limit | Routes |
 | :---- | :---- | :---- | :---- |
@@ -144,7 +144,7 @@ Session = {
 | Method | Path | Description | Auth |
 | :---- | :---- | :---- | :---- |
 | POST | `/auth/register` | `{ email, password, fullName, preferredLocale? }` → `201 Session`. Creates I-1 as `CUSTOMER` and a session; `preferredLocale` is the locale the guest was browsing in (`en` when absent). Password 8–72 **bytes**. `409 EMAIL_TAKEN`. | PUBLIC · `AUTH` |
-| POST | `/auth/login` | `{ email, password }` → `200 Session`. Unknown email, wrong password and an account with no password are **the same** `401 INVALID_CREDENTIALS`, with the same timing. An expired lock is lifted first (rdm-spec §2.9); then `403 ACCOUNT_LOCKED` (`details.lockedUntil`, `null` when indefinite — never the reason) or `403 ACCOUNT_DEACTIVATED`. | PUBLIC · `AUTH` |
+| POST | `/auth/login` | `{ email, password }` → `200 Session`. Unknown email, wrong password and an account with no password are **the same** `401 INVALID_CREDENTIALS`, with the same timing. **The password is verified first** — only once it matches is an expired lock lifted (rdm-spec §2.9) and `403 ACCOUNT_LOCKED` (`details.lockedUntil`, `null` when indefinite — never the reason) or `403 ACCOUNT_DEACTIVATED` revealed; checking the lock before the password would tell anyone who types an email whether the account exists and is locked. | PUBLIC · `AUTH` |
 | POST | `/auth/firebase` | `{ idToken }` — a Firebase ID token from a Google or Apple sign-in → `200 Session` (`201` when the account was created). Verified with `firebase-admin`; the provider must be `google.com` or `apple.com` and the email verified, else `401 FIREBASE_TOKEN_INVALID` (`details.reason: INVALID \| PROVIDER \| EMAIL_UNVERIFIED`). Finds the user by `firebase_uid`, then by email — **linking to an existing password account clears its password and deletes its sessions** ([ADR 0013](./decisions/0013-identity-issues-brewlite-tokens-and-firebase-only-proves-sign-ins.md)) — else creates a `CUSTOMER`. `403 ACCOUNT_LOCKED` or `403 ACCOUNT_DEACTIVATED`, as for login — a deactivated account's email never becomes a second account. | PUBLIC · `AUTH` |
 | POST | `/auth/refresh` | `{ refreshToken }` → `200 { accessToken, accessTokenExpiresAt }`. Unknown, expired, or the user locked or deactivated → `401 UNAUTHENTICATED` (the web server then clears the cookies — the visitor is a guest again). The refresh token is not rotated. | PUBLIC · `SESSION` |
 | POST | `/auth/logout` | `{ refreshToken }` → `204`. Deletes the session; an unknown token is still `204`. | PUBLIC · `SESSION` |
@@ -158,7 +158,7 @@ Me = { id; email; fullName; role: 'CUSTOMER' | 'STAFF' | 'ADMIN'; permissions: s
 
 | Method | Path | Description | Auth |
 | :---- | :---- | :---- | :---- |
-| GET | `/users/me` | `Me`. `permissions` is `ROLE_PERMISSIONS[role]` — the web app uses it to show or hide staff and admin links. | USER |
+| GET | `/users/me` | `Me`. `permissions` is `ROLE_PERMISSIONS[role]` — the web app uses it to show or hide staff and admin links. A deactivated account holding a still-valid access token gets `401 UNAUTHENTICATED`, not `404` — the account is gone for them, and `401` is what makes the web server clear the cookies. | USER |
 | PATCH | `/users/me` | `{ fullName?, preferredLocale? }` → `Me`. Nothing else is self-service. | USER |
 | PATCH | `/users/me/password` *(P1)* | `{ currentPassword?, newPassword }` → `204`. `currentPassword` required when the account has one (`403 CURRENT_PASSWORD_INCORRECT`); a Google-only account may set a first password. Deletes every *other* session. | USER · `AUTH` |
 
@@ -560,7 +560,7 @@ Every service serves these — backend services on `OPS_PORT`, the gateway on it
 | Method | Path | Description | Auth |
 | :---- | :---- | :---- | :---- |
 | GET | `/health` | Liveness: the process is up. | PUBLIC |
-| GET | `/health/ready` | Readiness: **this service's own** dependencies — its database, Redis, NATS. Never a gRPC peer. The gateway checks Redis and NATS. Only a dependency the service cannot serve without — catalog's menu reads survive Redis being down (architecture §2.6), so Redis joins catalog's readiness only once a background job needs it. | PUBLIC |
+| GET | `/health/ready` | Readiness: **this service's own** dependencies — its database, Redis, NATS. Never a gRPC peer. Only a dependency the service cannot serve without — catalog's menu reads survive Redis being down (architecture §2.6), so Redis joins catalog's readiness only once a background job needs it. The gateway declares no readiness dependency yet: its `RateLimitGuard` fails open on a Redis outage (architecture §2.6, §5), so Redis is not required to serve. | PUBLIC |
 | GET | `/version` | `{ service, version, gitSha, builtAt }`. | PUBLIC |
 | GET | `/docs`, `/docs-json` | Swagger UI and the OpenAPI document. Gateway only; `SWAGGER_ENABLED=false` in production. | PUBLIC |
 

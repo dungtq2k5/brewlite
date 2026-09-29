@@ -7,8 +7,8 @@ import { REDIS_CLIENT } from '../redis/redis.module.js';
 const MENU_KEY = 'catalog:menu';
 
 /**
- * A Redis failure never fails the menu (doc 02 §4.4): every call is wrapped, logs one
- * `warn` on any error, and falls back to (or simply skips) the cache.
+ * A Redis failure never fails the menu: every call is wrapped, logs one `warn` on any
+ * error, and falls back to (or simply skips) the cache.
  */
 @Injectable()
 export class MenuCache {

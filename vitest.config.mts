@@ -13,6 +13,7 @@ export default defineConfig({
       'packages/nest-common',
       'services/catalog',
       'services/gateway',
+      'services/identity',
     ],
   },
 });

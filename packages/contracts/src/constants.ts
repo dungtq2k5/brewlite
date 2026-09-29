@@ -61,3 +61,7 @@ export const PROMO_CODE_MAX_LENGTH = 32;
 
 // O-4 description
 export const PROMO_DESCRIPTION_MAX_LENGTH = 200;
+
+// architecture §5 — shared by the access-token signer and every verifier
+export const JWT_ISSUER = 'brewlite-identity';
+export const JWT_AUDIENCE = 'brewlite-gateway';

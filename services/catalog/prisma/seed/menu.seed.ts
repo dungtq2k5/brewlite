@@ -364,7 +364,7 @@ const TOPPINGS: ToppingSeed[] = [
   { id: TOPPING_IDS.peachSlices, nameEn: 'Peach slices', nameVi: 'Đào miếng', priceVnd: 10_000 },
 ];
 
-// Allowed toppings by category — doc 02 §7.1.
+// Allowed toppings by category.
 const ALLOWED_TOPPINGS: Record<keyof typeof CATEGORY_IDS, (keyof typeof TOPPING_IDS)[]> = {
   coffee: ['extraEspressoShot', 'cheeseFoam'],
   tea: ['grassJelly', 'coconutJelly', 'peachSlices', 'whitePearls'],

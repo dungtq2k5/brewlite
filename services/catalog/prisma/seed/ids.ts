@@ -1,6 +1,6 @@
 /**
  * Every seeded row's id, generated once with `newId()` and committed — never
- * regenerated. Idempotency (doc 02 §7) depends on these staying fixed forever.
+ * regenerated. The seed's idempotency depends on these staying fixed forever.
  */
 export const CATEGORY_IDS = {
   coffee: '01a0e67a-33ae-7ce5-b743-b7515916139b',

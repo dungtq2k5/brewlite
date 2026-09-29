@@ -8,9 +8,9 @@ export const REDIS_CLIENT = Symbol('REDIS_CLIENT');
 /**
  * The client is a `useFactory` provider, so `RedisModule` itself implements
  * `OnModuleDestroy` to `quit()` it — a factory value gets no lifecycle hooks of its own
- * (the same trap as `PrismaService`, doc 01). `maxRetriesPerRequest: 1`,
- * `enableOfflineQueue: false` and a short `connectTimeout` make a call against a stopped
- * Redis fail fast instead of queueing for seconds (doc 02 §4.4).
+ * (the same trap as `PrismaService`). `maxRetriesPerRequest: 1`, `enableOfflineQueue:
+ * false` and a short `connectTimeout` make a call against a stopped Redis fail fast
+ * instead of queueing for seconds.
  */
 @Module({
   imports: [ConfigModule],

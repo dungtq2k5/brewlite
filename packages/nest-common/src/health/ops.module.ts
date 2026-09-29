@@ -15,6 +15,7 @@ import type { Response } from 'express';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { SkipEnvelope } from '../http/skip-envelope.decorator.js';
+import { Auth, RateLimit } from '../http/access.decorators.js';
 import type { ReadinessCheck } from './readiness.js';
 
 const READINESS_CHECKS = 'BREWLITE_READINESS_CHECKS';
@@ -43,6 +44,8 @@ function findPackageJson(startDir: string): { name?: string; version?: string } 
  */
 @ApiExcludeController()
 @Controller()
+@Auth('PUBLIC')
+@RateLimit('NONE')
 class OpsController {
   private readonly pkg: { name?: string; version?: string };
 

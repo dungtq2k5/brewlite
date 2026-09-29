@@ -276,9 +276,11 @@ As defined in api-endpoints-plan §0.3. A global interceptor wraps success as `{
 
 **Every route declares exactly one rule:** `@Auth('PUBLIC' | 'USER' | 'SIGNATURE')` or `@RequirePermission(code)`. A route with none, or two, **stops the gateway from booting** — a forgotten guard is the failure that actually happens, and it fails open. The marker also applies the route's Swagger security scheme.
 
-- Guards run in order: `AuthGuard` → `PermissionGuard` → `ThrottlerGuard`.
+- `@Auth`, `@RequirePermission` and `@RateLimit` live in `packages/nest-common` (`http/access.decorators.ts`), not the gateway — `OpsController`, also in nest-common, needs them for its own routes. The guards that read them (`AuthGuard`, `PermissionGuard`, `RateLimitGuard`) are the gateway's own, under `src/auth/`.
+- Guards run in order: `AuthGuard` → `PermissionGuard` → `RateLimitGuard`.
 - `@RequirePermission()` with no code is a compile error.
-- Every route has one rate-limit class (api-endpoints-plan §0.8), from `@RateLimit(…)` or the marker's default.
+- Every route has one rate-limit class (api-endpoints-plan §0.8), from `@RateLimit(class | 'NONE')` or the marker's default.
+- A gateway guard runs before any gRPC call, so it cannot build an `RpcException` — it throws `apiError()` instead, the guard-side twin of `rpcError()` (§5.3).
 
 ### 6.4 Idempotent routes
 

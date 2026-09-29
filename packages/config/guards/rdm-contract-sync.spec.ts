@@ -78,8 +78,8 @@ const BOUND_MAP: Record<string, number> = {
 };
 
 /** Every table under §3 whose description column begins with a backticked span — the
- * full set the enum map above must cover (doc 01a §8.6: "every rdm column ... must be in
- * the map, so a new enumerated column cannot be added to rdm-spec alone"). */
+ * full set the enum map above must cover (conventions §16.4's `rdm-contract-sync` rule):
+ * a new enumerated column cannot be added to rdm-spec alone. */
 function everyEnumBearingColumn(doc: string): string[] {
   const identifiers: string[] = [];
   for (const table of [

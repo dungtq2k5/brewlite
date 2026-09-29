@@ -1,7 +1,7 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import { createZodDto } from '@brewlite/nest-common';
+import { Auth, createZodDto } from '@brewlite/nest-common';
 import request from 'supertest';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
@@ -12,6 +12,7 @@ import { CatalogServiceGrpcClient } from '../../src/modules/catalog/catalog-serv
 class TestQueryDto extends createZodDto(z.object({ name: z.string().min(3) })) {}
 
 @Controller('test-only')
+@Auth('PUBLIC')
 class TestOnlyController {
   @Get()
   get(@Query() query: TestQueryDto) {

@@ -16,10 +16,9 @@ import { MenuService } from './menu.service.js';
 
 /**
  * One interceptor per method call, not a manual `runWithRequestId` wrap per method — a
- * fifth RPC that forgot the wrap would log without a request id (doc 02 §7a). Applied on
- * the controller rather than the hybrid app's global interceptors: whether
- * `app.useGlobalInterceptors` reaches a `connectMicroservice` app was doc 02's verify
- * item 4 — this sidesteps the question.
+ * fifth RPC that forgot the wrap would log without a request id. Applied on the
+ * controller rather than the hybrid app's global interceptors, sidestepping whether
+ * `app.useGlobalInterceptors` reaches a `connectMicroservice` app.
  */
 @Controller()
 @MenuServiceControllerMethods()

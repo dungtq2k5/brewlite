@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package brewlite.identity;
+
+service UserService {
+  rpc GetMe(GetMeRequest) returns (GetMeResponse);
+  rpc UpdateMe(UpdateMeRequest) returns (UpdateMeResponse);
+}
+
+message Me {
+  string id = 1;
+  string email = 2;
+  string full_name = 3;
+  string role = 4;
+  bool has_password = 5;
+  string preferred_locale = 6;
+  string created_at = 7;
+}
+
+message GetMeRequest {}
+message GetMeResponse { Me me = 1; }
+
+message UpdateMeRequest {
+  optional string full_name = 1;
+  optional string preferred_locale = 2;
+}
+message UpdateMeResponse { Me me = 1; }

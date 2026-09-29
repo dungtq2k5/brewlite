@@ -178,7 +178,7 @@ GATEWAY (no database)
 
 📌 [ADR 0023](./decisions/0023-redis-holds-only-reconstructible-state.md). One Redis, three jobs, all reconstructible:
 
-- **Rate limits** — `@nestjs/throttler` in the gateway with Redis storage, so limits hold across replicas. Classes in api-endpoints-plan §0.8.
+- **Rate limits** — the gateway's own `RateLimitGuard` (conventions §6.3), not `@nestjs/throttler`: a fixed window on ioredis, `INCR` + `PEXPIRE NX` per key `gw:rl:<class>:<kind>:<value>`, so limits hold across replicas. Classes in api-endpoints-plan §0.8. A Redis error fails **open** with one `error` log line — a rate limiter must not take the shop down — so the gateway declares no readiness dependency on Redis.
 - **Cache** — catalog caches the public menu (`catalog:menu`) and deletes the key after every menu write commits, and when a product's stock crosses zero. `MENU_CACHE_TTL_MS` is only the backstop. A cache read or write never fails the request it backs: on any Redis error the call logs one `warn` and falls back to the database. **The web app caches no API data**: one cache layer, one place to invalidate.
 - **`/health/ready` lists only what a service cannot serve without.** Catalog's menu reads survive a Redis outage (the line above), so Redis is not in catalog's readiness until a background job (below) makes it required.
 - **Background jobs** — **BullMQ** via `@nestjs/bullmq`, as repeatable jobs with stable ids (never `@Cron`, which fires once per replica):
@@ -378,6 +378,7 @@ Locally the SDK talks to the **Firebase Auth emulator**, which offers fake Googl
 - **Revocation:** sign-out deletes the session; a role change, a lock or a deactivation deletes all of the user's sessions, and sign-in and refresh refuse a locked or deactivated account. An access token already issued stays valid until it expires — **at most 15 minutes**, stated and accepted.
 - **Authorization:** three fixed roles, a static permission catalogue in `packages/contracts`, and `ROLE_PERMISSIONS` mapping one to the other in code ([ADR 0016](./decisions/0016-three-fixed-roles-and-a-compile-time-permission-catalogue.md)). Routes declare a **permission**, never a role.
 - **Caller context:** the gateway passes `x-user-id`, `x-user-role` and `x-request-id` to services as gRPC metadata. Services trust it — they are unreachable except through the gateway — and **every ownership check happens in the service**, scoped in the query (`WHERE id = $1 AND user_id = $2`).
+- **Gateway guard order:** `AuthGuard → PermissionGuard → RateLimitGuard`, applied globally so no route opts out by omission. Route markers (`@Auth`, `@RequirePermission`, `@RateLimit`) live in `packages/nest-common` (conventions §6.3), since `OpsController` there needs them too; the guards that read them are the gateway's own. A boot-time check refuses to start the gateway if any route is missing a marker.
 - **HTTP hardening:** `helmet` on the gateway; strict CSP on the web app; `trust proxy` set to the exact hop count.
 - **Secrets:** `.env` locally (git-ignored, with a committed `.env.example` per app), GitHub Actions secrets in CI. Never in source, never in logs. `NEXT_PUBLIC_*` is compiled into the browser bundle — public values only.
 
@@ -455,7 +456,7 @@ Locally the SDK talks to the **Firebase Auth emulator**, which offers fake Googl
 
 **Practices:** trunk-based, short branches, one review required, Conventional Commits.
 
-**Deployment:** the course requires the whole system to run from `docker compose` — the `apps` profile builds `web` and the five services from `Dockerfile.web` and `Dockerfile.service` (`ARG SERVICE`) and runs them beside the infrastructure. The runtime stage is `pnpm --filter @brewlite/<svc> --prod deploy --legacy` (pnpm 10 refuses a non-injected workspace without `--legacy`) and **never migrates** — `pnpm db:setup` on the host or in CI does. ⚠️ `.dockerignore` excludes `services/*/generated` (the Prisma client, rebuilt in the image) but **not** `packages/contracts/src/generated` (committed gRPC code the build needs). ⚠️ Every package reached only through a `tsconfig` `extends` (`packages/config`) is a declared `workspace:*` devDependency, or `turbo prune --docker` leaves it out of the build context. A cloud deployment is P2 and out of this document's scope.
+**Deployment:** the course requires the whole system to run from `docker compose` — the `apps` profile builds `web` and the five services from `Dockerfile.web` and `Dockerfile.service` (`ARG SERVICE`) and runs them beside the infrastructure. Identity and the gateway get their `JWT_*` keys through `env_file: [{ path: services/<svc>/.env, required: false }]`, reading whatever `pnpm keys:dev` already wrote — never written into `compose.yaml` itself. The runtime stage is `pnpm --filter @brewlite/<svc> --prod deploy --legacy` (pnpm 10 refuses a non-injected workspace without `--legacy`) and **never migrates** — `pnpm db:setup` on the host or in CI does. ⚠️ `.dockerignore` excludes `services/*/generated` (the Prisma client, rebuilt in the image) but **not** `packages/contracts/src/generated` (committed gRPC code the build needs). ⚠️ Every package reached only through a `tsconfig` `extends` (`packages/config`) is a declared `workspace:*` devDependency, or `turbo prune --docker` leaves it out of the build context. A cloud deployment is P2 and out of this document's scope.
 
 ---
 
@@ -483,9 +484,9 @@ Every Nest service declares its variables in `src/config/env.schema.ts` (zod), l
 | `GLOBAL_PREFIX` | gateway | `api`; never hard-coded elsewhere |
 | `SWAGGER_ENABLED` | gateway | `false` in production |
 | `TRUST_PROXY_HOPS` | gateway | exact proxy count in front of the gateway; `1` locally — the web server is one (api-endpoints-plan §0.1) |
-| `JWT_PUBLIC_KEY` | gateway | ES256 public key, base64 PEM |
-| `JWT_PRIVATE_KEY` | identity | ES256 private key, base64 PEM — identity only; `pnpm keys:dev` generates a local pair |
-| `JWT_KEY_ID` | identity | `kid` in every token header |
+| `JWT_PUBLIC_KEY` | gateway | ES256 public key, base64 PEM; empty in `.env.example` — `pnpm keys:dev` generates a matching pair and writes this to the gateway's `.env`, never committed |
+| `JWT_PRIVATE_KEY` | identity | ES256 private key, base64 PEM — identity only; empty in `.env.example`; `pnpm keys:dev` writes this to identity's `.env` |
+| `JWT_KEY_ID` | identity | `kid` in every token header; written by `pnpm keys:dev` alongside `JWT_PRIVATE_KEY` |
 | `FIREBASE_PROJECT_ID` | identity, catalog | a `demo-brewlite` project id locally (emulator-only, no real project needed) |
 | `GOOGLE_APPLICATION_CREDENTIALS` | identity, catalog | service-account key path when talking to a real Firebase project; unset with the emulators |
 | `FIREBASE_AUTH_EMULATOR_HOST` | identity | `localhost:29099` locally; **unset** against a real project |

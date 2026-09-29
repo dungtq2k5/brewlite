@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package brewlite.identity;
+
+import "brewlite/identity/user_service.proto";
+
+service AuthService {
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+  rpc Login(LoginRequest) returns (LoginResponse);
+  rpc Refresh(RefreshRequest) returns (RefreshResponse);
+  rpc Logout(LogoutRequest) returns (LogoutResponse);
+}
+
+message RegisterRequest {
+  string email = 1;
+  string password = 2;
+  string full_name = 3;
+  optional string preferred_locale = 4;
+}
+message RegisterResponse {
+  Me user = 1;
+  string access_token = 2;
+  string access_token_expires_at = 3;
+  string refresh_token = 4;
+  string refresh_token_expires_at = 5;
+}
+
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+}
+message LoginResponse {
+  Me user = 1;
+  string access_token = 2;
+  string access_token_expires_at = 3;
+  string refresh_token = 4;
+  string refresh_token_expires_at = 5;
+}
+
+message RefreshRequest { string refresh_token = 1; }
+message RefreshResponse {
+  string access_token = 1;
+  string access_token_expires_at = 2;
+}
+
+message LogoutRequest { string refresh_token = 1; }
+message LogoutResponse {}

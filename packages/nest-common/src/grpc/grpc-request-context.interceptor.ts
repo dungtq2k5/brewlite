@@ -11,7 +11,7 @@ import { runWithRequestId } from './request-context.js';
 
 /**
  * Binds `x-request-id` from the call's metadata for the lifetime of the handler, so a
- * gRPC controller method no longer wraps itself in `runWithRequestId` (doc 02 §7a).
+ * gRPC controller method no longer wraps itself in `runWithRequestId`.
  * Subscribing inside `run` is the point: `next.handle()` is lazy, so running only its
  * creation inside `run` would lose the context before the handler executes.
  */
