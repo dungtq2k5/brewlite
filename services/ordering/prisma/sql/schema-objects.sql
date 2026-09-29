@@ -1,5 +1,5 @@
--- rdm-spec §5, ordering O-1 … O-3 and outbox_events rows. Idempotent — safe to run on
--- every deploy (conventions §7.1). Promotions/loyalty (O-4 … O-6) are 05a's.
+-- rdm-spec §5, ordering O-1 … O-6 and outbox_events rows. Idempotent — safe to run on
+-- every deploy (conventions §7.1).
 
 -- O-1: the order number starts at 1000 and never goes backwards on a re-run.
 DO $$
@@ -109,3 +109,102 @@ END $$;
 -- outbox_events: the relay's only query (rdm-spec §2.7, 05b).
 CREATE INDEX IF NOT EXISTS outbox_events_unpublished_idx
   ON outbox_events (id) WHERE published_at IS NULL;
+
+-- O-4: code is stored upper-case (case-insensitive at the edge, product-overview §6.5).
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'promotions_code_upper_ck'
+  ) THEN
+    ALTER TABLE promotions
+      ADD CONSTRAINT promotions_code_upper_ck
+      CHECK (code = upper(code));
+  END IF;
+END $$;
+
+-- O-4: discount_value bounds per discount_type.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'promotions_value_ck'
+  ) THEN
+    ALTER TABLE promotions
+      ADD CONSTRAINT promotions_value_ck
+      CHECK (
+        (discount_type = 'PERCENT' AND discount_value BETWEEN 1 AND 100)
+        OR (discount_type = 'FIXED' AND discount_value > 0)
+      );
+  END IF;
+END $$;
+
+-- O-4: a cap only makes sense on a PERCENT discount.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'promotions_cap_ck'
+  ) THEN
+    ALTER TABLE promotions
+      ADD CONSTRAINT promotions_cap_ck
+      CHECK (max_discount_vnd IS NULL OR discount_type = 'PERCENT');
+  END IF;
+END $$;
+
+-- O-4: the window is never empty or inverted.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'promotions_window_ck'
+  ) THEN
+    ALTER TABLE promotions
+      ADD CONSTRAINT promotions_window_ck
+      CHECK (ends_at > starts_at);
+  END IF;
+END $$;
+
+-- O-4: the database's own floor against an over-use — the row lock (§3.3) is the mechanism, this is the backstop.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'promotions_uses_ck'
+  ) THEN
+    ALTER TABLE promotions
+      ADD CONSTRAINT promotions_uses_ck
+      CHECK (used_count >= 0 AND (max_uses IS NULL OR used_count <= max_uses));
+  END IF;
+END $$;
+
+-- O-4: deleted_at and deleted_by_id move together (conventions §7.3).
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'promotions_deleted_by_ck'
+  ) THEN
+    ALTER TABLE promotions
+      ADD CONSTRAINT promotions_deleted_by_ck
+      CHECK ((deleted_at IS NULL) = (deleted_by_id IS NULL));
+  END IF;
+END $$;
+
+-- O-5: a balance never goes negative (product-overview §6.6).
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'loyalty_accounts_balance_ck'
+  ) THEN
+    ALTER TABLE loyalty_accounts
+      ADD CONSTRAINT loyalty_accounts_balance_ck
+      CHECK (balance >= 0);
+  END IF;
+END $$;
+
+-- O-6: a zero-point transaction is never written.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'loyalty_transactions_points_ck'
+  ) THEN
+    ALTER TABLE loyalty_transactions
+      ADD CONSTRAINT loyalty_transactions_points_ck
+      CHECK (points <> 0);
+  END IF;
+END $$;

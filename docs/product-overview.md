@@ -295,7 +295,7 @@ A promo code is:
 
 Rules:
 
-- **One code per order.** The discount never exceeds the subtotal, and the total never drops below `MIN_PAYABLE_VND`.
+- **One code per order.** The discount is capped at `subtotal − MIN_PAYABLE_VND`, so a valid code never drops the total below `MIN_PAYABLE_VND` — the customer pays the minimum rather than being refused. A cart whose **subtotal** is already below `MIN_PAYABLE_VND` is refused `ORDER_TOTAL_TOO_LOW`, code or not.
 - Percent discounts round **down** to the đồng.
 - A use is counted when the order is **placed** and given back if the order is **cancelled** — so a cap of 100 can never be exceeded by 100 unpaid orders plus one paid one.
 - An invalid code refuses the quote or the order with a reason the UI can show: not found, not active, not started, expired, below the minimum, exhausted, or already used by this customer.

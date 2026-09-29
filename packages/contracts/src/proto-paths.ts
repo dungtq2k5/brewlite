@@ -22,4 +22,7 @@ export const IDENTITY_PROTO_FILES = [
   join(PROTO_ROOT, 'brewlite/identity/admin_user_service.proto'),
 ];
 
-export const ORDERING_PROTO_FILES = [join(PROTO_ROOT, 'brewlite/ordering/order_service.proto')];
+export const ORDERING_PROTO_FILES = [
+  join(PROTO_ROOT, 'brewlite/ordering/order_service.proto'),
+  join(PROTO_ROOT, 'brewlite/ordering/promotion_service.proto'),
+];

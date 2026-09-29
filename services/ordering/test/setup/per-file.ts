@@ -9,7 +9,7 @@ export const prisma = new PrismaClient({
 
 beforeEach(async () => {
   await prisma.$executeRawUnsafe(
-    'TRUNCATE TABLE orders, order_items, order_status_history, outbox_events RESTART IDENTITY CASCADE',
+    'TRUNCATE TABLE orders, order_items, order_status_history, outbox_events, promotions, loyalty_accounts, loyalty_transactions RESTART IDENTITY CASCADE',
   );
 });
 

@@ -37,7 +37,9 @@ function buildDeps() {
     }),
   };
   const catalogStock = { reserveStock: vi.fn().mockResolvedValue({}), releaseStock: vi.fn() };
-  return { prisma, outbox, catalogMenu, catalogStock };
+  const promotions = { evaluate: vi.fn(), evaluateLocked: vi.fn() };
+  const loyalty = { earn: vi.fn(), reverse: vi.fn() };
+  return { prisma, outbox, catalogMenu, catalogStock, promotions, loyalty };
 }
 
 const caller: Caller = { kind: 'USER', userId: newId(), role: Role.CUSTOMER };
@@ -60,6 +62,8 @@ describe('OrdersService.placeOrder — failure paths (catalog stubbed)', () => {
       deps.outbox as never,
       deps.catalogMenu as never,
       deps.catalogStock as never,
+      deps.promotions as never,
+      deps.loyalty as never,
     );
 
     await expect(orders.placeOrder(buildRequest(), caller)).rejects.toThrow('db exploded');
@@ -75,6 +79,8 @@ describe('OrdersService.placeOrder — failure paths (catalog stubbed)', () => {
       deps.outbox as never,
       deps.catalogMenu as never,
       deps.catalogStock as never,
+      deps.promotions as never,
+      deps.loyalty as never,
     );
 
     await expect(orders.placeOrder(buildRequest(), caller)).rejects.toThrow();
@@ -89,6 +95,8 @@ describe('OrdersService.placeOrder — failure paths (catalog stubbed)', () => {
       deps.outbox as never,
       deps.catalogMenu as never,
       deps.catalogStock as never,
+      deps.promotions as never,
+      deps.loyalty as never,
     );
 
     await expect(orders.placeOrder(buildRequest(), caller)).rejects.toThrow();

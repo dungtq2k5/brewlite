@@ -38,6 +38,8 @@ import type {
 } from '@brewlite/contracts/generated/brewlite/ordering/order_service.js';
 import type { Prisma } from '../../../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { PromotionEvaluationService } from '../promotions/promotion-evaluation.service.js';
+import { LoyaltyService } from '../loyalty/loyalty.service.js';
 import { assertTransition } from './domain/order-lifecycle.js';
 import { rethrowCatalogError } from './domain/catalog-errors.js';
 import { CatalogMenuGrpcClient } from './catalog-menu-grpc.client.js';
@@ -54,6 +56,7 @@ const ORDER_STATUS_SELECT = {
   orderNo: true,
   userId: true,
   status: true,
+  promotionId: true,
 } satisfies Prisma.OrderSelect;
 
 export type OrderStatusRow = Prisma.OrderGetPayload<{ select: typeof ORDER_STATUS_SELECT }>;
@@ -67,6 +70,8 @@ export class OrdersService {
     private readonly outbox: OutboxService,
     private readonly catalogMenu: CatalogMenuGrpcClient,
     private readonly catalogStock: CatalogStockGrpcClient,
+    private readonly promotions: PromotionEvaluationService,
+    private readonly loyalty: LoyaltyService,
   ) {}
 
   /**
@@ -101,6 +106,19 @@ export class OrdersService {
       throw rpcError('INVALID_STATE', { status: fresh.status });
     }
 
+    // Every cancel path gives the promo use back and reverses any earned points — runs
+    // after the conditional update above, so a cancel that loses its race changes
+    // neither the count nor the ledger.
+    if (to === OrderStatus.CANCELLED) {
+      if (current.promotionId) {
+        await tx.promotion.updateMany({
+          where: { id: current.promotionId, usedCount: { gt: 0 } },
+          data: { usedCount: { decrement: 1 } },
+        });
+      }
+      await this.loyalty.reverse(tx, current);
+    }
+
     await tx.orderStatusHistory.create({
       data: {
         id: newId(),
@@ -133,19 +151,32 @@ export class OrdersService {
 
   /** Prices through catalog and validates the code; writes nothing, reserves nothing. */
   async quote(request: QuoteRequest, caller: Caller): Promise<QuoteResponse> {
-    requireUser(caller);
+    const { userId } = requireUser(caller);
     const priced = await this.priceItemsOrThrow(request.items);
     const subtotalVnd = Number(priced.subtotalVnd);
-    this.assertOrderChecks(request.promoCode, subtotalVnd);
+    this.assertSubtotalChecks(subtotalVnd);
+
+    let promoDiscountVnd = 0;
+    if (request.promoCode !== undefined) {
+      const evaluation = await this.promotions.evaluate(
+        request.promoCode,
+        subtotalVnd,
+        userId,
+        new Date(),
+      );
+      promoDiscountVnd = evaluation.discountVnd;
+    }
+    const totalVnd = subtotalVnd - promoDiscountVnd;
+    this.assertTotalChecks(totalVnd);
 
     return {
       lines: priced.lines.map(toOrderLineFromPriced),
       subtotalVnd: priced.subtotalVnd,
-      promoDiscountVnd: 0,
+      promoDiscountVnd,
       pointsDiscountVnd: 0,
-      totalVnd: priced.subtotalVnd,
-      promoCode: undefined,
-      pointsEarnable: pointsEarnable(subtotalVnd),
+      totalVnd: totalVnd.toString(),
+      promoCode: request.promoCode,
+      pointsEarnable: pointsEarnable(totalVnd),
     };
   }
 
@@ -175,7 +206,13 @@ export class OrdersService {
     const orderId = newId();
     const priced = await this.priceItemsOrThrow(request.items);
     const subtotalVnd = Number(priced.subtotalVnd);
-    this.assertOrderChecks(request.promoCode, subtotalVnd);
+    this.assertSubtotalChecks(subtotalVnd);
+
+    // Step 4 (api §6.1): the same read-only evaluation as the quote — a cheap early
+    // refusal before stock is ever reserved. Step 6, under the lock, is the real one.
+    if (request.promoCode !== undefined) {
+      await this.promotions.evaluate(request.promoCode, subtotalVnd, userId, new Date());
+    }
 
     try {
       await this.catalogStock.reserveStock({
@@ -193,13 +230,33 @@ export class OrdersService {
 
     try {
       await this.prisma.$transaction(async (tx) => {
+        let promotionId: string | undefined;
+        let promoDiscountVnd = 0;
+        if (request.promoCode !== undefined) {
+          const evaluation = await this.promotions.evaluateLocked(
+            tx,
+            request.promoCode,
+            subtotalVnd,
+            userId,
+            new Date(),
+          );
+          promotionId = evaluation.promotionId;
+          promoDiscountVnd = evaluation.discountVnd;
+        }
+        // The totals stored are the ones computed under the lock, not the step-4 preview.
+        const totalVnd = subtotalVnd - promoDiscountVnd;
+        this.assertTotalChecks(totalVnd);
+
         await tx.order.create({
           data: {
             id: orderId,
             userId,
             status: OrderStatus.PENDING,
             subtotalVnd,
-            totalVnd: subtotalVnd,
+            promoDiscountVnd,
+            totalVnd,
+            promotionId,
+            promoCode: request.promoCode,
             idempotencyKey,
             requestHash,
             note: request.note,
@@ -343,12 +400,18 @@ export class OrdersService {
     }
   }
 
-  /** api-endpoints-plan §3.2's refusal order, after pricing — shared by Quote and PlaceOrder. */
-  private assertOrderChecks(promoCode: string | undefined, totalVnd: number): void {
-    if (promoCode !== undefined) throw rpcError('PROMO_CODE_INVALID', { reason: 'NOT_FOUND' });
-    if (totalVnd < MIN_PAYABLE_VND) {
+  /**
+   * `ORDER_TOTAL_TOO_LOW` is judged on the subtotal, before any promo is evaluated — a
+   * promo's own discount is capped so it can never push a valid-subtotal cart back below
+   * `MIN_PAYABLE_VND` (`applyPromotion`'s clamp assumes this already holds).
+   */
+  private assertSubtotalChecks(subtotalVnd: number): void {
+    if (subtotalVnd < MIN_PAYABLE_VND) {
       throw rpcError('ORDER_TOTAL_TOO_LOW', { minimumVnd: MIN_PAYABLE_VND });
     }
+  }
+
+  private assertTotalChecks(totalVnd: number): void {
     if (totalVnd > MAX_ORDER_TOTAL_VND) {
       throw rpcError('ORDER_TOTAL_TOO_HIGH', { maximumVnd: MAX_ORDER_TOTAL_VND });
     }

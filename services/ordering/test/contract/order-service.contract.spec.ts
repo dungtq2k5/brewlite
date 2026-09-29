@@ -30,6 +30,8 @@ import { CatalogStockGrpcClient } from '../../src/modules/orders/catalog-stock-g
 import { OrderGrpcController } from '../../src/modules/orders/order-grpc.controller.js';
 import { OrdersService } from '../../src/modules/orders/orders.service.js';
 import { PrismaModule } from '../../src/modules/prisma/prisma.module.js';
+import { PromotionsModule } from '../../src/modules/promotions/promotions.module.js';
+import { LoyaltyModule } from '../../src/modules/loyalty/loyalty.module.js';
 import { testEnv } from '../setup/env.js';
 
 const OUT_OF_STOCK_PRODUCT_ID = newId();
@@ -91,7 +93,7 @@ const configModule = ConfigModule.forRoot({
 });
 
 @Module({
-  imports: [configModule, PrismaModule],
+  imports: [configModule, PrismaModule, PromotionsModule, LoyaltyModule],
   controllers: [OrderGrpcController],
   providers: [
     OrdersService,

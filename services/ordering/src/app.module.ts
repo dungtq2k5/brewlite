@@ -15,6 +15,8 @@ import { envSchema } from './config/env.schema.js';
 import { PrismaModule } from './modules/prisma/prisma.module.js';
 import { PrismaService } from './modules/prisma/prisma.service.js';
 import { OrdersModule } from './modules/orders/orders.module.js';
+import { PromotionsModule } from './modules/promotions/promotions.module.js';
+import { LoyaltyModule } from './modules/loyalty/loyalty.module.js';
 import { NatsModule, NATS_CONNECTION } from './nats/nats.module.js';
 import { OrdersExpireJob } from './jobs/orders-expire.job.js';
 import { OutboxPruneJob } from './jobs/outbox-prune.job.js';
@@ -42,6 +44,8 @@ import { OutboxPruneJob } from './jobs/outbox-prune.job.js';
     }),
     NatsModule,
     OrdersModule,
+    PromotionsModule,
+    LoyaltyModule,
     JobsModule.forRoot({
       queue: 'ordering-jobs',
       jobs: [

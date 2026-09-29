@@ -5,7 +5,9 @@ import { AuthPipelineModule } from './auth/auth.module.js';
 import { AdminUsersModule } from './modules/admin-users/admin-users.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { CatalogModule } from './modules/catalog/catalog.module.js';
+import { LoyaltyModule } from './modules/loyalty/loyalty.module.js';
 import { OrdersModule } from './modules/orders/orders.module.js';
+import { PromotionsModule } from './modules/promotions/promotions.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 
 @Module({
@@ -20,6 +22,8 @@ import { UsersModule } from './modules/users/users.module.js';
     AdminUsersModule,
     CatalogModule,
     OrdersModule,
+    PromotionsModule,
+    LoyaltyModule,
   ],
 })
 export class AppModule {}

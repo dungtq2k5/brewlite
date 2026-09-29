@@ -18,7 +18,7 @@ model Order {
   pointsRedeemed    Int       @default(0) @map("points_redeemed")
   pointsDiscountVnd Int       @default(0) @map("points_discount_vnd")
   totalVnd          Int       @map("total_vnd")
-  promotionId       String?   @map("promotion_id") @db.Uuid /// O-4 — no FK yet (05a adds promotions)
+  promotionId       String?   @map("promotion_id") @db.Uuid
   promoCode         String?   @map("promo_code") @db.VarChar(32)
   note              String?   @db.VarChar(200)
   idempotencyKey    String    @map("idempotency_key") @db.Uuid
@@ -34,12 +34,63 @@ model Order {
   createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  items   OrderItem[]
-  history OrderStatusHistory[]
+  items               OrderItem[]
+  history             OrderStatusHistory[]
+  loyaltyTransactions LoyaltyTransaction[]
+  promotion           Promotion?           @relation(fields: [promotionId], references: [id], onDelete: Restrict)
 
   @@unique([userId, idempotencyKey], map: "orders_user_idempotency_key")
   @@index([userId, id(sort: Desc)])
   @@map("orders")
+}
+
+model Promotion {
+  id              String    @id @default(uuid(7)) @db.Uuid
+  code            String    @unique @db.VarChar(32)
+  description     String?   @db.VarChar(200)
+  discountType    String    @map("discount_type") @db.VarChar(8) /// DiscountType in @brewlite/contracts
+  discountValue   Int       @map("discount_value")
+  maxDiscountVnd  Int?      @map("max_discount_vnd")
+  minSubtotalVnd  Int       @default(0) @map("min_subtotal_vnd")
+  startsAt        DateTime  @map("starts_at") @db.Timestamptz(3)
+  endsAt          DateTime  @map("ends_at") @db.Timestamptz(3)
+  maxUses         Int?      @map("max_uses")
+  usedCount       Int       @default(0) @map("used_count")
+  perUserLimit    Int?      @default(1) @map("per_user_limit")
+  isActive        Boolean   @default(true) @map("is_active")
+  deletedAt       DateTime? @map("deleted_at") @db.Timestamptz(3)
+  deletedById     String?   @map("deleted_by_id") @db.Uuid /// ref ➔ identity.users.id — no FK
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  orders Order[]
+
+  @@map("promotions")
+}
+
+model LoyaltyAccount {
+  userId         String   @id @map("user_id") @db.Uuid /// ref ➔ identity.users.id — no FK
+  balance        Int      @default(0)
+  lifetimeEarned Int      @default(0) @map("lifetime_earned")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("loyalty_accounts")
+}
+
+model LoyaltyTransaction {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid /// ref ➔ identity.users.id — no FK
+  orderId   String   @map("order_id") @db.Uuid
+  kind      String   @db.VarChar(16) /// LoyaltyKind in @brewlite/contracts
+  points    Int
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@unique([orderId, kind])
+  @@index([userId, id(sort: Desc)])
+  @@map("loyalty_transactions")
 }
 
 model OrderItem {

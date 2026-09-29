@@ -108,7 +108,8 @@ Every transition inserts one `order_status_history` (O-3) row in the same transa
 
 [ADR 0021](./decisions/0021-promotions-and-loyalty-live-in-the-ordering-service.md). Both live in ordering, so applying a code and crediting points share the order's transaction.
 
-- **A promotion use is counted at placement:** the order transaction locks the promotion row (`SELECT … FOR UPDATE`), re-validates it, and increments `used_count`. Cancelling the order decrements it in the cancel transaction. The row lock serialises two concurrent orders using the same code, which is what keeps `max_uses` and `per_user_limit` exact.
+- **A promotion use is counted at placement:** the order transaction locks the promotion row (`SELECT … FOR UPDATE`), re-validates it, and increments `used_count`. The lock is the first statement of the transaction, before any insert. Cancelling the order decrements it **inside the status transition itself** — every cancel path (customer, expiry, staff) goes through it, and a cancel that loses its race changes neither the count nor the ledger. The row lock serialises two concurrent orders using the same code, which is what keeps `max_uses` and `per_user_limit` exact: a conditional `UPDATE … WHERE used_count < max_uses` would hold `max_uses`, but not the per-customer count, which two concurrent orders from one customer would both read as 0.
+- **An admin lowering `max_uses`** is one conditional update, `WHERE used_count <= new_max` — refused `PROMO_MAX_USES_BELOW_USED` otherwise; no lock needed.
 - **The per-customer limit** counts that customer's orders with that `promotion_id` whose status is not `CANCELLED` — no separate redemptions table.
 - **Points** are a ledger (O-6) plus a balance (O-5), written together. `UNIQUE (order_id, kind)` means an order earns once, is reversed once, redeems once and is returned once, however often an event is redelivered.
 
@@ -499,7 +500,7 @@ Everything Prisma cannot declare — partial unique indexes, `CHECK` constraints
 | :---- | :---- | :---- | :---- |
 | **user_id** | UUID | PK | ref ➔ identity.users.id. Created by the first `EARN` (upsert). A customer with no row has 0 points. |
 | **balance** | INT | NOT NULL, 0 | `CHECK (balance >= 0)`. Always equal to Σ O-6 `points` for the user — written in the same transaction as every O-6 row. |
-| **lifetime_earned** | INT | NOT NULL, 0 | — |
+| **lifetime_earned** | INT | NOT NULL, 0 | Only ever increased, by `EARN`. `EARN_REVERSED` lowers `balance`, not this — it counts what was ever earned. What a reversal does to points already spent is decided with redeeming (P1). |
 | **created_at** | TIMESTAMPTZ(3) | NOT NULL, now() | — |
 | **updated_at** | TIMESTAMPTZ(3) | NOT NULL | — |
 

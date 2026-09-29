@@ -284,7 +284,7 @@ Order = Quote & {
 
 | Method | Path | Description | Auth |
 | :---- | :---- | :---- | :---- |
-| POST | `/orders/quote` | `{ items: CartLine[], promoCode?, pointsToRedeem? }` → `Quote`. Prices through catalog and validates the code; **writes nothing and reserves nothing**. Refusals, in this order: `422 PRODUCT_UNAVAILABLE` (`details.productIds`), `422 OPTION_INVALID` (`details.lineIndex`, `details.reason: SIZE \| TOPPING \| TOO_MANY_TOPPINGS`), `409 OUT_OF_STOCK` (read-only check, `details.products`), `422 PROMO_CODE_INVALID` (`details.reason`, rdm-spec O-4), `422 POINTS_INSUFFICIENT` *(P1)*, `422 ORDER_TOTAL_TOO_LOW`, `422 ORDER_TOTAL_TOO_HIGH` (`details.maximumVnd`). The web app marks the named lines unavailable. | USER · `ORDER_WRITE` |
+| POST | `/orders/quote` | `{ items: CartLine[], promoCode?, pointsToRedeem? }` → `Quote`. Prices through catalog and validates the code; **writes nothing and reserves nothing**. Refusals, in this order: `422 PRODUCT_UNAVAILABLE` (`details.productIds`), `422 OPTION_INVALID` (`details.lineIndex`, `details.reason: SIZE \| TOPPING \| TOO_MANY_TOPPINGS`), `409 OUT_OF_STOCK` (read-only check, `details.products`), `422 PROMO_CODE_INVALID` (`details.reason`, rdm-spec O-4), `422 POINTS_INSUFFICIENT` *(P1)*, `422 ORDER_TOTAL_TOO_LOW` (judged on the **subtotal** — a valid code's discount is capped at `subtotal − MIN_PAYABLE_VND`, so it never causes this), `422 ORDER_TOTAL_TOO_HIGH` (`details.maximumVnd`, on the total after the discount). The web app marks the named lines unavailable. | USER · `ORDER_WRITE` |
 | POST | `/orders` ⟳ | `{ items, promoCode?, pointsToRedeem?, note? }` → `201 Order` (`PENDING`). The same refusals as the quote, where `OUT_OF_STOCK` now comes from the actual reservation, plus `409 STOCK_CONTENDED` when the optimistic lock kept losing (retry with the same key). The sequence is §6.1. | USER · `ORDER_WRITE` |
 | GET | `/orders/me` | Cursor style, newest first, `?status=` optional. Each item is the `Order` without `history`. | USER |
 | GET | `/orders/:id` | `Order`. Someone else's → `404`. | USER |
@@ -318,8 +318,8 @@ Promotion = { id; code; description: string | null; discountType: 'PERCENT' | 'F
 
 | Method | Path | Description | Auth |
 | :---- | :---- | :---- | :---- |
-| GET | `/admin/promotions` | `?active=&deleted=&q=`, page style. | perm:`promotion.manage` |
-| POST | `/admin/promotions` | Everything but `id`, `usedCount`, `createdAt`. Code normalised to upper case. `409 PROMO_CODE_TAKEN`. | perm:`promotion.manage` |
+| GET | `/admin/promotions` | `?active=&deleted=&q=`, page style — `active` is the `is_active` column, `q` a code prefix (upper-cased). Sort `createdAt`, `code`, `endsAt`, default `-createdAt`. | perm:`promotion.manage` |
+| POST | `/admin/promotions` | Everything but `id`, `usedCount`, `createdAt`. Code normalised to upper case. `perUserLimit` defaults to `1`; `null` is unlimited. `maxUses: null` is unlimited, `0` a code that can no longer be used. `409 PROMO_CODE_TAKEN` — deleted codes included, since a code is never reused. | perm:`promotion.manage` |
 | GET | `/admin/promotions/:id` | `Promotion`. | perm:`promotion.manage` |
 | PATCH | `/admin/promotions/:id` | `{ description?, endsAt?, maxUses?, perUserLimit?, isActive? }`. `maxUses` below `usedCount` is `422 PROMO_MAX_USES_BELOW_USED`. The discount itself never changes (rdm-spec O-4). | perm:`promotion.manage` |
 | DELETE | `/admin/promotions/:id` | Soft delete → `204`. The code stops working at once (`PROMO_CODE_INVALID`, `NOT_FOUND`); orders that used it are unaffected. | perm:`promotion.manage` |
