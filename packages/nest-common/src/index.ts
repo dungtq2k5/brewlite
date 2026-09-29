@@ -24,9 +24,17 @@ export * from './http/access.decorators.js';
 export * from './http/setup-swagger.js';
 export * from './health/ops.module.js';
 export * from './health/readiness.js';
+export * from './health/redis-ping.js';
 export * from './prisma/live.js';
 export * from './prisma/unique-violation.js';
 export * from './outbox/outbox.service.js';
+export * from './outbox/outbox.relay.js';
+export * from './jetstream/connection.js';
+export * from './jetstream/streams.js';
+export * from './jetstream/consumer.js';
+export * from './jetstream/dead-letter.js';
+export * from './jetstream/connected-check.js';
+export * from './jobs/jobs.module.js';
 
 /**
  * Re-exported from nest-common's own resolved copy — a service importing `nestjs-zod`

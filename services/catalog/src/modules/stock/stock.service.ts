@@ -215,11 +215,20 @@ export class StockService {
 
   /** A second call for the same order finds nothing `HELD`/`CONFIRMED` left and does nothing. */
   async releaseStock(request: ReleaseStockRequest): Promise<ReleaseStockResponse> {
+    const released = await this.releaseForOrder(request.orderId);
+    return { reservations: released.map(toProtoStockReservation) };
+  }
+
+  /**
+   * The body of `ReleaseStock`, shared with the order-status consumer's `CANCELLED`
+   * effect (architecture §2.3) — idempotent by the same conditional write either caller uses.
+   */
+  async releaseForOrder(orderId: string): Promise<StockReservationRow[]> {
     let crossedFromZero = false;
     const released = await this.prisma.$transaction(async (tx) => {
       const targets = await tx.stockReservation.findMany({
         where: {
-          orderId: request.orderId,
+          orderId,
           status: { in: [ReservationStatus.HELD, ReservationStatus.CONFIRMED] },
         },
         select: STOCK_RESERVATION_SELECT,
@@ -248,6 +257,15 @@ export class StockService {
     });
 
     if (crossedFromZero) await this.cache.invalidate();
-    return { reservations: released.map(toProtoStockReservation) };
+    return released;
+  }
+
+  /** `PAID` confirms a `HELD` reservation — the stock was already taken (rdm-spec C-6). */
+  async confirmForOrder(orderId: string): Promise<number> {
+    const { count } = await this.prisma.stockReservation.updateMany({
+      where: { orderId, status: ReservationStatus.HELD },
+      data: { status: ReservationStatus.CONFIRMED },
+    });
+    return count;
   }
 }

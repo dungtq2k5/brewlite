@@ -108,14 +108,21 @@ export class OpsModule {
     };
   }
 
-  /** For a service whose readiness checks need DI (e.g. a Prisma `SELECT 1`). */
+  /**
+   * For a service whose readiness checks need DI (e.g. a Prisma `SELECT 1`, or a Redis
+   * `PING` on `JobsModule`'s connection). `imports` makes a non-global token (anything
+   * that isn't `PrismaService`) visible here — Nest does not share providers between
+   * sibling modules just because a common parent imports both.
+   */
   static forRootAsync(options: {
     packageJsonDir: string;
     inject?: InjectionToken[];
+    imports?: DynamicModule['imports'];
     useFactory: (...args: never[]) => ReadinessCheck[] | Promise<ReadinessCheck[]>;
   }): DynamicModule {
     return {
       module: OpsModule,
+      imports: options.imports ?? [],
       controllers: [OpsController],
       providers: [
         { provide: READINESS_CHECKS, useFactory: options.useFactory, inject: options.inject ?? [] },

@@ -420,9 +420,11 @@ await this.prisma.$transaction(async (tx) => {
 
 ### 8.2 Consuming: idempotent, three outcomes
 
-Every durable consumer is a `JetStreamConsumer` subclass registered in `main.ts`. Nest's `@EventPattern` is core NATS only and **MUST NOT** be used.
+Every durable consumer is a `JetStreamConsumer` subclass, started from the service's own NATS module (`onModuleInit`, alongside `ensureStreams`), never wired ad hoc in `main.ts`. Nest's `@EventPattern` is core NATS only and **MUST NOT** be used.
 
+- **A subclass names `service` and `subject`, and does one thing in `handle(payload)`** — its own idempotent write. Ack/nak/dead-letter, the request id and schema validation all live once in the base class.
 - **Idempotency is the handler's own write:** a conditional update on the status it expects (`WHERE status = 'HELD'`), or an insert guarded by a unique key (`UNIQUE (order_id, kind)`, `UNIQUE (payment_id)`). A redelivery then changes nothing.
+- **The handler runs inside `runWithRequestId`, seeded from the message's `x-request-id` header** (or its sequence number, if the header is absent) — the same id that started at the original request follows it all the way to this side effect.
 - A handler has three outcomes:
 
   | Situation | Do | Effect |

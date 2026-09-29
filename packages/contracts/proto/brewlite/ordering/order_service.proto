@@ -10,6 +10,9 @@ service OrderService {
   rpc ListMyOrders(ListMyOrdersRequest) returns (ListMyOrdersResponse);
   rpc GetOrder(GetOrderRequest) returns (GetOrderResponse);
   rpc CancelOrder(CancelOrderRequest) returns (CancelOrderResponse);
+  // Internal — no gateway route, no ownership check. Called by catalog's orphan sweep
+  // with SYSTEM_CALLER (api §9.2).
+  rpc GetOrderStatus(GetOrderStatusRequest) returns (GetOrderStatusResponse);
 }
 
 message CartLine {
@@ -105,3 +108,6 @@ message GetOrderResponse { Order order = 1; }
 
 message CancelOrderRequest { string id = 1; }
 message CancelOrderResponse { Order order = 1; }
+
+message GetOrderStatusRequest { string id = 1; }
+message GetOrderStatusResponse { string status = 1; }

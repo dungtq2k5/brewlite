@@ -7,6 +7,8 @@ import {
   type CancelOrderResponse,
   type GetOrderRequest,
   type GetOrderResponse,
+  type GetOrderStatusRequest,
+  type GetOrderStatusResponse,
   type ListMyOrdersRequest,
   type ListMyOrdersResponse,
   type OrderServiceController,
@@ -41,5 +43,9 @@ export class OrderGrpcController implements OrderServiceController {
 
   cancelOrder(request: CancelOrderRequest, metadata?: Metadata): Promise<CancelOrderResponse> {
     return this.orders.cancelOrder(request, callerFrom(metadata));
+  }
+
+  getOrderStatus(request: GetOrderStatusRequest): Promise<GetOrderStatusResponse> {
+    return this.orders.getOrderStatus(request);
   }
 }

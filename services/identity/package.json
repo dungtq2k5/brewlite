@@ -17,7 +17,8 @@
     "db:drift": "prisma migrate diff --from-migrations prisma/migrations --to-schema prisma/schema.prisma --exit-code",
     "seed:dev": "node dist/prisma/seed/identity.seed.js",
     "bootstrap:admin": "node dist/prisma/seed/bootstrap-admin.js",
-    "firebase:dev-token": "node scripts/firebase-dev-token.ts"
+    "firebase:dev-token": "node scripts/firebase-dev-token.ts",
+    "job:run": "node dist/scripts/job-run.js"
   },
   "dependencies": {
     "@brewlite/contracts": "workspace:*",
@@ -33,6 +34,7 @@
     "@prisma/client": "^7.0.0",
     "bcryptjs": "^3.0.2",
     "firebase-admin": "^14.0.0",
+    "ioredis": "^6.0.0",
     "nestjs-pino": "^4.4.0",
     "pino-http": "^10.4.0",
     "reflect-metadata": "^0.2.2",

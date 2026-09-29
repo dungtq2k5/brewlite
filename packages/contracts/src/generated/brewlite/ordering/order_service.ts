@@ -120,6 +120,14 @@ export interface CancelOrderResponse {
   order: Order | undefined;
 }
 
+export interface GetOrderStatusRequest {
+  id: string;
+}
+
+export interface GetOrderStatusResponse {
+  status: string;
+}
+
 export const BREWLITE_ORDERING_PACKAGE_NAME = "brewlite.ordering";
 
 export interface OrderServiceClient {
@@ -132,6 +140,13 @@ export interface OrderServiceClient {
   getOrder(request: GetOrderRequest, metadata?: Metadata): Observable<GetOrderResponse>;
 
   cancelOrder(request: CancelOrderRequest, metadata?: Metadata): Observable<CancelOrderResponse>;
+
+  /**
+   * Internal — no gateway route, no ownership check. Called by catalog's orphan sweep
+   * with SYSTEM_CALLER (api §9.2).
+   */
+
+  getOrderStatus(request: GetOrderStatusRequest, metadata?: Metadata): Observable<GetOrderStatusResponse>;
 }
 
 export interface OrderServiceController {
@@ -156,11 +171,21 @@ export interface OrderServiceController {
     request: CancelOrderRequest,
     metadata?: Metadata,
   ): Promise<CancelOrderResponse> | Observable<CancelOrderResponse> | CancelOrderResponse;
+
+  /**
+   * Internal — no gateway route, no ownership check. Called by catalog's orphan sweep
+   * with SYSTEM_CALLER (api §9.2).
+   */
+
+  getOrderStatus(
+    request: GetOrderStatusRequest,
+    metadata?: Metadata,
+  ): Promise<GetOrderStatusResponse> | Observable<GetOrderStatusResponse> | GetOrderStatusResponse;
 }
 
 export function OrderServiceControllerMethods() {
   return function (constructor: Function) {
-    const grpcMethods: string[] = ["quote", "placeOrder", "listMyOrders", "getOrder", "cancelOrder"];
+    const grpcMethods: string[] = ["quote", "placeOrder", "listMyOrders", "getOrder", "cancelOrder", "getOrderStatus"];
     for (const method of grpcMethods) {
       const descriptor: any = Reflect.getOwnPropertyDescriptor(constructor.prototype, method);
       GrpcMethod("OrderService", method)(constructor.prototype[method], method, descriptor);

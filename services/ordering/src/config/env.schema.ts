@@ -9,6 +9,9 @@ export const envSchema = z.object({
   GRPC_URL: z.string(),
   OPS_PORT: z.coerce.number().int().positive(),
   CATALOG_GRPC_URL: z.string(),
+  NATS_URL: z.string(),
+  NATS_URL_TEST: z.string().optional(),
+  REDIS_URL: z.string().url(),
 });
 
 export type Env = z.infer<typeof envSchema>;

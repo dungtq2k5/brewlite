@@ -57,6 +57,13 @@ services:
       timeout: 3s
       retries: 30
 
+  # `docker compose --profile tools run --rm nats-box nats -s nats://nats:4222 stream info ORDERING`
+  # — a one-shot container for inspecting streams without installing the NATS CLI locally.
+  nats-box:
+    profiles: ['tools']
+    image: natsio/nats-box:latest
+    container_name: brewlite-nats-box
+
   firebase:
     build:
       context: firebase
@@ -88,6 +95,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      nats:
+        condition: service_healthy
       firebase:
         condition: service_healthy
     environment:
@@ -97,6 +106,8 @@ services:
       GRPC_URL: 0.0.0.0:25052
       OPS_PORT: '23102'
       REDIS_URL: redis://redis:6379/0
+      NATS_URL: nats://nats:4222
+      ORDERING_GRPC_URL: ordering:25053
       FIREBASE_PROJECT_ID: demo-brewlite
       FIREBASE_STORAGE_BUCKET: demo-brewlite.appspot.com
       FIREBASE_STORAGE_EMULATOR_HOST: firebase:29199
@@ -126,6 +137,10 @@ services:
         condition: service_healthy
       catalog:
         condition: service_healthy
+      nats:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       NODE_ENV: production
       LOG_LEVEL: info
@@ -133,6 +148,8 @@ services:
       GRPC_URL: 0.0.0.0:25053
       OPS_PORT: '23103'
       CATALOG_GRPC_URL: catalog:25052
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379/0
     ports:
       - '127.0.0.1:23103:23103'
       - '127.0.0.1:25053:25053'
@@ -153,6 +170,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
       firebase:
         condition: service_healthy
     env_file:
@@ -168,6 +187,7 @@ services:
       DATABASE_URL: postgresql://brewlite:brewlite@postgres:5432/brewlite_identity
       GRPC_URL: 0.0.0.0:25051
       OPS_PORT: '23101'
+      REDIS_URL: redis://redis:6379/0
       FIREBASE_PROJECT_ID: demo-brewlite
       FIREBASE_AUTH_EMULATOR_HOST: firebase:29099
     ports:

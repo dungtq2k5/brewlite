@@ -27,6 +27,8 @@ import type {
   CancelOrderResponse,
   GetOrderRequest,
   GetOrderResponse,
+  GetOrderStatusRequest,
+  GetOrderStatusResponse,
   ListMyOrdersRequest,
   ListMyOrdersResponse,
   PlaceOrderRequest,
@@ -239,7 +241,7 @@ export class OrdersService {
       });
       return { order: await this.toFullOrder(orderId), created: true };
     } catch (error) {
-      // The orphan sweep (05b) is the backstop for a crash between here and the catch.
+      // The orphan sweep (rdm-spec C-6) is the backstop for a crash between here and the catch.
       await this.releaseStockBestEffort(orderId);
       if (isUniqueConstraintViolation(error, 'orders_user_idempotency_key')) {
         const winner = await this.prisma.order.findUniqueOrThrow({
@@ -297,7 +299,7 @@ export class OrdersService {
 
   /**
    * `assertTransition` allows this only from `PENDING`/`PAYMENT_FAILED`. The stock stays
-   * `HELD` — releasing it is the catalog consumer's job once 05b publishes this event.
+   * `HELD` — releasing it is the catalog consumer's job once the relay publishes this event.
    */
   async cancelOrder(request: CancelOrderRequest, caller: Caller): Promise<CancelOrderResponse> {
     const { userId } = requireUser(caller);
@@ -312,6 +314,16 @@ export class OrdersService {
       ),
     );
     return { order: await this.toFullOrder(updated.id) };
+  }
+
+  /** Internal — no ownership check, no gateway route (api §9.2). */
+  async getOrderStatus(request: GetOrderStatusRequest): Promise<GetOrderStatusResponse> {
+    const order = await this.prisma.order.findUnique({
+      where: { id: request.id },
+      select: { status: true },
+    });
+    if (!order) throw rpcError('RESOURCE_NOT_FOUND', { resource: 'ORDER' });
+    return { status: order.status };
   }
 
   private async priceItemsOrThrow(

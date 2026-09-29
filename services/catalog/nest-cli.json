@@ -6,7 +6,7 @@
     "builder": {
       "type": "swc",
       "options": {
-        "filenames": ["src", "generated", "prisma/seed"]
+        "filenames": ["src", "generated", "prisma/seed", "scripts/job-run.ts"]
       }
     },
     "typeCheck": true,

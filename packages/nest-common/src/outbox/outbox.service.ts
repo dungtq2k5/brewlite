@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { newId, EVENT_SCHEMAS, type EventSubject } from '@brewlite/contracts';
+import { newId, EVENT_SCHEMAS, type EventPayload, type EventSubject } from '@brewlite/contracts';
 import { getRequestId } from '../grpc/request-context.js';
 
 /** Structurally the same shape as every Prisma client's `InputJsonValue`. */
@@ -26,15 +26,9 @@ export interface OutboxTransactionClient {
   };
 }
 
-type EventPayload<S extends EventSubject> = (typeof EVENT_SCHEMAS)[S] extends {
-  parse: (value: unknown) => infer P;
-}
-  ? P
-  : never;
-
 /**
  * The only way a service writes an event — inside the same transaction as the business
- * write it describes (ADR 0006). 05b's relay is the only reader of these rows; nothing
+ * write it describes (ADR 0006). the relay (architecture §2.3) is the only reader of these rows; nothing
  * publishes them yet.
  */
 @Injectable()

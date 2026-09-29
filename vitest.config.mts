@@ -14,6 +14,7 @@ export default defineConfig({
       'services/catalog',
       'services/gateway',
       'services/identity',
+      'services/ordering',
     ],
   },
 });

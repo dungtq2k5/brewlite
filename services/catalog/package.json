@@ -15,6 +15,8 @@
     "db:deploy": "prisma migrate deploy && pnpm db:objects",
     "db:setup": "pnpm db:generate && pnpm db:deploy && PRISMA_DB=test pnpm db:deploy",
     "db:drift": "prisma migrate diff --from-migrations prisma/migrations --to-schema prisma/schema.prisma --exit-code",
+    "job:run": "node dist/scripts/job-run.js",
+    "replay:last-status-changed": "node scripts/replay-last-status-changed.ts",
     "seed:dev": "node dist/prisma/seed/menu.seed.js"
   },
   "dependencies": {
@@ -30,6 +32,7 @@
     "@prisma/client": "^7.0.0",
     "firebase-admin": "^14.0.0",
     "ioredis": "^6.0.0",
+    "nats": "^2.29.0",
     "nestjs-pino": "^4.4.0",
     "pino-http": "^10.4.0",
     "reflect-metadata": "^0.2.2",

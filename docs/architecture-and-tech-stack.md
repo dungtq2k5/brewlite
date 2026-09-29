@@ -128,7 +128,10 @@ The full event and RPC contracts are in [`api-endpoints-plan.md`](./api-endpoint
 - **Every event goes through JetStream**, never core NATS: a consumer restart must not lose "this order was paid".
 - **Every event leaves through a transactional outbox.** The service writes an `outbox_events` row in the same transaction as the state change; a relay publishes unpublished rows with `Nats-Msg-Id = outbox id`. A crash between commit and publish then delays an event instead of losing it.
 - **Every consumer is idempotent by construction** — a conditional update (`WHERE status = 'PENDING'`) or a unique key (`UNIQUE (order_id, kind)`) makes a redelivery a no-op. No service needs a `processed_events` table; if a future consumer cannot be made idempotent this way, it adds one.
-- Streams: `ORDERING` (`ordering.>`), `PAYMENT` (`payment.>`), `DLQ` (`dlq.>`). Event streams keep 7 days with a 2-minute duplicate window; `DLQ` keeps 30 days. Durable consumer names are `<service>-<subject with dots as dashes>`, max 10 deliveries, then a dead letter.
+- Streams: `ORDERING` (`ordering.>`), `PAYMENT` (`payment.>`), `DLQ` (`dlq.>`). Event streams keep 7 days with a 2-minute duplicate window; `DLQ` keeps 30 days with the same window (NATS applies its own 2-minute default for an unset duplicate window anyway — stating it explicitly keeps `ensureStreams`' comparison stable across restarts). Durable consumer names are `<service>-<subject with dots as dashes>`, max 10 deliveries, then a dead letter.
+- **`ensureStreams(jsm, names)` runs at boot on both ends** — a publisher ensures its own stream, a consumer ensures the stream it reads and `DLQ`, so boot order between two services never matters. Missing → create. Present → compare `subjects`/`max_age`/`duplicate_window`/`storage`, throwing at boot on any difference, naming the field — a changed stream config is a decision made by hand, never a deploy side effect.
+- **The relay is the only publisher.** One cycle claims a batch (`FOR UPDATE SKIP LOCKED`, `ORDER BY id`), publishes each row with `Nats-Msg-Id = outbox id`, and stops at the first failure so one aggregate's events keep their order. Pacing: a full batch claims again at once; otherwise it waits `OUTBOX_POLL_MS`; consecutive failures back off exponentially to 10 s. The claim transaction's timeout is computed — `OUTBOX_BATCH_SIZE × OUTBOX_PUBLISH_TIMEOUT_MS + 5,000` — never configured separately, so a slow broker can't expire it and force a mass republish.
+- **A consumer's redelivery schedule** (`nak(delay)`) grows by delivery count — `[1 s, 5 s, 30 s, 2 min, 5 min]`, the last entry repeating — before the final delivery dead-letters. The dead-letter copy carries the original headers plus `x-dlq-error` (the failure message, newlines stripped, truncated to 500 chars) and is the one publish outside the relay: it is not a domain event and has no transaction to ride in.
 - The gateway's SSE fan-out is the one **non-durable** consumer: an ordered, ephemeral consumer per gateway process, new messages only. A missed frame costs latency, never data — the browser refetches on reconnect ([ADR 0022](./decisions/0022-order-updates-reach-browsers-as-server-sent-events.md)).
 
 ### 2.4 API documentation, validation and the client
@@ -181,8 +184,8 @@ GATEWAY (no database)
 
 - **Rate limits** — the gateway's own `RateLimitGuard` (conventions §6.3), not `@nestjs/throttler`: a fixed window on ioredis, `INCR` + `PEXPIRE NX` per key `gw:rl:<class>:<kind>:<value>`, so limits hold across replicas. Classes in api-endpoints-plan §0.8. A Redis error fails **open** with one `error` log line — a rate limiter must not take the shop down — so the gateway declares no readiness dependency on Redis.
 - **Cache** — catalog caches the public menu (`catalog:menu`) and deletes the key after every catalog write commits — one rule, every category/product/topping/stock write, not a per-write decision of whether the cache would show it — and when a product's stock crosses zero. `MENU_CACHE_TTL_MS` is only the backstop. A cache read or write never fails the request it backs: on any Redis error the call logs one `warn` and falls back to the database — a failed invalidation never fails the write that triggered it. **The web app caches no API data**: one cache layer, one place to invalidate.
-- **`/health/ready` lists only what a service cannot serve without.** Catalog's menu reads survive a Redis outage (the line above), so Redis is not in catalog's readiness until a background job (below) makes it required.
-- **Background jobs** — **BullMQ** via `@nestjs/bullmq`, as repeatable jobs with stable ids (never `@Cron`, which fires once per replica):
+- **`/health/ready` lists only what a service cannot serve without.** Catalog's menu reads survive a Redis outage (the line above) — Redis and NATS join catalog's and ordering's readiness because their background jobs need them, not because a request path does. Identity's readiness needs Redis alone (`sessions-prune`); the gateway needs neither yet — its own future NATS consumer (server-sent updates) will add it later. The NATS check reads the connection's own live status (its `status()` stream of disconnect/reconnect events — `isClosed()` alone only reflects a *permanently* dead connection, not an active outage during auto-reconnect); the Redis check is a `PING` on the jobs connection, bounded to 500 ms so a hung connection can't hang the probe.
+- **Background jobs** — **`bullmq`** directly (no `@nestjs/bullmq`), through `JobsModule.forRoot({ queue, jobs })` in nest-common. At boot it calls `queue.upsertJobScheduler(name, { every }, { name })` for each job — a stable scheduler id, so every replica registers the *same* schedule and only one of them picks up each tick — and runs one `Worker` that dispatches by job name to the class's `run()`. Never `@Cron`, which fires once per replica:
 
 | Job | Service | Every | Does |
 | :---- | :---- | :---- | :---- |
@@ -191,7 +194,9 @@ GATEWAY (no database)
 | `outbox-prune` | ordering, payment | daily | deletes outbox rows published more than 7 days ago |
 | `sessions-prune` | identity | daily | deletes expired sessions |
 
-- A job is a plain method taking `now`, so a test calls it directly and never starts a worker.
+- A job is a class with `run(now = new Date())`, so a test calls it directly and never starts a worker. `pnpm job:run <name>` boots the app once, runs one job, exits — used by the sweep's own DoD check and by an operator.
+- **`orders-expire` puts `expiresAt <= now` inside the conditional update itself, not only in its select.** a future payment attempt raises `expires_at` when it starts; with the deadline inside the `WHERE`, a payment that starts in the same second as the expiry tick wins the race, and the tick's own update matches nothing.
+- **`JobsModule` builds its own Redis connection from `REDIS_URL`, never the cache's or the rate limiter's client.** BullMQ requires `maxRetriesPerRequest: null` and waits for Redis instead of failing fast — the opposite of those two — and pins its own `ioredis` major. The connection must be explicitly `quit()` on shutdown: BullMQ never closes a connection it didn't create itself.
 - ⚠️ Redis is not a database. `FLUSHALL` must leave the system correct: rate limits reset, the menu is re-read, repeatable jobs are re-registered at boot.
 
 ### 2.7 Identifiers
@@ -483,7 +488,7 @@ Every Nest service declares its variables in `src/config/env.schema.ts` (zod), l
 | `GRPC_URL` | identity, catalog, ordering, payment | own bind address, e.g. `0.0.0.0:25052` |
 | `OPS_PORT` | identity, catalog, ordering, payment | `/health*` and `/version` |
 | `GIT_SHA`, `BUILT_AT` | all services | optional, shown by `/version`; Docker build arguments, `unknown` when unset |
-| `IDENTITY_GRPC_URL`, `CATALOG_GRPC_URL`, `ORDERING_GRPC_URL`, `PAYMENT_GRPC_URL` | gateway; `CATALOG_GRPC_URL` also ordering; `ORDERING_GRPC_URL` also payment | peer addresses |
+| `IDENTITY_GRPC_URL`, `CATALOG_GRPC_URL`, `ORDERING_GRPC_URL`, `PAYMENT_GRPC_URL` | gateway; `CATALOG_GRPC_URL` also ordering; `ORDERING_GRPC_URL` also catalog (the orphan sweep's `GetOrderStatus`) and payment | peer addresses |
 | `PORT` | gateway | `23100` |
 | `GLOBAL_PREFIX` | gateway | `api`; never hard-coded elsewhere |
 | `SWAGGER_ENABLED` | gateway | `false` in production |

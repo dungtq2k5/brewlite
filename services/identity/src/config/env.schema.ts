@@ -9,6 +9,7 @@ export const envSchema = z
     DATABASE_URL_SHADOW: z.string().url().optional(),
     GRPC_URL: z.string(),
     OPS_PORT: z.coerce.number().int().positive(),
+    REDIS_URL: z.string().url(),
     JWT_PRIVATE_KEY: z.string().min(1),
     JWT_KEY_ID: z.string().min(1),
     FIREBASE_PROJECT_ID: z.string().min(1),

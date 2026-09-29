@@ -568,6 +568,15 @@ Every service serves these — backend services on `OPS_PORT`, the gateway on it
 | GET | `/version` | `{ service, version, gitSha, builtAt }`. | PUBLIC |
 | GET | `/docs`, `/docs-json` | Swagger UI and the OpenAPI document. Gateway only; `SWAGGER_ENABLED=false` in production. | PUBLIC |
 
+**Readiness by service** — the NATS check reads the connection's own status, not a request per probe; the Redis check is a `PING` on the jobs connection, bounded to 500 ms:
+
+| Service | Readiness | Why |
+| :---- | :---- | :---- |
+| ordering | database, NATS, Redis | the relay publishes; `orders-expire`/`outbox-prune` need Redis |
+| catalog | database, NATS, Redis | the order-status consumer reads NATS; the orphan sweep needs Redis |
+| identity | database, Redis | `sessions-prune` needs Redis |
+| gateway | nothing yet | NATS joins once SSE (07) adds a consumer here |
+
 ---
 
 ## 12. Phase map
