@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package brewlite.payment;
+
+service PaymentService {
+  rpc CreatePayment(CreatePaymentRequest) returns (CreatePaymentResponse);
+  rpc GetPayment(GetPaymentRequest) returns (GetPaymentResponse);
+  // `404 ROUTE_NOT_FOUND` unless the payment's provider is FAKE and NODE_ENV is not
+  // production (api §4) — the gateway calls it unconditionally either way.
+  rpc FakeConfirm(FakeConfirmRequest) returns (FakeConfirmResponse);
+}
+
+message Payment {
+  string id = 1;
+  string order_id = 2;
+  string status = 3;
+  string provider = 4;
+  int64 amount_vnd = 5; // int64 as a string once ts-proto sees it (conventions §5.1)
+  optional string method = 6;
+  optional string client_secret = 7;
+  optional string expires_at = 8;
+  string created_at = 9;
+}
+
+message CreatePaymentRequest {
+  string order_id = 1;
+  string idempotency_key = 2;
+}
+message CreatePaymentResponse {
+  Payment payment = 1;
+  bool created = 2;
+}
+
+message GetPaymentRequest { string id = 1; }
+message GetPaymentResponse { Payment payment = 1; }
+
+message FakeConfirmRequest {
+  string id = 1;
+  string outcome = 2; // 'SUCCEEDED' | 'FAILED'
+}
+message FakeConfirmResponse { Payment payment = 1; }

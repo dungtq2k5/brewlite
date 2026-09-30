@@ -159,6 +159,45 @@ services:
       timeout: 3s
       retries: 30
 
+  payment:
+    profiles: ['apps']
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.service
+      args:
+        SERVICE: payment
+    container_name: brewlite-payment
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ordering:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      # The `apps` profile is a local demo — payment runs `development` here so it can use
+      # the fake provider, same reasoning as identity's Auth emulator below.
+      # `NODE_ENV=production` would refuse to boot with `PAYMENT_PROVIDER=fake` (architecture §6).
+      NODE_ENV: development
+      LOG_LEVEL: info
+      DATABASE_URL: postgresql://brewlite:brewlite@postgres:5432/brewlite_payment
+      GRPC_URL: 0.0.0.0:25054
+      OPS_PORT: '23104'
+      ORDERING_GRPC_URL: ordering:25053
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379/0
+      PAYMENT_PROVIDER: fake
+    ports:
+      - '127.0.0.1:23104:23104'
+      - '127.0.0.1:25054:25054'
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:23104/health/ready']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
   identity:
     profiles: ['apps']
     build:
@@ -214,6 +253,8 @@ services:
         condition: service_healthy
       ordering:
         condition: service_healthy
+      payment:
+        condition: service_healthy
       redis:
         condition: service_healthy
     env_file:
@@ -229,6 +270,7 @@ services:
       CATALOG_GRPC_URL: catalog:25052
       IDENTITY_GRPC_URL: identity:25051
       ORDERING_GRPC_URL: ordering:25053
+      PAYMENT_GRPC_URL: payment:25054
       REDIS_URL: redis://redis:6379/0
     ports:
       - '127.0.0.1:23100:23100'

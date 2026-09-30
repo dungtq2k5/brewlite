@@ -1,4 +1,4 @@
-import type { Prisma } from '../../../../generated/prisma/client.js';
+import type { Prisma } from '../../../generated/prisma/client.js';
 
 export type CategoryLockMode = 'UPDATE' | 'SHARE';
 
@@ -9,6 +9,10 @@ export type CategoryLockMode = 'UPDATE' | 'SHARE';
  * first, as the first statement of the caller's transaction. `FOR SHARE` lets product
  * writes into one category run together and blocks only the delete; `FOR UPDATE` is
  * the delete's own lock. Returns whether a **live** row was found and locked.
+ *
+ * Raw SQL with physical names, shared by both `AdminCategoriesService` and
+ * `AdminProductsService` — not `domain/`, which is pure rules only, no I/O
+ * (conventions §2.1).
  */
 export async function lockCategory(
   tx: Prisma.TransactionClient,

@@ -1,0 +1,46 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Payment {
+  id                      String    @id @default(uuid(7)) @db.Uuid
+  orderId                 String    @map("order_id") @db.Uuid /// ref ➔ ordering.orders.id — no FK
+  userId                  String    @map("user_id") @db.Uuid /// ref ➔ identity.users.id — no FK
+  amountVnd               Int       @map("amount_vnd")
+  provider                String    @db.VarChar(16) /// PaymentProvider in @brewlite/contracts
+  status                  String    @default("PENDING") @db.VarChar(16) /// PaymentStatus in @brewlite/contracts
+  method                  String?   @db.VarChar(16) /// PaymentMethod in @brewlite/contracts
+  idempotencyKey          String    @map("idempotency_key") @db.Uuid
+  requestHash             String    @map("request_hash") @db.Char(64)
+  stripeCheckoutSessionId String?   @unique @map("stripe_checkout_session_id") @db.VarChar(255)
+  stripePaymentIntentId   String?   @unique @map("stripe_payment_intent_id") @db.VarChar(255)
+  failureReason           String?   @map("failure_reason") @db.VarChar(16) /// PaymentFailureReason in @brewlite/contracts
+  expiresAt               DateTime? @map("expires_at") @db.Timestamptz(3)
+  succeededAt             DateTime? @map("succeeded_at") @db.Timestamptz(3)
+  createdAt               DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt               DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([userId, idempotencyKey], map: "payments_user_idempotency_key")
+  @@index([orderId])
+  @@map("payments")
+}
+
+model OutboxEvent {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  subject     String    @db.VarChar(128)
+  payload     Json
+  aggregateId String    @map("aggregate_id") @db.Uuid
+  requestId   String?   @map("request_id") @db.VarChar(64)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  publishedAt DateTime? @map("published_at") @db.Timestamptz(3)
+  attempts    Int       @default(0)
+  lastError   String?   @map("last_error") @db.VarChar(500)
+
+  @@map("outbox_events")
+}

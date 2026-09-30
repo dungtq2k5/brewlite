@@ -3,6 +3,8 @@ import type { Metadata } from '@grpc/grpc-js';
 import { callerFrom, GrpcRequestContextInterceptor } from '@brewlite/nest-common';
 import {
   OrderServiceControllerMethods,
+  type BeginPaymentRequest,
+  type BeginPaymentResponse,
   type CancelOrderRequest,
   type CancelOrderResponse,
   type GetOrderRequest,
@@ -47,5 +49,9 @@ export class OrderGrpcController implements OrderServiceController {
 
   getOrderStatus(request: GetOrderStatusRequest): Promise<GetOrderStatusResponse> {
     return this.orders.getOrderStatus(request);
+  }
+
+  beginPayment(request: BeginPaymentRequest): Promise<BeginPaymentResponse> {
+    return this.orders.beginPayment(request);
   }
 }

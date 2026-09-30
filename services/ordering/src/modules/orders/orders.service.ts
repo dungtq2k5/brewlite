@@ -1,9 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { RpcException } from '@nestjs/microservices';
+import type { Metadata } from '@grpc/grpc-js';
 import {
   contentHash,
   isGrpcServiceError,
   isUniqueConstraintViolation,
   OutboxService,
+  PoisonMessage,
   requireUser,
   rpcError,
   type Caller,
@@ -20,9 +23,13 @@ import {
   OrderActorType,
   OrderStatus,
   parseEnum,
+  PAYMENT_WINDOW_MS,
   pointsEarnable,
+  type EventPayload,
 } from '@brewlite/contracts';
 import type {
+  BeginPaymentRequest,
+  BeginPaymentResponse,
   CancelOrderRequest,
   CancelOrderResponse,
   GetOrderRequest,
@@ -51,12 +58,21 @@ export interface TransitionActor {
   userId?: string;
 }
 
+/** `transition()` throws a local `RpcException` — its code sits inside `getError()`, unlike a peer's `ServiceError`. */
+function rpcErrorCode(error: unknown): string | undefined {
+  if (!(error instanceof RpcException)) return undefined;
+  const err = error.getError();
+  if (typeof err !== 'object' || err === null || !('metadata' in err)) return undefined;
+  return (err as { metadata: Metadata }).metadata.get('bl-error-code')[0]?.toString();
+}
+
 const ORDER_STATUS_SELECT = {
   id: true,
   orderNo: true,
   userId: true,
   status: true,
   promotionId: true,
+  totalVnd: true,
 } satisfies Prisma.OrderSelect;
 
 export type OrderStatusRow = Prisma.OrderGetPayload<{ select: typeof ORDER_STATUS_SELECT }>;
@@ -86,6 +102,7 @@ export class OrdersService {
     to: OrderStatus,
     actor: TransitionActor,
     data: Prisma.OrderUpdateInput = {},
+    note?: string,
   ): Promise<OrderStatusRow> {
     const current = await tx.order.findFirst({
       where: { id: orderId, ...where },
@@ -127,6 +144,7 @@ export class OrdersService {
         toStatus: to,
         actorType: actor.type,
         actorUserId: actor.userId ?? null,
+        note,
       },
     });
 
@@ -381,6 +399,157 @@ export class OrdersService {
     });
     if (!order) throw rpcError('RESOURCE_NOT_FOUND', { resource: 'ORDER' });
     return { status: order.status };
+  }
+
+  /**
+   * Internal — no gateway route, called by payment only (api §9.2). `userId` is a
+   * request field, not the metadata caller: payment is the caller, acting for the user
+   * it authenticated through the gateway.
+   */
+  async beginPayment(request: BeginPaymentRequest): Promise<BeginPaymentResponse> {
+    const { orderId, userId, paymentId } = request;
+    const order = await this.prisma.order.findFirst({
+      where: { id: orderId, userId },
+      select: { orderNo: true, totalVnd: true, status: true, expiresAt: true },
+    });
+    if (!order) throw rpcError('RESOURCE_NOT_FOUND', { resource: 'ORDER' });
+
+    const now = new Date();
+    const isPayable =
+      (order.status === OrderStatus.PENDING || order.status === OrderStatus.PAYMENT_FAILED) &&
+      order.expiresAt > now;
+    if (!isPayable) throw rpcError('ORDER_NOT_PAYABLE', { status: order.status as OrderStatus });
+
+    const newExpiresAt = new Date(
+      Math.max(order.expiresAt.getTime(), now.getTime() + PAYMENT_WINDOW_MS),
+    );
+    const payableWhere: Prisma.OrderWhereInput = {
+      userId,
+      status: { in: [OrderStatus.PENDING, OrderStatus.PAYMENT_FAILED] },
+      expiresAt: { gt: now },
+    };
+
+    if (order.status === OrderStatus.PAYMENT_FAILED) {
+      // The status actually changes — goes through transition() for its history row
+      // and outbox event, like any other status change.
+      await this.prisma.$transaction((tx) =>
+        this.transition(
+          tx,
+          orderId,
+          payableWhere,
+          OrderStatus.PENDING,
+          { type: OrderActorType.CUSTOMER, userId },
+          { currentPaymentId: paymentId, expiresAt: newExpiresAt },
+        ),
+      );
+    } else {
+      // Already PENDING — no status change to record, just the conditional write.
+      // `orders-expire` (05b) puts the same deadline in its own WHERE, so whichever
+      // commits first wins and the other matches nothing.
+      const { count } = await this.prisma.order.updateMany({
+        where: { id: orderId, ...payableWhere },
+        data: { currentPaymentId: paymentId, expiresAt: newExpiresAt },
+      });
+      if (count === 0) {
+        const fresh = await this.prisma.order.findFirstOrThrow({
+          where: { id: orderId, userId },
+          select: { status: true },
+        });
+        throw rpcError('ORDER_NOT_PAYABLE', { status: fresh.status as OrderStatus });
+      }
+    }
+
+    return { orderNo: order.orderNo.toString(), totalVnd: order.totalVnd.toString() };
+  }
+
+  /**
+   * Paid past the deadline is still paid — no `expires_at` condition here (rdm-spec §1.2
+   * rule 3). A payment for an order that does not exist, or for the wrong amount, is
+   * always a bug — never a redelivery.
+   */
+  async applyPaymentSucceeded(payload: EventPayload<'payment.payment.succeeded'>): Promise<void> {
+    const order = await this.prisma.order.findUnique({
+      where: { id: payload.orderId },
+      select: { id: true, userId: true, status: true, totalVnd: true },
+    });
+    if (!order) throw new PoisonMessage('payment for an order that does not exist');
+    if (order.totalVnd !== payload.amountVnd) throw new PoisonMessage('amount mismatch');
+
+    const status = order.status as OrderStatus;
+    if (
+      status === OrderStatus.PAID ||
+      status === OrderStatus.PREPARING ||
+      status === OrderStatus.READY ||
+      status === OrderStatus.COMPLETED
+    ) {
+      return; // a redelivery — this order already saw this (or a later) payment succeed
+    }
+    if (status === OrderStatus.CANCELLED) {
+      await this.rejectPayment(order.id, payload.paymentId, status);
+      return;
+    }
+
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        const updated = await this.transition(
+          tx,
+          order.id,
+          { status: { in: [OrderStatus.PENDING, OrderStatus.PAYMENT_FAILED] } },
+          OrderStatus.PAID,
+          { type: OrderActorType.PAYMENT },
+          { paidAt: new Date(), currentPaymentId: payload.paymentId },
+        );
+        await this.loyalty.earn(tx, updated);
+      });
+    } catch (error) {
+      // The expiry won the race between our read above and the conditional write —
+      // re-read to confirm it landed on CANCELLED before rejecting.
+      if (rpcErrorCode(error) !== 'INVALID_STATE') throw error;
+      const fresh = await this.prisma.order.findUniqueOrThrow({
+        where: { id: order.id },
+        select: { status: true },
+      });
+      if (fresh.status !== OrderStatus.CANCELLED) throw error;
+      await this.rejectPayment(order.id, payload.paymentId, fresh.status as OrderStatus);
+    }
+  }
+
+  private async rejectPayment(
+    orderId: string,
+    paymentId: string,
+    orderStatus: OrderStatus,
+  ): Promise<void> {
+    await this.prisma.$transaction((tx) =>
+      this.outbox.add(tx, 'ordering.payment.rejected', orderId, {
+        orderId,
+        paymentId,
+        orderStatus,
+      }),
+    );
+  }
+
+  /**
+   * A failure for a payment that is no longer the current one, or for an order that
+   * already moved, changes nothing (api §8).
+   */
+  async applyPaymentFailed(payload: EventPayload<'payment.payment.failed'>): Promise<void> {
+    try {
+      await this.prisma.$transaction((tx) =>
+        this.transition(
+          tx,
+          payload.orderId,
+          { currentPaymentId: payload.paymentId, status: OrderStatus.PENDING },
+          OrderStatus.PAYMENT_FAILED,
+          { type: OrderActorType.PAYMENT },
+          {},
+          payload.reason,
+        ),
+      );
+    } catch (error) {
+      const code = rpcErrorCode(error);
+      if (code === 'RESOURCE_NOT_FOUND' || code === 'INVALID_STATE') return;
+      throw error;
+    }
   }
 
   private async priceItemsOrThrow(

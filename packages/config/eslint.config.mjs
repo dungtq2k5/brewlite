@@ -52,6 +52,7 @@ export const baseConfig = tseslint.config(
       '**/*.mapper.ts',
       '**/domain/*.ts',
       '**/test/setup/**',
+      '**/lock-category.ts',
     ],
     rules: {
       'no-restricted-imports': [
@@ -87,7 +88,7 @@ export const baseConfig = tseslint.config(
     },
   },
   {
-    files: ['**/domain/*.ts'],
+    files: ['**/lock-category.ts'],
     rules: {
       '@typescript-eslint/no-restricted-imports': [
         'error',
@@ -97,7 +98,24 @@ export const baseConfig = tseslint.config(
               group: ['**/generated/prisma*'],
               allowTypeImports: true,
               message:
-                'A domain helper imports Prisma types only, never the runtime client (conventions §2.1).',
+                'A shared row-lock helper imports Prisma types only, never the runtime client (conventions §2.1).',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ['**/domain/*.ts'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['**/generated/prisma*'],
+              message:
+                'domain/*.ts is pure rules — no Prisma import in any form, import type included (conventions §2.1).',
             },
           ],
         },
@@ -182,6 +200,7 @@ export const baseConfig = tseslint.config(
           '**/staff-routes.e2e.spec.ts',
           '**/admin-catalog.e2e.spec.ts',
           '**/orders-routes.e2e.spec.ts',
+          '**/payments-routes.e2e.spec.ts',
           '**/promotions-loyalty-routes.e2e.spec.ts',
         ],
         rules: {

@@ -25,7 +25,7 @@ import {
   toProtoAdminCategory,
   type AdminCategoryRow,
 } from './admin-category.mapper.js';
-import { lockCategory } from './domain/lock-category.js';
+import { lockCategory } from './lock-category.js';
 
 function throwIfNameTaken(error: unknown): void {
   if (isUniqueConstraintViolation(error, 'categories_name_en_live_key')) {

@@ -400,7 +400,7 @@ ordering:
 
 ```text
 web ──POST /payments {orderId} + Idempotency-Key──▶ gateway ──CreatePayment──▶ payment
-payment:
+payment, in one transaction whose first statement is pg_advisory_xact_lock(hashtextextended(orderId, 0)):
   1. (user, key) exists? → return it (re-reading the session's client secret from Stripe)
   2. open PENDING payment for this order? → return it (200)
   3. paymentId = newId(); ordering.BeginPayment(orderId, userId, paymentId)
@@ -410,7 +410,7 @@ payment:
   4. insert P-1 PENDING (amount = totalVnd)
   5. STRIPE: checkout.sessions.create(idempotencyKey = the request's key) → store session id → clientSecret
      FAKE:   nothing — the page shows the simulate buttons
-  6. 201 Payment
+  6. commit → 201 Payment
 
 Stripe ──webhook──▶ gateway ──raw body──▶ payment
   verify signature · insert P-3 (duplicate → 200, stop)
@@ -420,6 +420,9 @@ ordering consumer:
   order CANCELLED               → outbox ordering.payment.rejected → payment refunds (ORDER_NOT_PAYABLE)
   already PAID or later         → nothing (a redelivery)
 ```
+
+- **The advisory lock serialises every `CreatePayment` for one order.** Two tabs with different keys would otherwise both pass step 2 and both call `BeginPayment` — the second overwriting `current_payment_id`, then losing on `payments_one_pending_per_order` — leaving the order pointing at a payment that does not exist. The lock is held across the `BeginPayment` call (its 2 s deadline, a 10 s transaction timeout): it covers one order, never a table. A `BeginPayment` that timed out but committed leaves `current_payment_id` on an id that was never inserted; the customer's retry overwrites it, so nothing needs cleaning up.
+- **The succeeded consumer checks, in order:** the order exists, and `amountVnd` equals its `totalVnd` — either failing is a bug, dead-lettered, never a partial payment; already `PAID` or later → nothing; `CANCELLED` → `ordering.payment.rejected`; otherwise `PAID`, with `current_payment_id` set to **this** payment (a later staff cancel names it for the refund) and loyalty credited in the same transaction. **Paid past the deadline is still paid** — only `orders-expire` cancelling first turns a succeeded payment into a rejected one.
 
 ### 6.3 Cancel a paid order — staff
 
@@ -527,7 +530,7 @@ gRPC packages are `brewlite.<service>`; protos in `packages/contracts/proto/brew
 | `catalog.MenuService.PriceItems(lines)` | ordering (quote, place) | an order cannot exist without authoritative prices | refuse the request (`503`) |
 | `catalog.StockService.ReserveStock(orderId, lines)` | ordering (place) | the customer must know now whether it is in stock | `OUT_OF_STOCK` names every short product, not just the first; a deleted/inactive product is `PRODUCT_UNAVAILABLE` instead. A `503` (or any deadline-exceeded refusal) is followed by `ReleaseStock` in case the reservation did commit |
 | `catalog.StockService.ReleaseStock(orderId)` | ordering (compensation only) | undo a reservation whose order was never written | log; the orphan sweep releases it later |
-| `ordering.OrderService.BeginPayment(orderId, userId, paymentId)` | payment | the amount and the payability must be current | refuse the payment (`503`); no payment row is written |
+| `ordering.OrderService.BeginPayment(orderId, userId, paymentId)` | payment | the amount and the payability must be current. The deadline check and the `expires_at` raise are **one conditional write** whose `WHERE` repeats `status IN (PENDING, PAYMENT_FAILED) AND expires_at > now` — the same condition `orders-expire` uses, so whichever commits first wins and the other is told `ORDER_NOT_PAYABLE`. `expires_at` only moves forward | refuse the payment (`503`); no payment row is written |
 | `ordering.OrderService.GetOrderStatus(orderId)` | catalog (orphan sweep) | the sweep must not guess | skip the row; the next run retries |
 | `payment.PaymentService.ListPaymentsForOrder(orderId)` | gateway (composition, §3.4) | — | `payments: null`, `meta.degraded` |
 

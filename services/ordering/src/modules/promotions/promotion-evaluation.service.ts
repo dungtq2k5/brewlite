@@ -1,13 +1,27 @@
 import { Injectable } from '@nestjs/common';
 import { rpcError } from '@brewlite/nest-common';
+import type { DiscountType } from '@brewlite/contracts';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { Prisma } from '../../../generated/prisma/client.js';
 import { applyPromotion, validatePromotion, type PromotionRule } from './domain/promotion.js';
-import { lockPromotion, type LockedPromotionRow } from './domain/lock-promotion.js';
 
 export interface PromotionEvaluation {
   promotionId: string;
   discountVnd: number;
+}
+
+interface LockedPromotionRow {
+  id: string;
+  discountType: DiscountType;
+  discountValue: number;
+  maxDiscountVnd: number | null;
+  minSubtotalVnd: number;
+  startsAt: Date;
+  endsAt: Date;
+  maxUses: number | null;
+  usedCount: number;
+  perUserLimit: number | null;
+  isActive: boolean;
 }
 
 type PromotionQueryClient = Pick<Prisma.TransactionClient, 'promotion' | 'order'>;
@@ -64,7 +78,7 @@ export class PromotionEvaluationService {
     });
   }
 
-  /** Locked and counted — PlaceOrder's step 6, inside the order transaction (§3.3). */
+  /** Locked and counted — PlaceOrder's step 6, inside the order transaction. */
   async evaluateLocked(
     tx: Prisma.TransactionClient,
     code: string,
@@ -72,7 +86,7 @@ export class PromotionEvaluationService {
     userId: string,
     now: Date,
   ): Promise<PromotionEvaluation> {
-    const promo = await lockPromotion(tx, code);
+    const promo = await this.lockPromotion(tx, code);
     const usesByThisCustomer = promo ? await this.countNonCancelledUses(tx, promo.id, userId) : 0;
     const evaluation = evaluateOrThrow(promo, { subtotalVnd, now, usesByThisCustomer });
     await tx.promotion.update({
@@ -80,6 +94,37 @@ export class PromotionEvaluationService {
       data: { usedCount: { increment: 1 } },
     });
     return evaluation;
+  }
+
+  /**
+   * Serialises every order using this code — the per-customer limit counts rows in
+   * `orders`, which a conditional `UPDATE` alone cannot make exact. Taken first in the
+   * caller's transaction, before any insert, so two orders never hold locks in opposite
+   * orders. Raw SQL with physical names, so this stays a service method, never `domain/`
+   * (conventions §2.1 — no I/O, no Prisma import, there).
+   */
+  private async lockPromotion(
+    tx: Prisma.TransactionClient,
+    code: string,
+  ): Promise<LockedPromotionRow | null> {
+    const rows = await tx.$queryRaw<LockedPromotionRow[]>`
+      SELECT
+        id,
+        discount_type AS "discountType",
+        discount_value AS "discountValue",
+        max_discount_vnd AS "maxDiscountVnd",
+        min_subtotal_vnd AS "minSubtotalVnd",
+        starts_at AS "startsAt",
+        ends_at AS "endsAt",
+        max_uses AS "maxUses",
+        used_count AS "usedCount",
+        per_user_limit AS "perUserLimit",
+        is_active AS "isActive"
+      FROM promotions
+      WHERE code = ${code} AND deleted_at IS NULL
+      FOR UPDATE
+    `;
+    return rows[0] ?? null;
   }
 
   private async countNonCancelledUses(

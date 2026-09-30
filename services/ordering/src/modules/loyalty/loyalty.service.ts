@@ -24,7 +24,7 @@ export class LoyaltyService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Called by the transaction that makes an order `PAID` (doc 06). Idempotent by
+   * Called by the transaction that makes an order `PAID`. Idempotent by
    * `UNIQUE (order_id, kind)` — a redelivered event earns once.
    */
   async earn(tx: Prisma.TransactionClient, order: EarnableOrder): Promise<void> {

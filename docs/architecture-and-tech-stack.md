@@ -415,7 +415,7 @@ Locally the SDK talks to the **Firebase Auth emulator**, which offers fake Googl
 - ⚠️ Nest parses JSON bodies by default; signature verification needs the **raw body**. Create the gateway with `rawBody: true` and read `req.rawBody` on the webhook route.
 - ⚠️ **Fulfil from the webhook, never from the return page.** A customer can pay and close the tab.
 - **Local development:** `stripe listen --forward-to localhost:23100/api/webhooks/stripe` — its printed `whsec_…` goes into payment's `STRIPE_WEBHOOK_SECRET`. No Stripe account yet? `stripe sandbox create`.
-- **Fake provider:** `PAYMENT_PROVIDER=fake` swaps Stripe for an in-process provider behind the same `PaymentProvider` interface. `fake-confirm` produces exactly the events the webhook would. Refused in production.
+- **Fake provider:** `PAYMENT_PROVIDER=fake` swaps Stripe for an in-process provider behind the same `PaymentProvider` interface. `fake-confirm` produces exactly the events the webhook would. Refused in production. The switch fails env validation with `NODE_ENV=production` — a setting that lets anyone mark an order paid must be impossible there, not merely unused — so the `apps` Compose profile runs payment with `NODE_ENV=development`, as it does identity for the Auth emulator. `PaymentOutcomeService.apply(tx, paymentId, outcome)` is the one place an outcome is applied (a conditional update from `PENDING`, one outbox row), called by `fake-confirm` and by the Stripe webhook alike, so everything after a successful payment is exercised by the fake exactly as by Stripe.
 
 ---
 

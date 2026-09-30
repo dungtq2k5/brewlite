@@ -41,21 +41,15 @@ function check(files: string[]): Violation[] {
     if (/\/domain\//.test(file)) {
       const content = readRepoFile(file);
       for (const [i, line] of content.split('\n').entries()) {
-        // A type-only `generated/prisma` import is the sanctioned pattern (the
-        // `**/domain/*.ts` ESLint block allows it with `allowTypeImports: true`,
-        // conventions §2.1) — only a runtime import, or any `@nestjs/` import
-        // (type or not — domain stays framework-free), is a violation here.
-        const isTypeOnlyPrismaImport =
-          /generated\/prisma/.test(line) && /^\s*import\s+type\b/.test(line);
-        if (
-          /from ['"]@nestjs\//.test(line) ||
-          (/generated\/prisma/.test(line) && !isTypeOnlyPrismaImport)
-        ) {
+        // domain/*.ts is pure rules — no I/O, no Prisma import in any form (`import
+        // type` included: a function needing Prisma's types to do real work is not a
+        // pure rule), no @nestjs/ import (conventions §2.1).
+        if (/from ['"]@nestjs\//.test(line) || /generated\/prisma/.test(line)) {
           violations.push({
             file,
             line: i + 1,
             message:
-              'domain/*.ts imports @nestjs/ or the runtime generated/prisma client (conventions §2.1)',
+              'domain/*.ts imports @nestjs/ or generated/prisma, in any form (conventions §2.1)',
           });
         }
       }
@@ -115,13 +109,18 @@ describe('module-files', () => {
     );
   });
 
-  it('allows a type-only generated/prisma import in domain/*.ts (conventions §2.1)', () => {
+  it('refuses a type-only generated/prisma import in domain/*.ts too (conventions §2.1)', () => {
     plant(
       'services/catalog/src/modules/menu/domain/__lint-tmp-type-only.ts',
       "import type { Prisma } from '../../../../generated/prisma/client.js';\nexport type X = Prisma.ProductSelect;\n",
     );
     const violations = check(['services/catalog/src/modules/menu/domain/__lint-tmp-type-only.ts']);
-    expect(violations).toEqual([]);
+    expect(violations).toContainEqual(
+      expect.objectContaining({
+        file: 'services/catalog/src/modules/menu/domain/__lint-tmp-type-only.ts',
+        line: 1,
+      }),
+    );
   });
 
   it('refuses a runtime generated/prisma import in domain/*.ts', () => {

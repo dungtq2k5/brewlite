@@ -128,6 +128,18 @@ export interface GetOrderStatusResponse {
   status: string;
 }
 
+export interface BeginPaymentRequest {
+  orderId: string;
+  userId: string;
+  paymentId: string;
+}
+
+export interface BeginPaymentResponse {
+  /** int64 as a string (conventions §5.1) */
+  orderNo: string;
+  totalVnd: string;
+}
+
 export const BREWLITE_ORDERING_PACKAGE_NAME = "brewlite.ordering";
 
 export interface OrderServiceClient {
@@ -147,6 +159,10 @@ export interface OrderServiceClient {
    */
 
   getOrderStatus(request: GetOrderStatusRequest, metadata?: Metadata): Observable<GetOrderStatusResponse>;
+
+  /** Internal — no gateway route. Called by payment only (api §9.2). */
+
+  beginPayment(request: BeginPaymentRequest, metadata?: Metadata): Observable<BeginPaymentResponse>;
 }
 
 export interface OrderServiceController {
@@ -181,11 +197,26 @@ export interface OrderServiceController {
     request: GetOrderStatusRequest,
     metadata?: Metadata,
   ): Promise<GetOrderStatusResponse> | Observable<GetOrderStatusResponse> | GetOrderStatusResponse;
+
+  /** Internal — no gateway route. Called by payment only (api §9.2). */
+
+  beginPayment(
+    request: BeginPaymentRequest,
+    metadata?: Metadata,
+  ): Promise<BeginPaymentResponse> | Observable<BeginPaymentResponse> | BeginPaymentResponse;
 }
 
 export function OrderServiceControllerMethods() {
   return function (constructor: Function) {
-    const grpcMethods: string[] = ["quote", "placeOrder", "listMyOrders", "getOrder", "cancelOrder", "getOrderStatus"];
+    const grpcMethods: string[] = [
+      "quote",
+      "placeOrder",
+      "listMyOrders",
+      "getOrder",
+      "cancelOrder",
+      "getOrderStatus",
+      "beginPayment",
+    ];
     for (const method of grpcMethods) {
       const descriptor: any = Reflect.getOwnPropertyDescriptor(constructor.prototype, method);
       GrpcMethod("OrderService", method)(constructor.prototype[method], method, descriptor);
