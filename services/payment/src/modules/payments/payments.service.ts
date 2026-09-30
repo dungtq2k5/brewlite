@@ -25,7 +25,7 @@ import { toProtoPayment } from './payment.mapper.js';
 import {
   PAYMENT_PROVIDER_TOKEN,
   type PaymentProvider,
-} from './providers/payment-provider.interface.js';
+} from '../../providers/payment/payment-provider.interface.js';
 
 const TRANSACTION_TIMEOUT_MS = 10_000;
 

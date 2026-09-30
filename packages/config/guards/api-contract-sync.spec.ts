@@ -269,7 +269,7 @@ describe('api-contract-sync', () => {
 
   it('reports an event subject renamed in the doc so a declared subject is no longer covered', () => {
     const doc = readRepoFile(FILE);
-    const mutated = doc.replace('`ordering.payment.rejected`', '`ordering.payment.renamed`');
+    const mutated = doc.replaceAll('`ordering.payment.rejected`', '`ordering.payment.renamed`');
     const violations = check(mutated);
     expect(
       violations.some(

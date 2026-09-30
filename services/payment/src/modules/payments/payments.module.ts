@@ -7,11 +7,11 @@ import { PaymentsGrpcController } from './payments-grpc.controller.js';
 import { PaymentsService } from './payments.service.js';
 import { PaymentOutcomeService } from './payment-outcome.service.js';
 import { OrderingGrpcClient } from './ordering-grpc.client.js';
-import { FakePaymentProvider } from './providers/fake.payment-provider.js';
+import { FakePaymentProvider } from '../../providers/payment/fake.payment-provider.js';
 import {
   PAYMENT_PROVIDER_TOKEN,
   type PaymentProvider,
-} from './providers/payment-provider.interface.js';
+} from '../../providers/payment/payment-provider.interface.js';
 
 @Module({
   imports: [ConfigModule, PrismaModule],

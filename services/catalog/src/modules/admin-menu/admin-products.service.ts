@@ -41,7 +41,7 @@ import {
   toProtoAdminProductListItem,
   type AdminProductRow,
 } from './admin-product.mapper.js';
-import { lockCategory } from './lock-category.js';
+import { lockCategory } from '../../locks/lock-category.js';
 
 const CONTENT_TYPE_BY_EXT = { jpg: 'image/jpeg', png: 'image/png', webp: 'image/webp' } as const;
 

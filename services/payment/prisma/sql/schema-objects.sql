@@ -1,4 +1,4 @@
--- rdm-spec §5: payment's rows, exactly (doc 06 §2.1). Idempotent — safe to run on
+-- rdm-spec §5: payment's rows, exactly. Idempotent — safe to run on
 -- every deploy (conventions §7.1).
 
 -- P-1: amount_vnd >= MIN_PAYABLE_VND (10,000) in @brewlite/contracts.

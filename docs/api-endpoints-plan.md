@@ -297,7 +297,7 @@ Order = Quote & {
 | :---- | :---- | :---- | :---- |
 | GET | `/staff/orders` | Orders in `PAID`, `PREPARING`, `READY`, oldest first, `?status=` to narrow; bounded to 100. Each is the `Order` without `history`. | perm:`order.board.read` |
 | POST | `/staff/orders/:id/status` | `{ to: 'PREPARING' \| 'READY' \| 'COMPLETED' }` → `Order`. Checked by `assertTransition` and a conditional update — a move not in product-overview §6.4, or an order another tap already moved, is `409 INVALID_STATE` (`details.status` = the current status). | perm:`order.status.update` |
-| POST | `/staff/orders/:id/cancel` | `{ note }` (required, ≤ 200) → `Order`. `PAID` → `CANCELLED` (reason `STAFF`): releases stock, reverses points, returns the promo use, sets `refundStatus: PENDING`; payment refunds (§8). Any other status is `409 INVALID_STATE`. | perm:`order.cancel.paid` |
+| POST | `/staff/orders/:id/cancel` | `{ note }` (required, ≤ 200) → `Order`. `PAID` → `CANCELLED` (reason `STAFF`): releases stock, reverses points, returns the promo use, sets `refundStatus: PENDING`; payment refunds (§8). The transition is narrowed to `PAID` — a `PENDING` order is the customer's or the expiry's to cancel, a `PREPARING` one cannot be cancelled — so any other status is `409 INVALID_STATE` with the current status. The note is written to `cancel_note` and to the history row. | perm:`order.cancel.paid` |
 | GET | `/staff/orders/events` | **SSE** stream of every order's status changes (§5). | perm:`order.board.read` |
 
 ### 3.4 Admin — orders and reports
@@ -372,7 +372,9 @@ data: {"orderId":"…","orderNo":1042,"status":"PREPARING","at":"2026-09-24T08:1
 
 - Fed by the gateway's ephemeral consumer of `ordering.order.status_changed` (§8). A `: ping` comment every 25 s keeps proxies from closing an idle stream.
 - **An event is a nudge, not the record.** On every connect and reconnect the page re-reads the order (or the board) over HTTP; a frame lost during a reconnect costs nothing but latency.
-- A customer stream ends after the order reaches `COMPLETED` or `CANCELLED`.
+- A customer stream ends after the order reaches `COMPLETED` or `CANCELLED`; an order **already** finished at connect answers `204 No Content`, which `EventSource` treats as final — ending a `200` instead would make the browser reconnect every few seconds for as long as the tab is open.
+- Ownership is checked once, at connect: someone else's order is a `404` JSON error before any stream starts.
+- The routes write their responses themselves — Nest's `@Sse()` cannot write a comment line, answer `204`, or end after a chosen frame — and are excluded from OpenAPI. Open streams are ended in `beforeApplicationShutdown`; left open, they block `app.close()` indefinitely.
 
 ---
 
@@ -494,7 +496,7 @@ Streams: `ORDERING` (`ordering.>`), `PAYMENT` (`payment.>`), 7 days, 2-minute du
 
 | Subject | Publisher | Payload (besides `eventId`, `occurredAt`) | Consumers → effect |
 | :---- | :---- | :---- | :---- |
-| `ordering.order.status_changed` | ordering | `orderId, orderNo, userId, from, to, actorType, paymentId?, cancelReason?` — one event per transition. **Order creation itself emits nothing** (`from: null`) — nothing consumes it, since a customer's own page reads the order it just made; the first published event of an order's life is its first transition (e.g. `PENDING → PAID`) | catalog → `to: PAID` confirms reservations, `to: CANCELLED` releases them · payment → `from: PAID, to: CANCELLED` refunds `paymentId` (`STAFF_CANCELLED`) · gateway → SSE frame (ephemeral) |
+| `ordering.order.status_changed` | ordering | `orderId, orderNo, userId, from, to, actorType, paymentId?, cancelReason?` — one event per transition. **Order creation itself emits nothing** (`from: null`) — nothing consumes it, since a customer's own page reads the order it just made; the first published event of an order's life is its first transition (e.g. `PENDING → PAID`). **`paymentId` is set only on `PAID → CANCELLED`**: the order's `current_payment_id`, the payment that paid it — no other cancel has a payment to refund | catalog → `to: PAID` confirms reservations, `to: CANCELLED` releases them · payment → `from: PAID, to: CANCELLED` refunds `paymentId` (`STAFF_CANCELLED`) · gateway → SSE frame (ephemeral) |
 | `ordering.payment.rejected` | ordering | `orderId, paymentId, orderStatus` — a payment succeeded for an order that was no longer payable | payment → refund (`ORDER_NOT_PAYABLE`) |
 | `payment.payment.succeeded` | payment | `paymentId, orderId, userId, amountVnd, method` | ordering → `PAID` (§6.2), or `ordering.payment.rejected` |
 | `payment.payment.failed` | payment | `paymentId, orderId, reason: ASYNC_FAILED \| EXPIRED \| SIMULATED` | ordering → `PAYMENT_FAILED`, only if the order is `PENDING` and `current_payment_id = paymentId` |
@@ -567,7 +569,7 @@ Every service serves these — backend services on `OPS_PORT`, the gateway on it
 | Method | Path | Description | Auth |
 | :---- | :---- | :---- | :---- |
 | GET | `/health` | Liveness: the process is up. | PUBLIC |
-| GET | `/health/ready` | Readiness: **this service's own** dependencies — its database, Redis, NATS. Never a gRPC peer. Only a dependency the service cannot serve without — catalog's menu reads survive Redis being down (architecture §2.6), so Redis joins catalog's readiness only once a background job needs it. The gateway declares no readiness dependency yet: its `RateLimitGuard` fails open on a Redis outage (architecture §2.6, §5), so Redis is not required to serve. | PUBLIC |
+| GET | `/health/ready` | Readiness: **this service's own** dependencies — its database, Redis, NATS. Never a gRPC peer. Only a dependency the service cannot serve without — catalog's menu reads survive Redis being down (architecture §2.6), so Redis joins catalog's readiness only once a background job needs it. The gateway declares **NATS** — its event streams need it — but not Redis: its `RateLimitGuard` fails open on a Redis outage (architecture §2.6, §5). A NATS outage fails only the streams; every other route keeps serving, and the gateway boots without the broker and reconnects when it returns. | PUBLIC |
 | GET | `/version` | `{ service, version, gitSha, builtAt }`. | PUBLIC |
 | GET | `/docs`, `/docs-json` | Swagger UI and the OpenAPI document. Gateway only; `SWAGGER_ENABLED=false` in production. | PUBLIC |
 

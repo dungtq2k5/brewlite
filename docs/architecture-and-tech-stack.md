@@ -132,7 +132,7 @@ The full event and RPC contracts are in [`api-endpoints-plan.md`](./api-endpoint
 - **`ensureStreams(jsm, names)` runs at boot on both ends** — a publisher ensures its own stream, a consumer ensures the stream it reads and `DLQ`, so boot order between two services never matters. Missing → create. Present → compare `subjects`/`max_age`/`duplicate_window`/`storage`, throwing at boot on any difference, naming the field — a changed stream config is a decision made by hand, never a deploy side effect.
 - **The relay is the only publisher.** One cycle claims a batch (`FOR UPDATE SKIP LOCKED`, `ORDER BY id`), publishes each row with `Nats-Msg-Id = outbox id`, and stops at the first failure so one aggregate's events keep their order. Pacing: a full batch claims again at once; otherwise it waits `OUTBOX_POLL_MS`; consecutive failures back off exponentially to 10 s. The claim transaction's timeout is computed — `OUTBOX_BATCH_SIZE × OUTBOX_PUBLISH_TIMEOUT_MS + 5,000` — never configured separately, so a slow broker can't expire it and force a mass republish.
 - **A consumer's redelivery schedule** (`nak(delay)`) grows by delivery count — `[1 s, 5 s, 30 s, 2 min, 5 min]`, the last entry repeating — before the final delivery dead-letters. The dead-letter copy carries the original headers plus `x-dlq-error` (the failure message, newlines stripped, truncated to 500 chars) and is the one publish outside the relay: it is not a domain event and has no transaction to ride in.
-- The gateway's SSE fan-out is the one **non-durable** consumer: an ordered, ephemeral consumer per gateway process, new messages only. A missed frame costs latency, never data — the browser refetches on reconnect ([ADR 0022](./decisions/0022-order-updates-reach-browsers-as-server-sent-events.md)).
+- The gateway's SSE fan-out is the one **non-durable** consumer: an ordered, ephemeral consumer per gateway process, new messages only. It feeds one in-process RxJS `Subject` that every open stream subscribes to, so one NATS subscription serves every browser. A frame failing its schema is logged and dropped — an ephemeral consumer has no dead-letter queue. A missed frame costs latency, never data — the browser refetches on reconnect ([ADR 0022](./decisions/0022-order-updates-reach-browsers-as-server-sent-events.md)).
 
 ### 2.4 API documentation, validation and the client
 
@@ -484,7 +484,7 @@ Every Nest service declares its variables in `src/config/env.schema.ts` (zod), l
 | `REDIS_URL_TEST` | catalog | `redis://localhost:26379/15` — database 15 of the same server, so integration tests never touch the development cache |
 | `REDIS_URL_TEST` | gateway | `redis://localhost:26379/14` — its own database, so the gateway's e2e specs (the `RateLimitGuard`'s keys) never touch the development bucket **or** catalog's database 15, and the two suites can run in parallel under Turborepo |
 | `NATS_URL` | gateway, catalog, ordering, payment | `nats://localhost:24222` |
-| `NATS_URL_TEST` | catalog, ordering, payment | `nats://localhost:24223` — integration tests never publish to the development broker |
+| `NATS_URL_TEST` | catalog, ordering, payment, gateway | `nats://localhost:24223` — integration tests never publish to the development broker |
 | `GRPC_URL` | identity, catalog, ordering, payment | own bind address, e.g. `0.0.0.0:25052` |
 | `OPS_PORT` | identity, catalog, ordering, payment | `/health*` and `/version` |
 | `GIT_SHA`, `BUILT_AT` | all services | optional, shown by `/version`; Docker build arguments, `unknown` when unset |

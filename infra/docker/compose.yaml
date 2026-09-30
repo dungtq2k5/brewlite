@@ -255,6 +255,8 @@ services:
         condition: service_healthy
       payment:
         condition: service_healthy
+      nats:
+        condition: service_healthy
       redis:
         condition: service_healthy
     env_file:
@@ -271,6 +273,7 @@ services:
       IDENTITY_GRPC_URL: identity:25051
       ORDERING_GRPC_URL: ordering:25053
       PAYMENT_GRPC_URL: payment:25054
+      NATS_URL: nats://nats:4222
       REDIS_URL: redis://redis:6379/0
     ports:
       - '127.0.0.1:23100:23100'

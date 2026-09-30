@@ -201,6 +201,7 @@ export const baseConfig = tseslint.config(
           '**/admin-catalog.e2e.spec.ts',
           '**/orders-routes.e2e.spec.ts',
           '**/payments-routes.e2e.spec.ts',
+          '**/staff-orders-events.e2e.spec.ts',
           '**/promotions-loyalty-routes.e2e.spec.ts',
         ],
         rules: {

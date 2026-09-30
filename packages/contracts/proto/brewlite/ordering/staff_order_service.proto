@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package brewlite.ordering;
+
+import "brewlite/ordering/order_service.proto";
+
+service StaffOrderService {
+  rpc ListBoard(ListBoardRequest) returns (ListBoardResponse);
+  rpc AdvanceStatus(AdvanceStatusRequest) returns (AdvanceStatusResponse);
+  rpc CancelPaid(CancelPaidRequest) returns (CancelPaidResponse);
+}
+
+message ListBoardRequest { optional string status = 1; }
+message ListBoardResponse { repeated Order orders = 1; }
+
+message AdvanceStatusRequest {
+  string id = 1;
+  string to = 2; // PREPARING | READY | COMPLETED
+}
+message AdvanceStatusResponse { Order order = 1; }
+
+message CancelPaidRequest {
+  string id = 1;
+  string note = 2;
+}
+message CancelPaidResponse { Order order = 1; }

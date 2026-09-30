@@ -7,3 +7,5 @@ import { testEnv } from './env.js';
 // Database 15 is catalog's; a spec that needs a different REDIS_URL (e.g.
 // rate-limit-redis-down.e2e.spec.ts) overrides it again after this runs.
 process.env.REDIS_URL = testEnv.REDIS_URL_TEST;
+// Same idea for the SSE source: every spec importing AppModule dials the test broker.
+process.env.NATS_URL = testEnv.NATS_URL_TEST;

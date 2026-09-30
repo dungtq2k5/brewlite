@@ -57,7 +57,7 @@ services/ordering/src/modules/orders/
 - A **service** is the only file that runs Prisma queries for its module. It takes the proto request and the caller, returns the proto response built by the mapper, and throws only `rpcError()` (§5.3) — **never** an HTTP exception.
 - A **mapper** owns the `select` shapes (`ORDER_DETAIL_SELECT`), their row types (`OrderDetailRow`) and the row → proto functions. It imports Prisma **types only**, lists every output field explicitly — never `const { passwordHash, ...rest } = row` — and never queries anything.
 - **A rule with no I/O is a pure function in `domain/`**, importing nothing from `@nestjs/*` or the Prisma client — not even `import type` (the `module-files` guard refuses it) — unit-tested without Nest. Every Task 10 rule is one: the state machine, the promotion arithmetic, loyalty earning. When the web app needs the same rule (unit pricing), it lives in `packages/contracts` instead.
-- A `lock…(tx, …)` method that takes a row lock is I/O: it lives on the owning service, never in `domain/`.
+- A `lock…(tx, …)` function that takes a row lock is I/O: it lives on the owning service, or in `src/locks/` when two of the service's modules share it — never in `domain/`.
 - **One module never queries another module's tables.** It calls that module's service.
 - Enforced by `eslint` `no-restricted-imports`: the runtime Prisma client only in `*.service.ts`, `prisma.service.ts` and `prisma/seed/**`; controllers and consumers may not import it.
 
@@ -450,7 +450,7 @@ Every durable consumer is a `JetStreamConsumer` subclass, started from the servi
 
 - Only the gateway serves SSE. **A frame is never the only record of anything** — it says "order X is now Y", and the page re-reads on every (re)connect.
 - The customer stream checks ownership once, at connect, through ordering.
-- Streams send a `: ping` comment every 25 s and are closed by the gateway on shutdown.
+- Streams send a `: ping` comment every 25 s (one shared timer, not one per connection) and are ended in `beforeApplicationShutdown`.
 
 ---
 

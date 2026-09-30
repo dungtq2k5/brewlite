@@ -59,7 +59,7 @@ export interface TransitionActor {
 }
 
 /** `transition()` throws a local `RpcException` — its code sits inside `getError()`, unlike a peer's `ServiceError`. */
-function rpcErrorCode(error: unknown): string | undefined {
+export function rpcErrorCode(error: unknown): string | undefined {
   if (!(error instanceof RpcException)) return undefined;
   const err = error.getError();
   if (typeof err !== 'object' || err === null || !('metadata' in err)) return undefined;
@@ -73,6 +73,7 @@ const ORDER_STATUS_SELECT = {
   status: true,
   promotionId: true,
   totalVnd: true,
+  currentPaymentId: true,
 } satisfies Prisma.OrderSelect;
 
 export type OrderStatusRow = Prisma.OrderGetPayload<{ select: typeof ORDER_STATUS_SELECT }>;
@@ -116,8 +117,9 @@ export class OrdersService {
       data: { status: to, ...data },
     });
     if (count === 0) {
+      // By id alone — the `where` may no longer match, which is exactly why we are here.
       const fresh = await tx.order.findFirstOrThrow({
-        where: { id: orderId, ...where },
+        where: { id: orderId },
         select: ORDER_STATUS_SELECT,
       });
       throw rpcError('INVALID_STATE', { status: fresh.status });
@@ -150,8 +152,13 @@ export class OrdersService {
 
     const cancelReason =
       typeof data.cancelReason === 'string' ? (data.cancelReason as CancelReason) : undefined;
-    const paymentId =
-      typeof data.currentPaymentId === 'string' ? (data.currentPaymentId as string) : undefined;
+    // A paid cancel sets no payment field itself — the refund needs the payment that paid it.
+    const paidCancel = current.status === OrderStatus.PAID && to === OrderStatus.CANCELLED;
+    const paymentId = paidCancel
+      ? (current.currentPaymentId ?? undefined)
+      : typeof data.currentPaymentId === 'string'
+        ? data.currentPaymentId
+        : undefined;
 
     await this.outbox.add(tx, 'ordering.order.status_changed', orderId, {
       orderId,
@@ -586,7 +593,7 @@ export class OrdersService {
     }
   }
 
-  private async toFullOrder(orderId: string) {
+  async toFullOrder(orderId: string) {
     const [order, items, history] = await Promise.all([
       this.prisma.order.findUniqueOrThrow({ where: { id: orderId } }),
       this.prisma.orderItem.findMany({ where: { orderId }, orderBy: { lineNo: 'asc' } }),
