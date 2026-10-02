@@ -26,7 +26,9 @@ export class FirebaseAuthProvider {
       // `cert()` reads the file itself; against the emulator neither is set, and the SDK
       // rejects an explicit `credential: undefined` as an invalid option — omitted
       // entirely, it never dials a real Google service (conventions §9.3).
-      if (credentialsPath !== undefined) options.credential = cert(credentialsPath);
+      // Truthy, not `!== undefined`: ConfigService falls back to the raw `process.env` "" when
+      // the schema maps an empty value to undefined.
+      if (credentialsPath) options.credential = cert(credentialsPath);
       initializeApp(options);
     }
   }

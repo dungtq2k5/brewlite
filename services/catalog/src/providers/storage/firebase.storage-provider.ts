@@ -17,7 +17,9 @@ export class FirebaseStorageProvider {
       // Against the emulator neither GOOGLE_APPLICATION_CREDENTIALS nor a real bucket
       // dial is needed — the SDK rejects an explicit `credential: undefined`, so it is
       // omitted entirely rather than passed (found in 03a, mirrored from the Auth provider).
-      if (credentialsPath !== undefined) options.credential = cert(credentialsPath);
+      // Truthy, not `!== undefined`: ConfigService falls back to the raw `process.env` "" when
+      // the schema maps an empty value to undefined.
+      if (credentialsPath) options.credential = cert(credentialsPath);
       initializeApp(options);
     }
   }
