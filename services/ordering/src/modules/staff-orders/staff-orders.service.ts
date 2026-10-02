@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { requireUser, rpcError, type Caller } from '@brewlite/nest-common';
+import { localErrorCode, requireUser, rpcError, type Caller } from '@brewlite/nest-common';
 import {
   CancelReason,
   OrderActorType,
@@ -17,7 +17,7 @@ import type {
   ListBoardResponse,
 } from '@brewlite/contracts/generated/brewlite/ordering/staff_order_service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { OrdersService, rpcErrorCode } from '../orders/orders.service.js';
+import { OrdersService } from '../orders/orders.service.js';
 import { toProtoOrder } from '../orders/order.mapper.js';
 
 @Injectable()
@@ -91,7 +91,7 @@ export class StaffOrdersService {
       );
     } catch (error) {
       // The order left PAID between the read above and the conditional write.
-      if (rpcErrorCode(error) !== 'RESOURCE_NOT_FOUND') throw error;
+      if (localErrorCode(error) !== 'RESOURCE_NOT_FOUND') throw error;
       const fresh = await this.prisma.order.findUniqueOrThrow({
         where: { id: request.id },
         select: { status: true },

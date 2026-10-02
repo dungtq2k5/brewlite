@@ -80,7 +80,7 @@ describe('validatePromotion', () => {
 describe('applyPromotion', () => {
   it('PERCENT rounds down', () => {
     expect(applyPromotion(rule({ discountValue: 10 }), 58_000)).toBe(5_800);
-    expect(applyPromotion(rule({ discountValue: 15 }), 12_345)).toBe(1_851);
+    expect(applyPromotion(rule({ discountValue: 15 }), 22_345)).toBe(3_351);
   });
 
   it('a cap limits a PERCENT discount', () => {
@@ -96,13 +96,13 @@ describe('applyPromotion', () => {
   });
 
   it('FIXED above the subtotal is clamped so the total stays at MIN_PAYABLE_VND', () => {
-    // subtotal 20,000, MIN_PAYABLE_VND 10,000 → the discount can be at most 10,000.
+    // subtotal 25,000, MIN_PAYABLE_VND 15,000 → the discount can be at most 10,000.
     expect(
-      applyPromotion(rule({ discountType: DiscountType.FIXED, discountValue: 50_000 }), 20_000),
+      applyPromotion(rule({ discountType: DiscountType.FIXED, discountValue: 50_000 }), 25_000),
     ).toBe(10_000);
   });
 
   it('a PERCENT discount that would otherwise breach MIN_PAYABLE_VND is capped the same way', () => {
-    expect(applyPromotion(rule({ discountValue: 90 }), 20_000)).toBe(10_000);
+    expect(applyPromotion(rule({ discountValue: 90 }), 25_000)).toBe(10_000);
   });
 });

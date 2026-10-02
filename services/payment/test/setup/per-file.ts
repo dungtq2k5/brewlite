@@ -8,7 +8,9 @@ export const prisma = new PrismaClient({
 });
 
 beforeEach(async () => {
-  await prisma.$executeRawUnsafe('TRUNCATE TABLE payments, outbox_events RESTART IDENTITY CASCADE');
+  await prisma.$executeRawUnsafe(
+    'TRUNCATE TABLE payments, refunds, stripe_events, outbox_events RESTART IDENTITY CASCADE',
+  );
 });
 
 afterAll(async () => {

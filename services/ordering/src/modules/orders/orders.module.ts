@@ -7,6 +7,8 @@ import { CatalogStockGrpcClient } from './catalog-stock-grpc.client.js';
 import { OrderGrpcController } from './order-grpc.controller.js';
 import { OrdersService } from './orders.service.js';
 import { PaymentSucceededConsumer } from './payment-succeeded.consumer.js';
+import { PaymentRefundFailedConsumer } from './payment-refund-failed.consumer.js';
+import { PaymentRefundSucceededConsumer } from './payment-refund-succeeded.consumer.js';
 import { PaymentFailedConsumer } from './payment-failed.consumer.js';
 
 @Module({
@@ -19,7 +21,15 @@ import { PaymentFailedConsumer } from './payment-failed.consumer.js';
     CatalogStockGrpcClient,
     PaymentSucceededConsumer,
     PaymentFailedConsumer,
+    PaymentRefundSucceededConsumer,
+    PaymentRefundFailedConsumer,
   ],
-  exports: [OrdersService, PaymentSucceededConsumer, PaymentFailedConsumer],
+  exports: [
+    OrdersService,
+    PaymentSucceededConsumer,
+    PaymentFailedConsumer,
+    PaymentRefundSucceededConsumer,
+    PaymentRefundFailedConsumer,
+  ],
 })
 export class OrdersModule {}

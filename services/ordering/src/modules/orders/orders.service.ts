@@ -1,10 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { RpcException } from '@nestjs/microservices';
-import type { Metadata } from '@grpc/grpc-js';
 import {
   contentHash,
   isGrpcServiceError,
   isUniqueConstraintViolation,
+  localErrorCode,
   OutboxService,
   PoisonMessage,
   requireUser,
@@ -21,6 +20,7 @@ import {
   normalizeText,
   ORDER_UNPAID_TTL_MS,
   OrderActorType,
+  OrderRefundStatus,
   OrderStatus,
   parseEnum,
   PAYMENT_WINDOW_MS,
@@ -56,14 +56,6 @@ import { toOrderLineFromPriced, toProtoOrder } from './order.mapper.js';
 export interface TransitionActor {
   type: OrderActorType;
   userId?: string;
-}
-
-/** `transition()` throws a local `RpcException` — its code sits inside `getError()`, unlike a peer's `ServiceError`. */
-export function rpcErrorCode(error: unknown): string | undefined {
-  if (!(error instanceof RpcException)) return undefined;
-  const err = error.getError();
-  if (typeof err !== 'object' || err === null || !('metadata' in err)) return undefined;
-  return (err as { metadata: Metadata }).metadata.get('bl-error-code')[0]?.toString();
 }
 
 const ORDER_STATUS_SELECT = {
@@ -511,7 +503,7 @@ export class OrdersService {
     } catch (error) {
       // The expiry won the race between our read above and the conditional write —
       // re-read to confirm it landed on CANCELLED before rejecting.
-      if (rpcErrorCode(error) !== 'INVALID_STATE') throw error;
+      if (localErrorCode(error) !== 'INVALID_STATE') throw error;
       const fresh = await this.prisma.order.findUniqueOrThrow({
         where: { id: order.id },
         select: { status: true },
@@ -553,10 +545,21 @@ export class OrdersService {
         ),
       );
     } catch (error) {
-      const code = rpcErrorCode(error);
+      const code = localErrorCode(error);
       if (code === 'RESOURCE_NOT_FOUND' || code === 'INVALID_STATE') return;
       throw error;
     }
+  }
+
+  /** Conditional on `PENDING`, so a duplicate changes nothing. A refund for a rejected payment finds its order at `NONE` and leaves it alone. */
+  async applyRefundOutcome(
+    orderId: string,
+    to: OrderRefundStatus.REFUNDED | OrderRefundStatus.FAILED,
+  ): Promise<void> {
+    await this.prisma.order.updateMany({
+      where: { id: orderId, refundStatus: OrderRefundStatus.PENDING },
+      data: { refundStatus: to },
+    });
   }
 
   private async priceItemsOrThrow(

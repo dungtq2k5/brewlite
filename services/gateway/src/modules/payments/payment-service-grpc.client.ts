@@ -12,6 +12,9 @@ import type {
 } from '@brewlite/contracts/generated/brewlite/payment/payment_service.js';
 import type { Env } from '../../config/env.schema.js';
 
+/** `CreatePayment` makes a Stripe call inside payment (6 s timeout) after `BeginPayment` (2 s). */
+const CREATE_PAYMENT_DEADLINE_MS = 12_000;
+
 @Injectable()
 export class PaymentServiceGrpcClient extends BaseGrpcClient {
   constructor(config: ConfigService<Env, true>) {
@@ -28,7 +31,11 @@ export class PaymentServiceGrpcClient extends BaseGrpcClient {
     request: CreatePaymentRequest,
     requestId?: string,
   ): Promise<CreatePaymentResponse> {
-    return this.call('createPayment', request, { requestId, caller });
+    return this.call('createPayment', request, {
+      requestId,
+      caller,
+      deadlineMs: CREATE_PAYMENT_DEADLINE_MS,
+    });
   }
 
   getPayment(

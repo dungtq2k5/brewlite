@@ -691,7 +691,7 @@ Graded evidence (product-overview F10). Each is its own named integration test a
 
 ### 16.4 Guard specs
 
-A guard spec turns a repo-wide rule into a failing test. Guards live in `packages/config/guards/` and run as the Vitest project `guards`, in `pnpm test` and as a named CI step. A guard that reads `@brewlite/contracts` reaches its source through a TypeScript `paths` alias, never a package dependency — `contracts` already depends on `config`, and the reverse would be a cycle. Each has four tests: the rule holds over the corpus; planted violations are reported; conforming shapes pass; the corpus is real (non-empty, contains a named file). The corpus comes from `git ls-files`, never a directory walk.
+A guard spec turns a repo-wide rule into a failing test. Guards live in `packages/config/guards/` and run as the Vitest project `guards`, in `pnpm test` and as a named CI step. A guard that reads `@brewlite/contracts` reaches its source through a TypeScript `paths` alias, never a package dependency — `contracts` already depends on `config`, and the reverse would be a cycle. Each has four tests: the rule holds over the corpus; planted violations are reported; conforming shapes pass; the corpus is real (non-empty, contains a named file). The corpus is `git ls-files --cached --others --exclude-standard` — tracked **and** untracked files, `.gitignore` respected — never a directory walk, so a new file is checked before it is committed.
 
 | Guard | Rule |
 | :---- | :---- |

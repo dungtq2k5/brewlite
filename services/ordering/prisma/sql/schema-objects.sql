@@ -21,7 +21,7 @@ BEGIN
   END IF;
 END $$;
 
--- O-1: total arithmetic; total_vnd >= MIN_PAYABLE_VND (10,000) in @brewlite/contracts.
+-- O-1: total arithmetic; total_vnd >= MIN_PAYABLE_VND (15,000) in @brewlite/contracts.
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -31,13 +31,12 @@ BEGIN
       ADD CONSTRAINT orders_total_ck
       CHECK (total_vnd = subtotal_vnd - promo_discount_vnd - points_discount_vnd);
   END IF;
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint WHERE conname = 'orders_min_payable_ck'
-  ) THEN
-    ALTER TABLE orders
-      ADD CONSTRAINT orders_min_payable_ck
-      CHECK (total_vnd >= 10000);
-  END IF;
+  -- Replaced, not skipped: the minimum has changed once (Stripe's floor), and a bare
+  -- IF NOT EXISTS would keep the old value on a database that already has the constraint.
+  ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_min_payable_ck;
+  ALTER TABLE orders
+    ADD CONSTRAINT orders_min_payable_ck
+    CHECK (total_vnd >= 15000);
 END $$;
 
 -- O-1: promotion_id and promo_code move together.

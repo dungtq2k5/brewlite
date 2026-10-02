@@ -17,8 +17,11 @@ function payment(overrides: Partial<Record<string, unknown>> = {}) {
 }
 
 describe('payments P-1 schema objects', () => {
-  it('refuses amount_vnd below MIN_PAYABLE_VND', async () => {
-    await expect(prisma.payment.create({ data: payment({ amountVnd: 9_999 }) })).rejects.toThrow();
+  it('refuses amount_vnd below MIN_PAYABLE_VND (15,000) and allows exactly it', async () => {
+    await expect(prisma.payment.create({ data: payment({ amountVnd: 14_999 }) })).rejects.toThrow();
+    await expect(
+      prisma.payment.create({ data: payment({ amountVnd: 15_000 }) }),
+    ).resolves.toBeDefined();
   });
 
   it('refuses SUCCEEDED without succeeded_at', async () => {

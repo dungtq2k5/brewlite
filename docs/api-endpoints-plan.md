@@ -438,6 +438,8 @@ payment consumer: insert P-2 (UNIQUE payment_id) → Stripe refund (idempotency 
 ordering consumer: refund_status → REFUNDED
 ```
 
+`refund(paymentId, reason)` serves both refund sources — this staff cancel (`STAFF_CANCELLED`) and `ordering.payment.rejected` (`ORDER_NOT_PAYABLE`): the payment must be `SUCCEEDED`, else the message is dead-lettered (so is a paid cancel that names no payment); P-2 is inserted `PENDING` for the full amount and **committed before Stripe is called** — a unique violation returns the existing row, and a row already `SUCCEEDED` or `FAILED` is a redelivery; the provider is called with the row's id as idempotency key; its answer is applied at once when final (card refunds usually are), or by `refund.updated` when `PENDING`. A rejected payment's refund leaves that order's `refund_status` at `NONE` — the order was never paid in ordering's eyes.
+
 ---
 
 ## 7. Error codes

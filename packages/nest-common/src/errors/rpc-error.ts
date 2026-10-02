@@ -33,3 +33,14 @@ export function rpcError<C extends ErrorCode>(
     metadata,
   });
 }
+
+/**
+ * The code of an `RpcException` thrown in this same process — it sits inside `getError()`,
+ * unlike a peer's `ServiceError` (`readErrorCode`).
+ */
+export function localErrorCode(error: unknown): string | undefined {
+  if (!(error instanceof RpcException)) return undefined;
+  const inner = error.getError();
+  if (typeof inner !== 'object' || inner === null || !('metadata' in inner)) return undefined;
+  return (inner as { metadata: Metadata }).metadata.get('bl-error-code')[0]?.toString();
+}

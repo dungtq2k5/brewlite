@@ -188,6 +188,8 @@ In **ordering** and **payment** — the two services that publish. Identical in 
 
 Everything Prisma cannot declare — partial unique indexes, `CHECK` constraints, the order-number sequence's start — lives in `services/<svc>/prisma/sql/schema-objects.sql` as idempotent statements, each with a comment naming the invariant and the table identifier. It is applied after every `prisma migrate deploy` by `pnpm db:objects`. **§5 is the complete list; the file is its executable form**, and a PR that changes one changes the other.
 
+**A changed object is replaced, not skipped.** Statements are `IF NOT EXISTS` so a deploy can run them again — but an object whose definition changes (the minimum in `orders_min_payable_ck` and `payments_amount_ck` rose from 10,000 to 15,000) is `DROP … IF EXISTS` then added, or a database that already has the old one keeps it.
+
 ⚠️ `prisma migrate reset` and `prisma db push` leave a database with every table and **none** of these objects — it boots and serves traffic without its constraints. Always follow either with `pnpm db:objects`.
 
 ### 2.9 Shared column shapes: soft delete and locks
@@ -405,7 +407,7 @@ Everything Prisma cannot declare — partial unique indexes, `CHECK` constraints
 | **promo_discount_vnd** | INT | NOT NULL, 0 | — |
 | **points_redeemed** | INT | NOT NULL, 0 | *(P1)* Points spent on this order. |
 | **points_discount_vnd** | INT | NOT NULL, 0 | *(P1)* `points_redeemed × LOYALTY_POINT_VALUE_VND`. |
-| **total_vnd** | INT | NOT NULL | `CHECK (total_vnd = subtotal_vnd − promo_discount_vnd − points_discount_vnd)` and `CHECK (total_vnd >= 10000)` (`MIN_PAYABLE_VND`). The upper bound, `MAX_ORDER_TOTAL_VND`, is ordering's refusal (`ORDER_TOTAL_TOO_HIGH`), not a constraint — the `INT` column is the floor under it. What payment charges — payment never computes an amount. |
+| **total_vnd** | INT | NOT NULL | `CHECK (total_vnd = subtotal_vnd − promo_discount_vnd − points_discount_vnd)` and `CHECK (total_vnd >= 15000)` (`MIN_PAYABLE_VND`). The upper bound, `MAX_ORDER_TOTAL_VND`, is ordering's refusal (`ORDER_TOTAL_TOO_HIGH`), not a constraint — the `INT` column is the floor under it. What payment charges — payment never computes an amount. |
 | **promotion_id** | UUID | Nullable, FK ➔ promotions.id, RESTRICT — added once O-4 (`promotions`) exists; until then the column exists and is always `NULL` | — |
 | **promo_code** | VARCHAR(32) | Nullable | Snapshot of the code as applied. `CHECK ((promotion_id IS NULL) = (promo_code IS NULL))`. |
 | **note** | VARCHAR(200) | Nullable | The customer's note to the barista. |
@@ -530,7 +532,7 @@ Everything Prisma cannot declare — partial unique indexes, `CHECK` constraints
 | **id** | UUID | PK | Also Stripe's `client_reference_id` and in the session's `metadata`. |
 | **order_id** | UUID | NOT NULL, Indexed | ref ➔ ordering.orders.id, validated by `BeginPayment`. |
 | **user_id** | UUID | NOT NULL | ref ➔ identity.users.id. |
-| **amount_vnd** | INT | NOT NULL | `CHECK (amount_vnd >= 10000)`. Copied from the order by `BeginPayment` — **never from the client**. |
+| **amount_vnd** | INT | NOT NULL | `CHECK (amount_vnd >= 15000)`. Copied from the order by `BeginPayment` — **never from the client**. |
 | **provider** | VARCHAR(16) | NOT NULL | `STRIPE \| FAKE` — from `PAYMENT_PROVIDER` at creation. |
 | **status** | VARCHAR(16) | NOT NULL, `'PENDING'` | `PENDING \| SUCCEEDED \| FAILED \| EXPIRED`. Only `PENDING` moves; the other three are terminal. |
 | **method** | VARCHAR(16) | Nullable | `CARD \| GOOGLE_PAY \| APPLE_PAY \| LINK \| OTHER \| FAKE` — what the customer actually paid with, read from the Stripe PaymentIntent's payment method on success. |
@@ -623,7 +625,7 @@ The complete required content of each service's `prisma/sql/schema-objects.sql` 
 | catalog | `stock_reservations_held_idx` | partial index | `(created_at) WHERE status = 'HELD'` — the orphan sweep |
 | ordering | `orders_order_no_seq` | sequence | `START WITH 1000` — the order number (O-1) |
 | ordering | `orders_status_ck` | CHECK | the status set |
-| ordering | `orders_total_ck`, `orders_min_payable_ck` | CHECK | total arithmetic; `total_vnd >= 10000` |
+| ordering | `orders_total_ck`, `orders_min_payable_ck` | CHECK | total arithmetic; `total_vnd >= 15000` |
 | ordering | `orders_promo_snapshot_ck` | CHECK | promotion ⇔ code |
 | ordering | `orders_cancel_ck` | CHECK | cancelled ⇔ `cancelled_at` ⇔ `cancel_reason` |
 | ordering | `orders_board_idx` | partial index | `(status, id) WHERE status IN ('PAID','PREPARING','READY')` — the staff board |

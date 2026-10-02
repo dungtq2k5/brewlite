@@ -14,8 +14,32 @@ export const envSchema = z
     NATS_URL_TEST: z.string().optional(),
     REDIS_URL: z.string().url(),
     PAYMENT_PROVIDER: z.enum(['fake', 'stripe']),
+    STRIPE_SECRET_KEY: z.string().optional(),
+    STRIPE_WEBHOOK_SECRET: z.string().optional(),
+    WEB_URL: z.string().url().optional(),
   })
   .superRefine((env, ctx) => {
+    if (env.PAYMENT_PROVIDER === 'stripe') {
+      const need = (path: 'STRIPE_SECRET_KEY' | 'STRIPE_WEBHOOK_SECRET' | 'WEB_URL') => {
+        if (!env[path])
+          ctx.addIssue({
+            code: 'custom',
+            path: [path],
+            message: 'required when PAYMENT_PROVIDER=stripe',
+          });
+      };
+      need('STRIPE_SECRET_KEY');
+      need('STRIPE_WEBHOOK_SECRET');
+      need('WEB_URL');
+      // A restricted key only (architecture §6): a leaked full-access key must not be accepted.
+      if (env.STRIPE_SECRET_KEY && !env.STRIPE_SECRET_KEY.startsWith('rk_')) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['STRIPE_SECRET_KEY'],
+          message: 'must be a restricted key (rk_…)',
+        });
+      }
+    }
     // A production switch that lets anyone mark an order paid must be impossible, not
     // merely unused — the same rule as identity's Auth-emulator refusal (architecture §6).
     if (env.NODE_ENV === 'production' && env.PAYMENT_PROVIDER === 'fake') {

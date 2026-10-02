@@ -118,7 +118,7 @@ The full event and RPC contracts are in [`api-endpoints-plan.md`](./api-endpoint
 
 - `@nestjs/microservices` + `@grpc/grpc-js`. `.proto` files live in `packages/contracts/proto/brewlite/<service>/`; **ts-proto** (with its NestJS output) generates the TypeScript for both ends, through **`buf generate`** (options `nestJs`, `addGrpcMetadata`, `useDate=false`, `esModuleInterop`, `stringEnums`, `forceLong=string`); `buf lint` runs in CI with `STANDARD` minus `PACKAGE_VERSION_SUFFIX` — packages are `brewlite.<service>`, unversioned. Messages shared by two services (`LocalizedText`) live in `brewlite.common`. Generated code is committed and regenerated in CI with a diff check.
 - Use gRPC when **the caller needs the answer to continue**: pricing a cart, reserving stock, checking an order is payable.
-- Every call goes through `BaseGrpcClient` from `nest-common`: a **2 s deadline**, the caller context and `x-request-id` as metadata, and connection failures mapped to `UNAVAILABLE`.
+- Every call goes through `BaseGrpcClient` from `nest-common`: a **2 s deadline** (one exception: the gateway gives `CreatePayment` **12 s**, because it may wait on Stripe — itself bounded at 6 s — after a 2 s `BeginPayment`), the caller context and `x-request-id` as metadata, and connection failures mapped to `UNAVAILABLE`.
 - ⚠️ A stopped container does not refuse a connection; it stays silent until the deadline. A deadline on a channel that never connected is reported as `503 UPSTREAM_UNAVAILABLE`, not `504` — the peer is down, not slow.
 
 ### 2.3 Asynchronous events — NATS JetStream
@@ -396,13 +396,13 @@ Locally the SDK talks to the **Firebase Auth emulator**, which offers fake Googl
 
 📌 [ADR 0017](./decisions/0017-stripe-checkout-is-the-payment-surface.md) · [ADR 0002](./decisions/0002-every-amount-is-an-integer-number-of-dong.md).
 
-- **API:** **Checkout Sessions**, `mode: 'payment'`, **embedded** UI. One line item — *BrewLite order #1042* — with `price_data` for the order's total in **VND**, so a discount can never disagree with Stripe's arithmetic. `client_reference_id` and `metadata` carry the payment id and order id. `expires_at` = now + `CHECKOUT_SESSION_TTL_MS`. 🔬 Confirm the exact `ui_mode` value for embedded Checkout and pass `integration_identifier` on the pinned API version.
+- **API:** **Checkout Sessions**, `mode: 'payment'`, **embedded** UI. One line item — *BrewLite order #1042* — with `price_data` for the order's total in **VND**, so a discount can never disagree with Stripe's arithmetic. `client_reference_id` and `metadata` carry the payment id and order id. `expires_at` = now + `CHECKOUT_SESSION_TTL_MS`. Embedded Checkout is **`ui_mode: 'embedded_page'`** on the pinned version (read from the SDK's types; `integration_identifier` is optional and not sent).
 - **VND is zero-decimal:** the Stripe `amount` is the đồng total as-is. Never multiply by 100.
 - **Never pass `payment_method_types`.** Methods (card, Google Pay, Apple Pay, Link) are chosen in the Dashboard; Stripe shows what fits the device.
-- **Server SDK:** `stripe` for Node — `new Stripe(key, { apiVersion })` with the version pinned in code (latest at writing: `2026-07-29.dahlia`). Never the global-key pattern.
-- **Keys:** a **restricted** key (`rk_test_…`) with Checkout Sessions write, Refunds write and Events read — never a full `sk_`. Test mode only (product-overview §12).
+- **Server SDK:** `stripe` for Node — `new Stripe(key, { apiVersion })` with the version pinned in code (pinned: `2026-08-26.dahlia`, `STRIPE_API_VERSION` beside the provider). Never the global-key pattern.
+- **Keys:** a **restricted** key (`rk_test_…`) with Checkout Sessions write, Refunds write and Events read — never a full `sk_`. `PAYMENT_PROVIDER=stripe` requires `STRIPE_SECRET_KEY` (any prefix but `rk_` fails env validation), `STRIPE_WEBHOOK_SECRET` and `WEB_URL`. Test mode only (product-overview §12).
 - **Idempotency:** the `Idempotency-Key` of `POST /payments` is forwarded as Stripe's idempotency key on `checkout.sessions.create`; a refund uses its own row id.
-- **Webhook:** `POST /api/webhooks/stripe` (version-neutral) on the gateway, forwarded with the **raw body** and the `Stripe-Signature` header to payment, which verifies the signature before anything else, inserts the event id (duplicate → acknowledged, nothing done), and applies it in one transaction with its outbox row. Handled events:
+- **Webhook:** `POST /api/webhooks/stripe` (version-neutral) on the gateway, forwarded with the **raw body** and the `Stripe-Signature` header to payment, which verifies the signature before anything else, inserts the event id (duplicate → acknowledged, nothing done), and applies it in one transaction with its outbox row. Handled events: The P-3 row and the event's effect share **one** transaction: a failed effect leaves no P-3 row, so Stripe's retry is processed; an event for a session we do not know is logged and answered `200`, since retrying it can never succeed. A replay of a `PENDING` payment re-reads the client secret from the session (it is never stored) and answers `null` once the session is no longer open.
 
 | Stripe event | Effect |
 | :---- | :---- |
@@ -410,11 +410,12 @@ Locally the SDK talks to the **Firebase Auth emulator**, which offers fake Googl
 | `checkout.session.async_payment_succeeded` | same |
 | `checkout.session.async_payment_failed` | payment `FAILED` → `payment.payment.failed` |
 | `checkout.session.expired` | payment `EXPIRED` → `payment.payment.failed` (`reason: EXPIRED`) |
-| `refund.updated` | refund `SUCCEEDED` / `FAILED` → `payment.refund.succeeded` / `payment.refund.failed` (🔬 confirm the event name when wiring) |
+| `refund.updated` | refund `SUCCEEDED` / `FAILED` → `payment.refund.succeeded` / `payment.refund.failed` — `succeeded`, or `failed` / `canceled`; any other status changes nothing |
 
+- ⚠️ **The SDK's own `timeout` does not fire when Stripe is unreachable** — the call hangs. Payment wraps every Stripe call in its own **6 s** deadline (`STRIPE_TIMEOUT_MS`) and answers `503 PAYMENT_PROVIDER_UNAVAILABLE`.
 - ⚠️ Nest parses JSON bodies by default; signature verification needs the **raw body**. Create the gateway with `rawBody: true` and read `req.rawBody` on the webhook route.
 - ⚠️ **Fulfil from the webhook, never from the return page.** A customer can pay and close the tab.
-- **Local development:** `stripe listen --forward-to localhost:23100/api/webhooks/stripe` — its printed `whsec_…` goes into payment's `STRIPE_WEBHOOK_SECRET`. No Stripe account yet? `stripe sandbox create`.
+- **Local development:** `stripe listen --forward-to localhost:23100/api/webhooks/stripe` — its printed `whsec_…` goes into payment's `STRIPE_WEBHOOK_SECRET`. No Stripe account yet? `stripe sandbox create`. ⚠️ The CLI must be logged in to the **same** account as `STRIPE_SECRET_KEY`, or no webhook arrives. An embedded session has no hosted page to open, so paying one needs a page that mounts it — the web app's checkout, or a throwaway local page with the publishable key.
 - **Fake provider:** `PAYMENT_PROVIDER=fake` swaps Stripe for an in-process provider behind the same `PaymentProvider` interface. `fake-confirm` produces exactly the events the webhook would. Refused in production. The switch fails env validation with `NODE_ENV=production` — a setting that lets anyone mark an order paid must be impossible there, not merely unused — so the `apps` Compose profile runs payment with `NODE_ENV=development`, as it does identity for the Auth emulator. `PaymentOutcomeService.apply(tx, paymentId, outcome)` is the one place an outcome is applied (a conditional update from `PENDING`, one outbox row), called by `fake-confirm` and by the Stripe webhook alike, so everything after a successful payment is exercised by the fake exactly as by Stripe.
 
 ---

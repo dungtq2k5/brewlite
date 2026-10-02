@@ -14,10 +14,25 @@ export interface StartCheckoutResult {
   expiresAt: Date | null;
 }
 
-/** Two implementations once 08 lands — `StripePaymentProvider` is the only file that will import `stripe` (conventions §10.2). */
+export interface RefundInput {
+  /** The refund row's id — also the provider's idempotency key, so a retry never refunds twice. */
+  refundId: string;
+  paymentIntentId: string | null;
+  amountVnd: number;
+}
+
+export interface RefundResult {
+  stripeRefundId: string | null;
+  status: 'SUCCEEDED' | 'PENDING' | 'FAILED';
+}
+
+/** Two implementations — `StripePaymentProvider` is the only file that imports `stripe` (conventions §10.2). */
 export interface PaymentProvider {
   readonly kind: PaymentProviderKind;
   startCheckout(input: StartCheckoutInput): Promise<StartCheckoutResult>;
+  /** A stored payment never holds its client secret — a replay re-reads it. `null` once the session is no longer open. */
+  readClientSecret(sessionId: string): Promise<string | null>;
+  refund(input: RefundInput): Promise<RefundResult>;
 }
 
 export const PAYMENT_PROVIDER_TOKEN = Symbol('PAYMENT_PROVIDER_TOKEN');

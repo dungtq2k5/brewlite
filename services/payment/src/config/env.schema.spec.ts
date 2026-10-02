@@ -34,7 +34,41 @@ describe('envSchema', () => {
       ...BASE,
       NODE_ENV: 'production',
       PAYMENT_PROVIDER: 'stripe',
+      STRIPE_SECRET_KEY: 'rk_live_abc',
+      STRIPE_WEBHOOK_SECRET: 'whsec_abc',
+      WEB_URL: 'https://brewlite.example',
     });
     expect(result.success).toBe(true);
+  });
+
+  describe('PAYMENT_PROVIDER=stripe', () => {
+    const stripeEnv = {
+      ...BASE,
+      NODE_ENV: 'development',
+      PAYMENT_PROVIDER: 'stripe',
+      STRIPE_SECRET_KEY: 'rk_test_abc',
+      STRIPE_WEBHOOK_SECRET: 'whsec_abc',
+      WEB_URL: 'http://localhost:23000',
+    };
+
+    it('accepts a restricted key with both secrets and WEB_URL', () => {
+      expect(envSchema.safeParse(stripeEnv).success).toBe(true);
+    });
+
+    it('refuses a full-access key', () => {
+      expect(envSchema.safeParse({ ...stripeEnv, STRIPE_SECRET_KEY: 'sk_test_abc' }).success).toBe(
+        false,
+      );
+    });
+
+    it.each(['STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET', 'WEB_URL'])('requires %s', (name) => {
+      expect(envSchema.safeParse({ ...stripeEnv, [name]: undefined }).success).toBe(false);
+    });
+
+    it('the fake provider needs none of them', () => {
+      expect(
+        envSchema.safeParse({ ...BASE, NODE_ENV: 'development', PAYMENT_PROVIDER: 'fake' }).success,
+      ).toBe(true);
+    });
   });
 });

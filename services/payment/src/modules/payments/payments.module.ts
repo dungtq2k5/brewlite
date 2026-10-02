@@ -4,9 +4,18 @@ import { OutboxService } from '@brewlite/nest-common';
 import { PrismaModule } from '../prisma/prisma.module.js';
 import type { Env } from '../../config/env.schema.js';
 import { PaymentsGrpcController } from './payments-grpc.controller.js';
+import { OrderCancelledConsumer } from './order-cancelled.consumer.js';
+import { PaymentRejectedConsumer } from './payment-rejected.consumer.js';
+import { RefundService } from './refund.service.js';
+import { WebhookGrpcController } from './webhook-grpc.controller.js';
+import { WebhookService } from './webhook.service.js';
 import { PaymentsService } from './payments.service.js';
 import { PaymentOutcomeService } from './payment-outcome.service.js';
 import { OrderingGrpcClient } from './ordering-grpc.client.js';
+import {
+  createStripeClient,
+  StripePaymentProvider,
+} from '../../providers/payment/stripe.payment-provider.js';
 import { FakePaymentProvider } from '../../providers/payment/fake.payment-provider.js';
 import {
   PAYMENT_PROVIDER_TOKEN,
@@ -15,10 +24,14 @@ import {
 
 @Module({
   imports: [ConfigModule, PrismaModule],
-  controllers: [PaymentsGrpcController],
+  controllers: [PaymentsGrpcController, WebhookGrpcController],
   providers: [
     PaymentsService,
     PaymentOutcomeService,
+    RefundService,
+    WebhookService,
+    OrderCancelledConsumer,
+    PaymentRejectedConsumer,
     OutboxService,
     OrderingGrpcClient,
     FakePaymentProvider,
@@ -29,12 +42,16 @@ import {
         config: ConfigService<Env, true>,
         fake: FakePaymentProvider,
       ): PaymentProvider => {
-        const provider = config.get('PAYMENT_PROVIDER', { infer: true });
-        if (provider === 'fake') return fake;
-        // StripePaymentProvider lands in 08 — nothing else implements the interface yet.
-        throw new Error(`PAYMENT_PROVIDER=${provider} has no implementation yet`);
+        if (config.get('PAYMENT_PROVIDER', { infer: true }) === 'fake') return fake;
+        // The env schema guarantees these three when the provider is `stripe`.
+        return new StripePaymentProvider(
+          createStripeClient(config.get('STRIPE_SECRET_KEY', { infer: true })!),
+          config.get('WEB_URL', { infer: true })!,
+          config.get('STRIPE_WEBHOOK_SECRET', { infer: true })!,
+        );
       },
     },
   ],
+  exports: [OrderCancelledConsumer, PaymentRejectedConsumer],
 })
 export class PaymentsModule {}

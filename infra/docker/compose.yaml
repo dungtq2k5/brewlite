@@ -176,10 +176,15 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    env_file:
+      - path: ../../services/payment/.env
+        required: false
     environment:
       # The `apps` profile is a local demo — payment runs `development` here so it can use
       # the fake provider, same reasoning as identity's Auth emulator below.
       # `NODE_ENV=production` would refuse to boot with `PAYMENT_PROVIDER=fake` (architecture §6).
+      # `PAYMENT_PROVIDER` and the Stripe variables come from `env_file`, never from this file:
+      # `fake` by default, `stripe` once the developer's own test keys are in `.env`.
       NODE_ENV: development
       LOG_LEVEL: info
       DATABASE_URL: postgresql://brewlite:brewlite@postgres:5432/brewlite_payment
@@ -188,7 +193,6 @@ services:
       ORDERING_GRPC_URL: ordering:25053
       NATS_URL: nats://nats:4222
       REDIS_URL: redis://redis:6379/0
-      PAYMENT_PROVIDER: fake
     ports:
       - '127.0.0.1:23104:23104'
       - '127.0.0.1:25054:25054'

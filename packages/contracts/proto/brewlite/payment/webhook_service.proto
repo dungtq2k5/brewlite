@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package brewlite.payment;
+
+service WebhookService {
+  // The gateway forwards Stripe's raw body and `Stripe-Signature` untouched; payment
+  // verifies the signature before anything else (api §4).
+  rpc HandleStripeEvent(HandleStripeEventRequest) returns (HandleStripeEventResponse);
+}
+
+message HandleStripeEventRequest {
+  bytes payload = 1;
+  string signature = 2;
+}
+message HandleStripeEventResponse {}

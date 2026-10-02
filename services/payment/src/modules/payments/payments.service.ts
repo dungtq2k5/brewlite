@@ -15,8 +15,10 @@ import type {
   FakeConfirmResponse,
   GetPaymentRequest,
   GetPaymentResponse,
+  Payment,
 } from '@brewlite/contracts/generated/brewlite/payment/payment_service.js';
 import type { Env } from '../../config/env.schema.js';
+import type { Payment as PaymentRow } from '../../../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { OrderingGrpcClient } from './ordering-grpc.client.js';
 import { rethrowOrderingError } from './domain/ordering-errors.js';
@@ -61,13 +63,13 @@ export class PaymentsService {
         });
         if (existing) {
           if (existing.requestHash !== requestHash) throw rpcError('IDEMPOTENCY_KEY_REUSED');
-          return { payment: toProtoPayment(existing), created: false };
+          return { payment: await this.present(existing), created: false };
         }
 
         const pending = await tx.payment.findFirst({
           where: { orderId, userId, status: PaymentStatus.PENDING },
         });
-        if (pending) return { payment: toProtoPayment(pending), created: false };
+        if (pending) return { payment: await this.present(pending), created: false };
 
         const paymentId = newId();
         let begin;
@@ -78,15 +80,9 @@ export class PaymentsService {
         }
         const amountVnd = Number(begin.totalVnd);
 
-        const checkout = await this.provider.startCheckout({
-          paymentId,
-          orderId,
-          orderNo: begin.orderNo,
-          amountVnd,
-          idempotencyKey,
-        });
-
-        const created = await tx.payment.create({
+        // Our row first (conventions §10.2), the provider's session second, its id third —
+        // all inside one transaction, so a provider failure leaves no row behind.
+        await tx.payment.create({
           data: {
             id: paymentId,
             orderId,
@@ -96,12 +92,21 @@ export class PaymentsService {
             status: PaymentStatus.PENDING,
             idempotencyKey,
             requestHash,
-            stripeCheckoutSessionId: checkout.sessionId,
-            expiresAt: checkout.expiresAt,
           },
         });
+        const checkout = await this.provider.startCheckout({
+          paymentId,
+          orderId,
+          orderNo: begin.orderNo,
+          amountVnd,
+          idempotencyKey,
+        });
+        const created = await tx.payment.update({
+          where: { id: paymentId },
+          data: { stripeCheckoutSessionId: checkout.sessionId, expiresAt: checkout.expiresAt },
+        });
 
-        return { payment: toProtoPayment(created), created: true };
+        return { payment: toProtoPayment(created, checkout.clientSecret), created: true };
       },
       { timeout: TRANSACTION_TIMEOUT_MS },
     );
@@ -111,7 +116,16 @@ export class PaymentsService {
     const { userId } = requireUser(caller);
     const payment = await this.prisma.payment.findFirst({ where: { id: request.id, userId } });
     if (!payment) throw rpcError('RESOURCE_NOT_FOUND', { resource: 'PAYMENT' });
-    return { payment: toProtoPayment(payment) };
+    return { payment: await this.present(payment) };
+  }
+
+  /** A `PENDING` Stripe payment's client secret is re-read from the session, never stored (conventions §9.3). */
+  private async present(row: PaymentRow): Promise<Payment> {
+    const secret =
+      row.status === PaymentStatus.PENDING && row.stripeCheckoutSessionId
+        ? await this.provider.readClientSecret(row.stripeCheckoutSessionId)
+        : null;
+    return toProtoPayment(row, secret);
   }
 
   /** Answers 404, as if the route did not exist, whenever it would let anyone mark an order paid for real (api §4). */

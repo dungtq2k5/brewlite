@@ -405,7 +405,7 @@ Product decisions, not implementation details. Each is one constant in `packages
 | `MAX_QTY_PER_LINE` | 10 | Same. |
 | `MAX_TOPPINGS_PER_LINE` | 3 | A drink, not a sundae. |
 | `ORDER_NOTE_MAX_LENGTH` | 200 chars | "Ít đá, ít ngọt" fits. |
-| `MIN_PAYABLE_VND` | 10,000₫ | No free or near-free charges after discounts; also above Stripe's minimum charge (to verify, §12). |
+| `MIN_PAYABLE_VND` | 15,000₫ | No free or near-free charges after discounts, and above Stripe's minimum charge in VND — about 12,900₫ (US$0.50 converted), checked in test mode; 15,000₫ leaves a margin for the exchange rate. |
 | `MAX_ORDER_TOTAL_VND` | 5,000,000₫ | A café order above this is a mistake or abuse, not a real cart; also keeps the total well under the `INT` column's overflow point. |
 | `LOYALTY_EARN_STEP_VND` | 10,000₫ | 1 point per 10,000₫ paid. |
 | `LOYALTY_POINT_VALUE_VND` | 1,000₫ | *(P1)* 1 point = 1,000₫ off — 10% back. |
@@ -529,7 +529,7 @@ Delivery · table service and QR-at-table ordering · multiple stores · cash pa
 
 | Risk | Impact | Mitigation |
 | :---- | :---- | :---- |
-| **Stripe and VND.** Stripe does not onboard Vietnamese merchants; a test-mode account from a supported country can still charge in VND, which is zero-decimal. Stripe also has a minimum charge per currency. | Live payments are not possible for a real Vietnamese shop; a tiny order could be refused. | This is a course project: **test mode only**, stated in the README. `MIN_PAYABLE_VND` keeps every charge above the minimum — verify Stripe's VND minimum when wiring payments. The fake provider keeps the demo independent of Stripe. |
+| **Stripe and VND.** Stripe does not onboard Vietnamese merchants; a test-mode account from a supported country can still charge in VND, which is zero-decimal. Stripe also has a minimum charge per currency. | Live payments are not possible for a real Vietnamese shop; a tiny order could be refused. | This is a course project: **test mode only**, stated in the README. `MIN_PAYABLE_VND` (15,000₫) keeps every charge above Stripe's VND minimum (about 12,900₫, measured in test mode); if the exchange rate ever moves past that margin, raising the constant is the one change. The fake provider keeps the demo independent of Stripe. |
 | **Sign in with Apple** needs a paid Apple Developer account and a verified domain. | *Continue with Apple* may not be demonstrable. | Google is P0; Apple is P1 and ships only if the team has an account. The Firebase Auth emulator covers both in development. |
 | **Microservices for a small product.** Five backend processes, a broker and a gateway are more moving parts than the features need. | Time goes into plumbing instead of features. | The course and the team want the architecture; the **product** stays minimal (§11.4). The walking skeleton proves every piece of plumbing in week one, before any feature depends on it. |
 | **Distributed consistency.** Stock lives in catalog, orders in ordering, money in payment — no transaction spans them. | A lost event leaves stock reserved or an order unpaid. | Transactional outbox, idempotent consumers, a deadline on every unpaid order, an orphan sweep on reservations, and automatic refund of late payments ([ADR 0006](./decisions/0006-events-leave-through-a-transactional-outbox.md)). |

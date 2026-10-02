@@ -11,6 +11,7 @@ import { CatalogAdminGrpcClient } from '../../src/modules/catalog/catalog-admin-
 import { OrderingServiceGrpcClient } from '../../src/modules/orders/ordering-service-grpc.client.js';
 import { IdentityServiceGrpcClient } from '../../src/modules/auth/identity-service-grpc.client.js';
 import { PaymentServiceGrpcClient } from '../../src/modules/payments/payment-service-grpc.client.js';
+import { WebhookServiceGrpcClient } from '../../src/modules/payments/webhook-service-grpc.client.js';
 
 const { privateKey, publicKey } = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
 const privateKeyPem = privateKey.export({ type: 'pkcs8', format: 'pem' }).toString();
@@ -21,6 +22,8 @@ const paymentClientStub = {
   getPayment: vi.fn(),
   fakeConfirm: vi.fn(),
 };
+
+const webhookClientStub = { handleStripeEvent: vi.fn() };
 
 function paymentProto(overrides: Partial<Record<string, unknown>> = {}) {
   return {
@@ -54,6 +57,8 @@ async function buildApp() {
     .useValue({})
     .overrideProvider(PaymentServiceGrpcClient)
     .useValue(paymentClientStub)
+    .overrideProvider(WebhookServiceGrpcClient)
+    .useValue(webhookClientStub)
     .compile();
 
   const app = moduleRef.createNestApplication<NestExpressApplication>({ rawBody: true });
@@ -85,6 +90,7 @@ describe('gateway e2e — /payments routes', () => {
 
   afterEach(() => {
     for (const fn of Object.values(paymentClientStub)) fn.mockReset();
+    webhookClientStub.handleStripeEvent.mockReset();
   });
 
   afterAll(async () => {
@@ -185,5 +191,50 @@ describe('gateway e2e — /payments routes', () => {
     const paths = Object.keys(document.paths ?? {});
     expect(paths.some((p) => p.includes('fake-confirm'))).toBe(false);
     expect(paths.some((p) => p === '/api/v1/payments')).toBe(true);
+  });
+
+  describe('POST /api/webhooks/stripe', () => {
+    it('passes the raw bytes and the signature through untouched', async () => {
+      webhookClientStub.handleStripeEvent.mockResolvedValueOnce({});
+      // Key order and whitespace a JSON.parse → stringify round trip would change.
+      const body =
+        '{ "type":"checkout.session.completed",   "id":"evt_1",\n "data":{"b":1,"a":2} }';
+      const res = await request(app.getHttpServer())
+        .post('/api/webhooks/stripe')
+        .set('Content-Type', 'application/json')
+        .set('Stripe-Signature', 't=1,v1=abc')
+        .send(body);
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ received: true });
+      const [call] = webhookClientStub.handleStripeEvent.mock.calls[0] as [
+        { payload: Buffer; signature: string },
+      ];
+      expect(call.payload.toString('utf8')).toBe(body);
+      expect(call.signature).toBe('t=1,v1=abc');
+    });
+
+    it('no Stripe-Signature header → 400 WEBHOOK_SIGNATURE_INVALID, payment never called', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/api/webhooks/stripe')
+        .set('Content-Type', 'application/json')
+        .send('{}');
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('WEBHOOK_SIGNATURE_INVALID');
+      expect(webhookClientStub.handleStripeEvent).not.toHaveBeenCalled();
+    });
+
+    it('is version-neutral — /api/v1/webhooks/stripe does not exist', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/webhooks/stripe')
+        .set('Stripe-Signature', 't=1,v1=abc')
+        .send({});
+      expect(res.status).toBe(404);
+    });
+
+    it('is absent from openapi.json', async () => {
+      const { buildOpenApiDocument } = await import('@brewlite/nest-common');
+      const paths = Object.keys(buildOpenApiDocument(app).paths ?? {});
+      expect(paths.some((p) => p.includes('webhooks'))).toBe(false);
+    });
   });
 });

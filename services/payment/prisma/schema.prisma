@@ -26,6 +26,8 @@ model Payment {
   createdAt               DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt               DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
+  refund Refund?
+
   @@unique([userId, idempotencyKey], map: "payments_user_idempotency_key")
   @@index([orderId])
   @@map("payments")
@@ -43,4 +45,28 @@ model OutboxEvent {
   lastError   String?   @map("last_error") @db.VarChar(500)
 
   @@map("outbox_events")
+}
+
+model Refund {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  paymentId      String   @unique @map("payment_id") @db.Uuid
+  orderId        String   @map("order_id") @db.Uuid /// ref ➔ ordering.orders.id — no FK
+  amountVnd      Int      @map("amount_vnd")
+  reason         String   @db.VarChar(24) /// RefundReason in @brewlite/contracts
+  status         String   @default("PENDING") @db.VarChar(16) /// RefundStatus in @brewlite/contracts
+  stripeRefundId String?  @unique @map("stripe_refund_id") @db.VarChar(255)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+
+  @@map("refunds")
+}
+
+model StripeEvent {
+  id         String   @id @db.VarChar(255) /// Stripe's evt_… — the webhook's idempotency
+  type       String   @db.VarChar(64)
+  receivedAt DateTime @default(now()) @map("received_at") @db.Timestamptz(3)
+
+  @@map("stripe_events")
 }

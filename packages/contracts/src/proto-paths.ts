@@ -28,4 +28,7 @@ export const ORDERING_PROTO_FILES = [
   join(PROTO_ROOT, 'brewlite/ordering/staff_order_service.proto'),
 ];
 
-export const PAYMENT_PROTO_FILES = [join(PROTO_ROOT, 'brewlite/payment/payment_service.proto')];
+export const PAYMENT_PROTO_FILES = [
+  join(PROTO_ROOT, 'brewlite/payment/payment_service.proto'),
+  join(PROTO_ROOT, 'brewlite/payment/webhook_service.proto'),
+];
