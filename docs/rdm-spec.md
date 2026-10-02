@@ -108,7 +108,8 @@ Every transition inserts one `order_status_history` (O-3) row in the same transa
 
 [ADR 0021](./decisions/0021-promotions-and-loyalty-live-in-the-ordering-service.md). Both live in ordering, so applying a code and crediting points share the order's transaction.
 
-- **A promotion use is counted at placement:** the order transaction locks the promotion row (`SELECT … FOR UPDATE`), re-validates it, and increments `used_count`. Cancelling the order decrements it in the cancel transaction. The row lock serialises two concurrent orders using the same code, which is what keeps `max_uses` and `per_user_limit` exact.
+- **A promotion use is counted at placement:** the order transaction locks the promotion row (`SELECT … FOR UPDATE`), re-validates it, and increments `used_count`. The lock is the first statement of the transaction, before any insert. Cancelling the order decrements it **inside the status transition itself** — every cancel path (customer, expiry, staff) goes through it, and a cancel that loses its race changes neither the count nor the ledger. The row lock serialises two concurrent orders using the same code, which is what keeps `max_uses` and `per_user_limit` exact: a conditional `UPDATE … WHERE used_count < max_uses` would hold `max_uses`, but not the per-customer count, which two concurrent orders from one customer would both read as 0.
+- **An admin lowering `max_uses`** is one conditional update, `WHERE used_count <= new_max` — refused `PROMO_MAX_USES_BELOW_USED` otherwise; no lock needed.
 - **The per-customer limit** counts that customer's orders with that `promotion_id` whose status is not `CANCELLED` — no separate redemptions table.
 - **Points** are a ledger (O-6) plus a balance (O-5), written together. `UNIQUE (order_id, kind)` means an order earns once, is reversed once, redeems once and is returned once, however often an event is redelivered.
 
@@ -186,6 +187,8 @@ In **ordering** and **payment** — the two services that publish. Identical in 
 ### 2.8 The committed SQL file
 
 Everything Prisma cannot declare — partial unique indexes, `CHECK` constraints, the order-number sequence's start — lives in `services/<svc>/prisma/sql/schema-objects.sql` as idempotent statements, each with a comment naming the invariant and the table identifier. It is applied after every `prisma migrate deploy` by `pnpm db:objects`. **§5 is the complete list; the file is its executable form**, and a PR that changes one changes the other.
+
+**A changed object is replaced, not skipped.** Statements are `IF NOT EXISTS` so a deploy can run them again — but an object whose definition changes (the minimum in `orders_min_payable_ck` and `payments_amount_ck` rose from 10,000 to 15,000) is `DROP … IF EXISTS` then added, or a database that already has the old one keeps it. A **tightened** CHECK is re-added `NOT VALID`: enforced on every new and updated row, while a row written under the old rule cannot fail a deploy by being re-checked.
 
 ⚠️ `prisma migrate reset` and `prisma db push` leave a database with every table and **none** of these objects — it boots and serves traffic without its constraints. Always follow either with `pnpm db:objects`.
 
@@ -329,6 +332,7 @@ Everything Prisma cannot declare — partial unique indexes, `CHECK` constraints
 
 - **A product is sellable** when `deleted_at IS NULL`, `is_available`, its category is live and `is_active`, `stock_qty IS NULL OR stock_qty > 0`, and it has at least one size (C-3). The menu returns unsellable-but-live products with `isSoldOut: true`; `PriceItems` refuses them.
 - A write that moves `stock_qty` to or from 0 invalidates the menu cache.
+- **A deleted category never gains a live product.** Deleting a category (its `CATEGORY_IN_USE` check) and creating or restoring a product into a category (its liveness check) both lock the category row first — `SELECT … FOR UPDATE` for the delete, `FOR SHARE` for a create/restore — inside the same transaction as the check, so the two writes serialize instead of racing.
 
 #### Table C-3: product_sizes
 
@@ -396,15 +400,15 @@ Everything Prisma cannot declare — partial unique indexes, `CHECK` constraints
 | Field | Type | Constraints / Default | Description & business logic |
 | :---- | :---- | :---- | :---- |
 | **id** | UUID | PK | — |
-| **order_no** | BIGINT | NOT NULL, **UNIQUE**, from `orders_order_no_seq` (starts at 1000) | The number people read: `#1042`. Never an id, never reused, not reset daily. |
+| **order_no** | BIGINT | NOT NULL, **UNIQUE**, from `orders_order_no_seq` (starts at 1000) | The number people read: `#1042`. Never an id, never reused, not reset daily. The start is set idempotently (`setval` only if `last_value < 1000`), so re-running the bump on an already-seeded sequence never reuses a number. |
 | **user_id** | UUID | NOT NULL | ref ➔ identity.users.id — from the access token, never from input. |
 | **status** | VARCHAR(16) | NOT NULL, `'PENDING'` | `PENDING \| PAYMENT_FAILED \| PAID \| PREPARING \| READY \| COMPLETED \| CANCELLED` — transitions per §1.5. |
 | **subtotal_vnd** | INT | NOT NULL | Σ O-2 `line_total_vnd`. |
 | **promo_discount_vnd** | INT | NOT NULL, 0 | — |
 | **points_redeemed** | INT | NOT NULL, 0 | *(P1)* Points spent on this order. |
 | **points_discount_vnd** | INT | NOT NULL, 0 | *(P1)* `points_redeemed × LOYALTY_POINT_VALUE_VND`. |
-| **total_vnd** | INT | NOT NULL | `CHECK (total_vnd = subtotal_vnd − promo_discount_vnd − points_discount_vnd)` and `CHECK (total_vnd >= 10000)` (`MIN_PAYABLE_VND`). What payment charges — payment never computes an amount. |
-| **promotion_id** | UUID | Nullable, FK ➔ promotions.id, RESTRICT | — |
+| **total_vnd** | INT | NOT NULL | `CHECK (total_vnd = subtotal_vnd − promo_discount_vnd − points_discount_vnd)` and `CHECK (total_vnd >= 15000)` (`MIN_PAYABLE_VND`). The upper bound, `MAX_ORDER_TOTAL_VND`, is ordering's refusal (`ORDER_TOTAL_TOO_HIGH`), not a constraint — the `INT` column is the floor under it. What payment charges — payment never computes an amount. |
+| **promotion_id** | UUID | Nullable, FK ➔ promotions.id, RESTRICT — added once O-4 (`promotions`) exists; until then the column exists and is always `NULL` | — |
 | **promo_code** | VARCHAR(32) | Nullable | Snapshot of the code as applied. `CHECK ((promotion_id IS NULL) = (promo_code IS NULL))`. |
 | **note** | VARCHAR(200) | Nullable | The customer's note to the barista. |
 | **idempotency_key** | UUID | NOT NULL | `UNIQUE (user_id, idempotency_key)` (§1.7). |
@@ -498,7 +502,7 @@ Everything Prisma cannot declare — partial unique indexes, `CHECK` constraints
 | :---- | :---- | :---- | :---- |
 | **user_id** | UUID | PK | ref ➔ identity.users.id. Created by the first `EARN` (upsert). A customer with no row has 0 points. |
 | **balance** | INT | NOT NULL, 0 | `CHECK (balance >= 0)`. Always equal to Σ O-6 `points` for the user — written in the same transaction as every O-6 row. |
-| **lifetime_earned** | INT | NOT NULL, 0 | — |
+| **lifetime_earned** | INT | NOT NULL, 0 | Only ever increased, by `EARN`. `EARN_REVERSED` lowers `balance`, not this — it counts what was ever earned. What a reversal does to points already spent is decided with redeeming (P1). |
 | **created_at** | TIMESTAMPTZ(3) | NOT NULL, now() | — |
 | **updated_at** | TIMESTAMPTZ(3) | NOT NULL | — |
 
@@ -528,7 +532,7 @@ Everything Prisma cannot declare — partial unique indexes, `CHECK` constraints
 | **id** | UUID | PK | Also Stripe's `client_reference_id` and in the session's `metadata`. |
 | **order_id** | UUID | NOT NULL, Indexed | ref ➔ ordering.orders.id, validated by `BeginPayment`. |
 | **user_id** | UUID | NOT NULL | ref ➔ identity.users.id. |
-| **amount_vnd** | INT | NOT NULL | `CHECK (amount_vnd >= 10000)`. Copied from the order by `BeginPayment` — **never from the client**. |
+| **amount_vnd** | INT | NOT NULL | `CHECK (amount_vnd >= 15000)`. Copied from the order by `BeginPayment` — **never from the client**. |
 | **provider** | VARCHAR(16) | NOT NULL | `STRIPE \| FAKE` — from `PAYMENT_PROVIDER` at creation. |
 | **status** | VARCHAR(16) | NOT NULL, `'PENDING'` | `PENDING \| SUCCEEDED \| FAILED \| EXPIRED`. Only `PENDING` moves; the other three are terminal. |
 | **method** | VARCHAR(16) | Nullable | `CARD \| GOOGLE_PAY \| APPLE_PAY \| LINK \| OTHER \| FAKE` — what the customer actually paid with, read from the Stripe PaymentIntent's payment method on success. |
@@ -621,7 +625,7 @@ The complete required content of each service's `prisma/sql/schema-objects.sql` 
 | catalog | `stock_reservations_held_idx` | partial index | `(created_at) WHERE status = 'HELD'` — the orphan sweep |
 | ordering | `orders_order_no_seq` | sequence | `START WITH 1000` — the order number (O-1) |
 | ordering | `orders_status_ck` | CHECK | the status set |
-| ordering | `orders_total_ck`, `orders_min_payable_ck` | CHECK | total arithmetic; `total_vnd >= 10000` |
+| ordering | `orders_total_ck`, `orders_min_payable_ck` | CHECK | total arithmetic; `total_vnd >= 15000` |
 | ordering | `orders_promo_snapshot_ck` | CHECK | promotion ⇔ code |
 | ordering | `orders_cancel_ck` | CHECK | cancelled ⇔ `cancelled_at` ⇔ `cancel_reason` |
 | ordering | `orders_board_idx` | partial index | `(status, id) WHERE status IN ('PAID','PREPARING','READY')` — the staff board |

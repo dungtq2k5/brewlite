@@ -1,0 +1,70 @@
+syntax = "proto3";
+
+package brewlite.identity;
+
+import "brewlite/common/paging.proto";
+
+// The actor is the caller from gRPC metadata (`requireUser`), never a request field —
+// the gateway's `x-user-id` is the only source of truth for who is acting.
+service AdminUserService {
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+  rpc GetUser(GetUserRequest) returns (GetUserResponse);
+  rpc ChangeRole(ChangeRoleRequest) returns (ChangeRoleResponse);
+  rpc LockUser(LockUserRequest) returns (LockUserResponse);
+  rpc UnlockUser(UnlockUserRequest) returns (UnlockUserResponse);
+  rpc DeactivateUser(DeactivateUserRequest) returns (DeactivateUserResponse);
+  rpc RestoreUser(RestoreUserRequest) returns (RestoreUserResponse);
+}
+
+message AdminUser {
+  string id = 1;
+  string email = 2;
+  string full_name = 3;
+  string role = 4;
+  bool has_password = 5;
+  string preferred_locale = 6;
+  string created_at = 7;
+  bool is_locked = 8;
+  optional string locked_until = 9;
+  optional string lock_reason = 10;
+  optional string deleted_at = 11;
+  optional string deleted_by_id = 12;
+  optional string last_login_at = 13;
+}
+
+message ListUsersRequest {
+  brewlite.common.PageRequest page = 1;
+  optional string q = 2;
+  optional string role = 3;
+  optional bool locked = 4;
+  optional bool deleted = 5;
+}
+message ListUsersResponse {
+  repeated AdminUser users = 1;
+  brewlite.common.PageMeta meta = 2;
+}
+
+message GetUserRequest { string id = 1; }
+message GetUserResponse { AdminUser user = 1; }
+
+message ChangeRoleRequest {
+  string id = 1;
+  string role = 2;
+}
+message ChangeRoleResponse { AdminUser user = 1; }
+
+message LockUserRequest {
+  string id = 1;
+  string reason = 2;
+  optional string locked_until = 3;
+}
+message LockUserResponse { AdminUser user = 1; }
+
+message UnlockUserRequest { string id = 1; }
+message UnlockUserResponse { AdminUser user = 1; }
+
+message DeactivateUserRequest { string id = 1; }
+message DeactivateUserResponse { AdminUser user = 1; }
+
+message RestoreUserRequest { string id = 1; }
+message RestoreUserResponse { AdminUser user = 1; }

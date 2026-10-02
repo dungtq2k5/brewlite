@@ -11,7 +11,8 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
-    "test": "vitest run --root ."
+    "test": "vitest run --root .",
+    "test:integration": "vitest run -c vitest.integration.config.mts"
   },
   "dependencies": {
     "@brewlite/contracts": "workspace:*",
@@ -22,7 +23,10 @@
     "@nestjs/core": "^11.0.1",
     "@nestjs/microservices": "^11.0.1",
     "@nestjs/swagger": "^11.0.0",
+    "bullmq": "^6.0.0",
     "helmet": "^8.0.0",
+    "ioredis": "^6.0.0",
+    "nats": "^2.29.0",
     "nestjs-pino": "^4.4.0",
     "nestjs-zod": "^5.0.1",
     "pino": "^9.6.0",

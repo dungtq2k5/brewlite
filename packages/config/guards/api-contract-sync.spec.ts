@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   ERRORS,
+  EVENT_SCHEMAS,
   PERMISSIONS,
   ROLE_PERMISSIONS,
   RATE_LIMITS,
@@ -209,8 +210,114 @@ function checkRateLimits(doc: string): Violation[] {
   return violations;
 }
 
+function checkEvents(doc: string): Violation[] {
+  const violations: Violation[] = [];
+  const rows = tableRows(doc, '## 8. JetStream events');
+  const docSubjects = new Map<string, number>();
+  for (const row of rows) {
+    for (const subject of backticked(row.cells[0] ?? '')) docSubjects.set(subject, row.line);
+  }
+
+  const codeSubjects = new Set(Object.keys(EVENT_SCHEMAS));
+  for (const [subject, line] of docSubjects) {
+    if (!codeSubjects.has(subject)) {
+      violations.push({
+        file: FILE,
+        line,
+        message: `${subject} is in api-endpoints-plan §8 but not declared in EVENT_SCHEMAS`,
+      });
+    }
+  }
+  for (const subject of codeSubjects) {
+    if (!docSubjects.has(subject)) {
+      violations.push({
+        file: FILE,
+        line: 0,
+        message: `${subject} is declared in EVENT_SCHEMAS but not in api-endpoints-plan §8`,
+      });
+    }
+  }
+  return violations;
+}
+
+/**
+ * Planned routes that are deliberately not in `openapi.json`, one reason each — anything
+ * else planned-but-missing, or built-but-unplanned, fails.
+ */
+const OPENAPI_EXCLUSIONS = new Map<string, string>([
+  ['GET /health', 'ops route, served on the gateway but excluded from the document'],
+  ['GET /health/ready', 'ops route'],
+  ['GET /version', 'ops route'],
+  ['GET /docs', 'Swagger UI itself'],
+  ['GET /orders/:id/events', 'SSE stream — the generated client cannot consume a stream'],
+  ['GET /staff/orders/events', 'SSE stream'],
+  ['POST /api/webhooks/stripe', 'signature-authenticated webhook, not for the client'],
+  ['POST /payments/:id/fake-confirm', 'test-only route; 404 in production'],
+]);
+
+/** The P1 marker sits right after the path: `| GET | `/admin/orders` *(P1)* |`. */
+const ROUTE_ROW = /^\|\s*(GET|POST|PUT|PATCH|DELETE)\s*\|\s*`([^`]+)`(\s*\*\(P1\)\*)?/;
+
+function plannedRoutes(doc: string): Map<string, number> {
+  const lines = doc.split('\n');
+  const start = lines.findIndex((l) => l.startsWith('## 1. `identity`'));
+  const end = lines.findIndex((l) => l.startsWith('## 5. Server-sent events'));
+  const routes = new Map<string, number>();
+  for (let i = start; i !== -1 && i < end; i++) {
+    const line = lines[i]!;
+    const match = ROUTE_ROW.exec(line);
+    if (!match || match[3]) continue;
+    routes.set(`${match[1]} ${match[2]}`, i + 1);
+  }
+  return routes;
+}
+
+function builtRoutes(openapi: string): Set<string> {
+  const document = JSON.parse(openapi) as { paths?: Record<string, Record<string, unknown>> };
+  const routes = new Set<string>();
+  for (const [path, methods] of Object.entries(document.paths ?? {})) {
+    for (const method of Object.keys(methods)) {
+      routes.add(`${method.toUpperCase()} ${path.replaceAll(/\{(\w+)\}/g, ':$1')}`);
+    }
+  }
+  return routes;
+}
+
+export function checkRoutes(doc: string, openapi: string): Violation[] {
+  const violations: Violation[] = [];
+  const planned = plannedRoutes(doc);
+  const built = builtRoutes(openapi);
+  for (const [route, line] of planned) {
+    if (!built.has(route) && !OPENAPI_EXCLUSIONS.has(route)) {
+      violations.push({
+        file: FILE,
+        line,
+        message: `${route} is planned but not in services/gateway/openapi.json`,
+      });
+    }
+  }
+  for (const route of built) {
+    if (!planned.has(route)) {
+      violations.push({
+        file: 'services/gateway/openapi.json',
+        line: 0,
+        message: `${route} is in openapi.json but not planned in api-endpoints-plan §1–§4`,
+      });
+    }
+  }
+  return violations;
+}
+
+const OPENAPI = 'services/gateway/openapi.json';
+
 function check(doc: string): Violation[] {
-  return [...checkErrors(doc), ...checkPermissions(doc), ...checkRateLimits(doc)];
+  return [
+    ...checkErrors(doc),
+    ...checkPermissions(doc),
+    ...checkRateLimits(doc),
+    ...checkEvents(doc),
+    ...checkRoutes(doc, readRepoFile(OPENAPI)),
+  ];
 }
 
 describe('api-contract-sync', () => {
@@ -231,6 +338,19 @@ describe('api-contract-sync', () => {
     ).toBe(true);
   });
 
+  it('reports an event subject renamed in the doc so a declared subject is no longer covered', () => {
+    const doc = readRepoFile(FILE);
+    const mutated = doc.replaceAll('`ordering.payment.rejected`', '`ordering.payment.renamed`');
+    const violations = check(mutated);
+    expect(
+      violations.some(
+        (v) =>
+          v.message.includes('ordering.payment.rejected') &&
+          v.message.includes('not in api-endpoints-plan'),
+      ),
+    ).toBe(true);
+  });
+
   it('reports a permission removed from the §10 code block', () => {
     const doc = readRepoFile(FILE);
     const mutated = doc.replace('menu.manage          stock.update', 'stock.update');
@@ -240,5 +360,20 @@ describe('api-contract-sync', () => {
 
   it('the corpus is real', () => {
     expect(gitFiles()).toContain(FILE);
+  });
+
+  it('reports a route deleted from openapi.json, naming it', () => {
+    const doc = readRepoFile(FILE);
+    const openapi = readRepoFile(OPENAPI).replace('"/loyalty/me"', '"/loyalty/removed"');
+    const messages = checkRoutes(doc, openapi).map((v) => v.message);
+    expect(messages.some((m) => m.includes('GET /loyalty/me is planned but not'))).toBe(true);
+    expect(messages.some((m) => m.includes('GET /loyalty/removed is in openapi.json'))).toBe(true);
+  });
+
+  it('an excluded route really is absent from openapi.json (no stale exclusions)', () => {
+    const built = builtRoutes(readRepoFile(OPENAPI));
+    for (const route of OPENAPI_EXCLUSIONS.keys()) {
+      expect(built.has(route), `${route} is excluded but is in openapi.json`).toBe(false);
+    }
   });
 });

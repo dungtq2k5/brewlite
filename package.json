@@ -7,6 +7,7 @@
   },
   "packageManager": "pnpm@10.34.5",
   "scripts": {
+    "prepare": "simple-git-hooks",
     "dev": "docker compose up -d --wait && turbo run dev",
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
@@ -22,12 +23,15 @@
     "db:setup": "turbo run db:setup",
     "db:drift": "turbo run db:drift",
     "proto:generate": "turbo run proto:generate",
-    "proto:lint": "turbo run proto:lint"
+    "proto:lint": "turbo run proto:lint",
+    "keys:dev": "node scripts/keys-dev.mjs",
+    "perf": "node scripts/perf.mjs"
   },
   "devDependencies": {
     "@bufbuild/buf": "^1.47.2",
     "@commitlint/cli": "^19.8.0",
     "@commitlint/config-conventional": "^19.8.0",
+    "autocannon": "^8.0.0",
     "eslint": "^9.17.0",
     "lint-staged": "^15.2.10",
     "markdownlint-cli2": "^0.23.3",

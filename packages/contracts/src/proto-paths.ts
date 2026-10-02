@@ -10,4 +10,25 @@ export const PROTO_ROOT = join(
   'proto',
 );
 
-export const CATALOG_PROTO_FILES = [join(PROTO_ROOT, 'brewlite/catalog/menu_service.proto')];
+export const CATALOG_PROTO_FILES = [
+  join(PROTO_ROOT, 'brewlite/catalog/menu_service.proto'),
+  join(PROTO_ROOT, 'brewlite/catalog/stock_service.proto'),
+  join(PROTO_ROOT, 'brewlite/catalog/admin_menu_service.proto'),
+];
+
+export const IDENTITY_PROTO_FILES = [
+  join(PROTO_ROOT, 'brewlite/identity/auth_service.proto'),
+  join(PROTO_ROOT, 'brewlite/identity/user_service.proto'),
+  join(PROTO_ROOT, 'brewlite/identity/admin_user_service.proto'),
+];
+
+export const ORDERING_PROTO_FILES = [
+  join(PROTO_ROOT, 'brewlite/ordering/order_service.proto'),
+  join(PROTO_ROOT, 'brewlite/ordering/promotion_service.proto'),
+  join(PROTO_ROOT, 'brewlite/ordering/staff_order_service.proto'),
+];
+
+export const PAYMENT_PROTO_FILES = [
+  join(PROTO_ROOT, 'brewlite/payment/payment_service.proto'),
+  join(PROTO_ROOT, 'brewlite/payment/webhook_service.proto'),
+];

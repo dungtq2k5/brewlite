@@ -1,0 +1,212 @@
+syntax = "proto3";
+
+package brewlite.catalog;
+
+import "brewlite/common/localized_text.proto";
+import "brewlite/common/paging.proto";
+
+// The actor is the caller from gRPC metadata (`requireUser`), never a request field.
+service AdminMenuService {
+  rpc ListCategories(AdminMenuServiceListCategoriesRequest) returns (AdminMenuServiceListCategoriesResponse);
+  rpc CreateCategory(CreateCategoryRequest) returns (CreateCategoryResponse);
+  rpc UpdateCategory(UpdateCategoryRequest) returns (UpdateCategoryResponse);
+  rpc DeleteCategory(DeleteCategoryRequest) returns (DeleteCategoryResponse);
+  rpc RestoreCategory(RestoreCategoryRequest) returns (RestoreCategoryResponse);
+
+  rpc ListProducts(AdminMenuServiceListProductsRequest) returns (AdminMenuServiceListProductsResponse);
+  rpc GetProduct(AdminMenuServiceGetProductRequest) returns (AdminMenuServiceGetProductResponse);
+  rpc CreateProduct(CreateProductRequest) returns (CreateProductResponse);
+  rpc UpdateProduct(UpdateProductRequest) returns (UpdateProductResponse);
+  rpc ReplaceSizes(ReplaceSizesRequest) returns (ReplaceSizesResponse);
+  rpc ReplaceToppings(ReplaceToppingsRequest) returns (ReplaceToppingsResponse);
+  rpc SetImage(SetImageRequest) returns (SetImageResponse);
+  rpc ClearImage(ClearImageRequest) returns (ClearImageResponse);
+  rpc DeleteProduct(DeleteProductRequest) returns (DeleteProductResponse);
+  rpc RestoreProduct(RestoreProductRequest) returns (RestoreProductResponse);
+
+  rpc ListToppings(AdminMenuServiceListToppingsRequest) returns (AdminMenuServiceListToppingsResponse);
+  rpc CreateTopping(CreateToppingRequest) returns (CreateToppingResponse);
+  rpc UpdateTopping(UpdateToppingRequest) returns (UpdateToppingResponse);
+  rpc DeleteTopping(DeleteToppingRequest) returns (DeleteToppingResponse);
+  rpc RestoreTopping(RestoreToppingRequest) returns (RestoreToppingResponse);
+}
+
+// ---- Categories ----
+
+message AdminCategory {
+  string id = 1;
+  brewlite.common.LocalizedText name = 2;
+  int32 sort_order = 3;
+  bool is_active = 4;
+  optional string deleted_at = 5;
+  optional string deleted_by_id = 6;
+  string created_at = 7;
+}
+
+message AdminMenuServiceListCategoriesRequest { optional bool deleted = 1; }
+message AdminMenuServiceListCategoriesResponse { repeated AdminCategory categories = 1; }
+
+message CreateCategoryRequest {
+  brewlite.common.LocalizedText name = 1;
+  optional int32 sort_order = 2;
+  optional bool is_active = 3;
+}
+message CreateCategoryResponse { AdminCategory category = 1; }
+
+message UpdateCategoryRequest {
+  string id = 1;
+  optional brewlite.common.LocalizedText name = 2;
+  optional int32 sort_order = 3;
+  optional bool is_active = 4;
+}
+message UpdateCategoryResponse { AdminCategory category = 1; }
+
+message DeleteCategoryRequest { string id = 1; }
+message DeleteCategoryResponse { AdminCategory category = 1; }
+
+message RestoreCategoryRequest { string id = 1; }
+message RestoreCategoryResponse { AdminCategory category = 1; }
+
+// ---- Products ----
+
+message AdminProductListItem {
+  string id = 1;
+  string category_id = 2;
+  string category_name_en = 3;
+  string category_name_vi = 4;
+  brewlite.common.LocalizedText name = 5;
+  int32 base_price_vnd = 6;
+  optional string image_url = 7;
+  bool is_available = 8;
+  optional int32 stock_qty = 9;
+  int32 version = 10;
+  int32 sort_order = 11;
+  string created_at = 12;
+  optional string deleted_at = 13;
+}
+
+message AdminMenuServiceListProductsRequest {
+  brewlite.common.PageRequest page = 1;
+  optional string q = 2;
+  optional string category_id = 3;
+  optional bool deleted = 4;
+}
+message AdminMenuServiceListProductsResponse {
+  repeated AdminProductListItem products = 1;
+  brewlite.common.PageMeta meta = 2;
+}
+
+message AdminProductSize {
+  string size = 1;
+  int32 price_delta_vnd = 2;
+}
+
+message AdminProduct {
+  string id = 1;
+  string category_id = 2;
+  string category_name_en = 3;
+  string category_name_vi = 4;
+  brewlite.common.LocalizedText name = 5;
+  optional brewlite.common.LocalizedText description = 6;
+  int32 base_price_vnd = 7;
+  optional string image_url = 8;
+  bool is_available = 9;
+  optional int32 stock_qty = 10;
+  int32 version = 11;
+  int32 sort_order = 12;
+  repeated AdminProductSize sizes = 13;
+  repeated string topping_ids = 14;
+  string created_at = 15;
+  optional string deleted_at = 16;
+  optional string deleted_by_id = 17;
+}
+
+message AdminMenuServiceGetProductRequest { string id = 1; }
+message AdminMenuServiceGetProductResponse { AdminProduct product = 1; }
+
+message CreateProductRequest {
+  string category_id = 1;
+  brewlite.common.LocalizedText name = 2;
+  optional brewlite.common.LocalizedText description = 3;
+  int32 base_price_vnd = 4;
+  repeated AdminProductSize sizes = 5;
+  repeated string topping_ids = 6;
+  optional int32 stock_qty = 7;
+  optional int32 sort_order = 8;
+}
+message CreateProductResponse { AdminProduct product = 1; }
+
+message UpdateProductRequest {
+  string id = 1;
+  optional string category_id = 2;
+  optional brewlite.common.LocalizedText name = 3;
+  optional brewlite.common.LocalizedText description = 4;
+  optional bool clear_description = 5;
+  optional int32 base_price_vnd = 6;
+  optional int32 sort_order = 7;
+}
+message UpdateProductResponse { AdminProduct product = 1; }
+
+message ReplaceSizesRequest {
+  string id = 1;
+  repeated AdminProductSize sizes = 2;
+}
+message ReplaceSizesResponse { AdminProduct product = 1; }
+
+message ReplaceToppingsRequest {
+  string id = 1;
+  repeated string topping_ids = 2;
+}
+message ReplaceToppingsResponse { AdminProduct product = 1; }
+
+message SetImageRequest {
+  string id = 1;
+  bytes content = 2;
+  string content_type = 3;
+  string extension = 4;
+}
+message SetImageResponse { AdminProduct product = 1; }
+
+message ClearImageRequest { string id = 1; }
+message ClearImageResponse { AdminProduct product = 1; }
+
+message DeleteProductRequest { string id = 1; }
+message DeleteProductResponse { AdminProduct product = 1; }
+
+message RestoreProductRequest { string id = 1; }
+message RestoreProductResponse { AdminProduct product = 1; }
+
+// ---- Toppings ----
+
+message AdminTopping {
+  string id = 1;
+  brewlite.common.LocalizedText name = 2;
+  int32 price_vnd = 3;
+  bool is_available = 4;
+  optional string deleted_at = 5;
+  optional string deleted_by_id = 6;
+  string created_at = 7;
+}
+
+message AdminMenuServiceListToppingsRequest { optional bool deleted = 1; }
+message AdminMenuServiceListToppingsResponse { repeated AdminTopping toppings = 1; }
+
+message CreateToppingRequest {
+  brewlite.common.LocalizedText name = 1;
+  int32 price_vnd = 2;
+}
+message CreateToppingResponse { AdminTopping topping = 1; }
+
+message UpdateToppingRequest {
+  string id = 1;
+  optional brewlite.common.LocalizedText name = 2;
+  optional int32 price_vnd = 3;
+  optional bool is_available = 4;
+}
+message UpdateToppingResponse { AdminTopping topping = 1; }
+
+message DeleteToppingRequest { string id = 1; }
+message DeleteToppingResponse { AdminTopping topping = 1; }
+
+message RestoreToppingRequest { string id = 1; }
+message RestoreToppingResponse { AdminTopping topping = 1; }

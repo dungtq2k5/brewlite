@@ -1,0 +1,96 @@
+syntax = "proto3";
+
+package brewlite.ordering;
+
+import "brewlite/common/paging.proto";
+
+service PromotionAdminService {
+  rpc ListPromotions(ListPromotionsRequest) returns (ListPromotionsResponse);
+  rpc CreatePromotion(CreatePromotionRequest) returns (CreatePromotionResponse);
+  rpc GetPromotion(GetPromotionRequest) returns (GetPromotionResponse);
+  rpc UpdatePromotion(UpdatePromotionRequest) returns (UpdatePromotionResponse);
+  rpc DeletePromotion(DeletePromotionRequest) returns (DeletePromotionResponse);
+  rpc RestorePromotion(RestorePromotionRequest) returns (RestorePromotionResponse);
+}
+
+service LoyaltyService {
+  rpc GetMyLoyalty(GetMyLoyaltyRequest) returns (GetMyLoyaltyResponse);
+}
+
+message Promotion {
+  string id = 1;
+  string code = 2;
+  optional string description = 3;
+  string discount_type = 4;
+  int32 discount_value = 5;
+  optional int32 max_discount_vnd = 6;
+  int32 min_subtotal_vnd = 7;
+  string starts_at = 8;
+  string ends_at = 9;
+  optional int32 max_uses = 10;
+  int32 used_count = 11;
+  optional int32 per_user_limit = 12;
+  bool is_active = 13;
+  string created_at = 14;
+}
+
+message ListPromotionsRequest {
+  brewlite.common.PageRequest page = 1;
+  optional bool active = 2;
+  optional bool deleted = 3;
+  optional string q = 4;
+}
+message ListPromotionsResponse {
+  repeated Promotion promotions = 1;
+  brewlite.common.PageMeta meta = 2;
+}
+
+message CreatePromotionRequest {
+  string code = 1;
+  optional string description = 2;
+  string discount_type = 3;
+  int32 discount_value = 4;
+  optional int32 max_discount_vnd = 5;
+  int32 min_subtotal_vnd = 6;
+  string starts_at = 7;
+  string ends_at = 8;
+  optional int32 max_uses = 9;
+  optional int32 per_user_limit = 10;
+  optional bool is_active = 11;
+}
+message CreatePromotionResponse { Promotion promotion = 1; }
+
+message GetPromotionRequest { string id = 1; }
+message GetPromotionResponse { Promotion promotion = 1; }
+
+message UpdatePromotionRequest {
+  string id = 1;
+  optional string description = 2;
+  optional bool clear_description = 3;
+  optional string ends_at = 4;
+  optional int32 max_uses = 5;
+  optional int32 per_user_limit = 6;
+  optional bool is_active = 7;
+}
+message UpdatePromotionResponse { Promotion promotion = 1; }
+
+message DeletePromotionRequest { string id = 1; }
+message DeletePromotionResponse { Promotion promotion = 1; }
+
+message RestorePromotionRequest { string id = 1; }
+message RestorePromotionResponse { Promotion promotion = 1; }
+
+message LoyaltyTransactionEntry {
+  string order_id = 1;
+  string order_no = 2;
+  string kind = 3;
+  int32 points = 4;
+  string at = 5;
+}
+
+message GetMyLoyaltyRequest {}
+message GetMyLoyaltyResponse {
+  int32 balance = 1;
+  int32 lifetime_earned = 2;
+  repeated LoyaltyTransactionEntry recent = 3;
+}

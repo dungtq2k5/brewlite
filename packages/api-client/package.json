@@ -1,0 +1,39 @@
+{
+  "name": "@brewlite/api-client",
+  "version": "0.0.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./zod": {
+      "types": "./dist/zod.d.ts",
+      "default": "./dist/zod.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "generate": "orval --config orval.config.ts && node scripts/format-generated.mjs",
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run --root ."
+  },
+  "dependencies": {
+    "server-only": "^0.0.1",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@brewlite/config": "workspace:*",
+    "@types/node": "^24.0.0",
+    "orval": "^8.39.0",
+    "prettier": "^3.4.2",
+    "vitest": "^4.0.0"
+  }
+}

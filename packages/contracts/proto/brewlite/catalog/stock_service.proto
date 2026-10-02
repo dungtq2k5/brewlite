@@ -1,0 +1,73 @@
+syntax = "proto3";
+
+package brewlite.catalog;
+
+import "brewlite/common/localized_text.proto";
+
+service StockService {
+  rpc ListStaffProducts(ListStaffProductsRequest) returns (ListStaffProductsResponse);
+  rpc SetProductAvailability(SetProductAvailabilityRequest) returns (SetProductAvailabilityResponse);
+  rpc SetStockQty(SetStockQtyRequest) returns (SetStockQtyResponse);
+  rpc SetToppingAvailability(SetToppingAvailabilityRequest) returns (SetToppingAvailabilityResponse);
+  rpc ReserveStock(ReserveStockRequest) returns (ReserveStockResponse);
+  rpc ReleaseStock(ReleaseStockRequest) returns (ReleaseStockResponse);
+}
+
+message StaffProduct {
+  string id = 1;
+  string category_id = 2;
+  brewlite.common.LocalizedText name = 3;
+  bool is_available = 4;
+  optional int32 stock_qty = 5;
+  int32 version = 6;
+}
+
+message ListStaffProductsRequest {}
+message ListStaffProductsResponse { repeated StaffProduct products = 1; }
+
+message SetProductAvailabilityRequest {
+  string id = 1;
+  bool is_available = 2;
+}
+message SetProductAvailabilityResponse { StaffProduct product = 1; }
+
+message SetStockQtyRequest {
+  string id = 1;
+  optional int32 stock_qty = 2;
+  int32 expected_version = 3;
+}
+message SetStockQtyResponse { StaffProduct product = 1; }
+
+message StaffTopping {
+  string id = 1;
+  brewlite.common.LocalizedText name = 2;
+  int32 price_vnd = 3;
+  bool is_available = 4;
+}
+
+message SetToppingAvailabilityRequest {
+  string id = 1;
+  bool is_available = 2;
+}
+message SetToppingAvailabilityResponse { StaffTopping topping = 1; }
+
+message StockReservation {
+  string order_id = 1;
+  string product_id = 2;
+  int32 qty = 3;
+  string status = 4;
+}
+
+message ReserveStockLine {
+  string product_id = 1;
+  int32 qty = 2;
+}
+
+message ReserveStockRequest {
+  string order_id = 1;
+  repeated ReserveStockLine lines = 2;
+}
+message ReserveStockResponse { repeated StockReservation reservations = 1; }
+
+message ReleaseStockRequest { string order_id = 1; }
+message ReleaseStockResponse { repeated StockReservation reservations = 1; }

@@ -24,26 +24,116 @@ export interface Category {
   name: LocalizedText | undefined;
 }
 
-export const BREWLITE_CATALOG_PACKAGE_NAME = "brewlite.catalog";
+export interface ListProductsRequest {
+  categoryId?: string | undefined;
+}
 
-/** This service will grow ListProducts, GetProduct and PriceItems as the catalog service does. */
+export interface ListProductsResponse {
+  products: ProductSummary[];
+}
+
+export interface ProductSummary {
+  id: string;
+  categoryId: string;
+  name: LocalizedText | undefined;
+  imageUrl?: string | undefined;
+  fromPriceVnd: number;
+  isSoldOut: boolean;
+}
+
+export interface GetProductRequest {
+  id: string;
+}
+
+export interface GetProductResponse {
+  product: ProductDetail | undefined;
+}
+
+export interface ProductDetail {
+  summary: ProductSummary | undefined;
+  description?: LocalizedText | undefined;
+  basePriceVnd: number;
+  sizes: SizeOption[];
+  toppings: ToppingOption[];
+  maxToppings: number;
+}
+
+export interface SizeOption {
+  size: string;
+  priceDeltaVnd: number;
+}
+
+export interface ToppingOption {
+  id: string;
+  name: LocalizedText | undefined;
+  priceVnd: number;
+}
+
+export interface PriceItemsRequest {
+  lines: CartLine[];
+}
+
+export interface CartLine {
+  productId: string;
+  size: string;
+  toppingIds: string[];
+  qty: number;
+}
+
+export interface PriceItemsResponse {
+  lines: PricedLine[];
+  subtotalVnd: string;
+}
+
+export interface PricedLine {
+  productId: string;
+  productName: LocalizedText | undefined;
+  size: string;
+  basePriceVnd: number;
+  sizeDeltaVnd: number;
+  toppings: ToppingOption[];
+  unitPriceVnd: number;
+  qty: number;
+  lineTotalVnd: number;
+}
+
+export const BREWLITE_CATALOG_PACKAGE_NAME = "brewlite.catalog";
 
 export interface MenuServiceClient {
   listCategories(request: ListCategoriesRequest, metadata?: Metadata): Observable<ListCategoriesResponse>;
-}
 
-/** This service will grow ListProducts, GetProduct and PriceItems as the catalog service does. */
+  listProducts(request: ListProductsRequest, metadata?: Metadata): Observable<ListProductsResponse>;
+
+  getProduct(request: GetProductRequest, metadata?: Metadata): Observable<GetProductResponse>;
+
+  priceItems(request: PriceItemsRequest, metadata?: Metadata): Observable<PriceItemsResponse>;
+}
 
 export interface MenuServiceController {
   listCategories(
     request: ListCategoriesRequest,
     metadata?: Metadata,
   ): Promise<ListCategoriesResponse> | Observable<ListCategoriesResponse> | ListCategoriesResponse;
+
+  listProducts(
+    request: ListProductsRequest,
+    metadata?: Metadata,
+  ): Promise<ListProductsResponse> | Observable<ListProductsResponse> | ListProductsResponse;
+
+  getProduct(
+    request: GetProductRequest,
+    metadata?: Metadata,
+  ): Promise<GetProductResponse> | Observable<GetProductResponse> | GetProductResponse;
+
+  priceItems(
+    request: PriceItemsRequest,
+    metadata?: Metadata,
+  ): Promise<PriceItemsResponse> | Observable<PriceItemsResponse> | PriceItemsResponse;
 }
 
 export function MenuServiceControllerMethods() {
   return function (constructor: Function) {
-    const grpcMethods: string[] = ["listCategories"];
+    const grpcMethods: string[] = ["listCategories", "listProducts", "getProduct", "priceItems"];
     for (const method of grpcMethods) {
       const descriptor: any = Reflect.getOwnPropertyDescriptor(constructor.prototype, method);
       GrpcMethod("MenuService", method)(constructor.prototype[method], method, descriptor);

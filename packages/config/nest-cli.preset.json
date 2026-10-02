@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "builder": "swc",
+    "typeCheck": true,
+    "assets": [],
+    "watchAssets": false
+  }
+}

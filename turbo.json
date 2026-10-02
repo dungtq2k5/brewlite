@@ -46,6 +46,10 @@
     "db:drift": {
       "cache": false
     },
+    "generate": {
+      "outputs": ["src/generated/**"],
+      "cache": false
+    },
     "proto:generate": {
       "outputs": ["src/generated/**"]
     },

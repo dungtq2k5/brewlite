@@ -56,7 +56,8 @@ services/ordering/src/modules/orders/
 - A **gRPC controller** is `@Controller()` with the generated `@<Name>ServiceControllerMethods()` decorator and `implements <Name>ServiceController`, so a method missing from the proto is a compile error. Each method reads the caller with `callerFrom(metadata)` and returns `this.service.x(request, caller)`. **No Prisma, no mapping, no branching.** A consumer does the same for an event payload.
 - A **service** is the only file that runs Prisma queries for its module. It takes the proto request and the caller, returns the proto response built by the mapper, and throws only `rpcError()` (§5.3) — **never** an HTTP exception.
 - A **mapper** owns the `select` shapes (`ORDER_DETAIL_SELECT`), their row types (`OrderDetailRow`) and the row → proto functions. It imports Prisma **types only**, lists every output field explicitly — never `const { passwordHash, ...rest } = row` — and never queries anything.
-- **A rule with no I/O is a pure function in `domain/`**, importing nothing from `@nestjs/*` or the Prisma client, unit-tested without Nest. Every Task 10 rule is one: the state machine, the promotion arithmetic, loyalty earning. When the web app needs the same rule (unit pricing), it lives in `packages/contracts` instead.
+- **A rule with no I/O is a pure function in `domain/`**, importing nothing from `@nestjs/*` or the Prisma client — not even `import type` (the `module-files` guard refuses it) — unit-tested without Nest. Every Task 10 rule is one: the state machine, the promotion arithmetic, loyalty earning. When the web app needs the same rule (unit pricing), it lives in `packages/contracts` instead.
+- A `lock…(tx, …)` function that takes a row lock is I/O: it lives on the owning service, or in `src/locks/` when two of the service's modules share it — never in `domain/`.
 - **One module never queries another module's tables.** It calls that module's service.
 - Enforced by `eslint` `no-restricted-imports`: the runtime Prisma client only in `*.service.ts`, `prisma.service.ts` and `prisma/seed/**`; controllers and consumers may not import it.
 
@@ -123,7 +124,7 @@ services/gateway/src/modules/orders/
 
 ### 3.1 Search before you write
 
-Before writing a helper, **MUST** search `packages/`. Ids, money arithmetic, unit pricing, hashing, email normalisation and the business day already exist; a second implementation disagrees with the first on the one input where it matters.
+Before writing a helper, **MUST** search `packages/`. Ids, money arithmetic, unit pricing, hashing (including `contentHash`, a canonical-JSON SHA-256 for idempotency keys), email normalisation and the business day already exist; a second implementation disagrees with the first on the one input where it matters.
 
 Import by package name, **never** by a relative path across a package or service boundary:
 
@@ -206,7 +207,7 @@ if (order.userId !== caller.userId) throw rpcError('PERMISSION_DENIED', { requir
 `.proto` files live in `packages/contracts/proto/brewlite/<service>/`, `package brewlite.<service>;`. Change the proto → `pnpm proto:generate` → fix both ends. **Never hand-edit generated code.** `buf lint` runs in CI.
 
 - Every RPC has its own `…Request` / `…Response` message, even when two would be identical.
-- Enum members are prefixed with the enum name (`ORDER_STATUS_PAID`) and the zero member is `…_UNSPECIFIED`, which a service **MUST** reject as invalid input, never default.
+- A domain enum crosses gRPC as a plain `string` field, not a proto `enum` — a `stringEnums` proto enum arrives as `'PRODUCT_SIZE_M'`, not the contracts value `'M'`, so every enum would need a bridge table both ways. The receiver parses it with `parseEnum(Enum, value)`, which refuses anything unknown.
 - `int64` fields (`order_no`) are strings in TypeScript; the mapper converts with a safe-integer check.
 - Protobuf has no `null`. The mapper converts `undefined` → `null` field by field, so response shapes stay stable.
 - The loader runs with `oneofs: false`, or every `optional` field arrives with a synthetic `_field` key. Its options are **one constant**, `PROTO_LOADER_OPTIONS` in `nest-common`, shared by server and client — `longs: String` pairs with ts-proto's `forceLong=string`, `enums: String` with `stringEnums`. A mismatch compiles and then compares a number with a string at runtime.
@@ -254,7 +255,7 @@ throw rpcError('INVALID_STATE', { status: current });
 
 As defined in api-endpoints-plan §0.3. A global interceptor wraps success as `{ data, meta? }`; a global filter builds `{ error: { code, message, details?, requestId } }`.
 
-- Handlers return raw data, or `Paged.cursor(items, next)` / `Paged.page(items, meta)`. Returning `{ data }` yourself double-wraps.
+- Handlers return raw data, or `Paged.cursor(items, next)` / `Paged.page(items, meta)` (`packages/nest-common`) — an offset query is built with `zPageQuery(sortFields, defaultSort?)` (`packages/contracts`), which bounds `page`/`pageSize` and allowlists `sort` (each field, plus `-field` for descending); a cursor query is built with `zCursorQuery` (`cursor?: base64url ≤ 64 chars`, `limit`), for endpoints ordered by id rather than sorted, like `GET /orders/me`. Returning `{ data }` yourself double-wraps.
 - Every thrown error carries an `ErrorCode`. A new code is added to `ERRORS`, to api-endpoints-plan §7, and to the web app's `errors` namespace **in both locales** in the same PR.
 - **MUST NOT** put a user-facing sentence in `message`. It is English, for developers.
 - `@SkipEnvelope()` is for ops routes and the SSE streams only.
@@ -276,9 +277,11 @@ As defined in api-endpoints-plan §0.3. A global interceptor wraps success as `{
 
 **Every route declares exactly one rule:** `@Auth('PUBLIC' | 'USER' | 'SIGNATURE')` or `@RequirePermission(code)`. A route with none, or two, **stops the gateway from booting** — a forgotten guard is the failure that actually happens, and it fails open. The marker also applies the route's Swagger security scheme.
 
-- Guards run in order: `AuthGuard` → `PermissionGuard` → `ThrottlerGuard`.
+- `@Auth`, `@RequirePermission` and `@RateLimit` live in `packages/nest-common` (`http/access.decorators.ts`), not the gateway — `OpsController`, also in nest-common, needs them for its own routes. The guards that read them (`AuthGuard`, `PermissionGuard`, `RateLimitGuard`) are the gateway's own, under `src/auth/`.
+- Guards run in order: `AuthGuard` → `PermissionGuard` → `RateLimitGuard`.
 - `@RequirePermission()` with no code is a compile error.
-- Every route has one rate-limit class (api-endpoints-plan §0.8), from `@RateLimit(…)` or the marker's default.
+- Every route has one rate-limit class (api-endpoints-plan §0.8), from `@RateLimit(class | 'NONE')` or the marker's default.
+- A gateway guard runs before any gRPC call, so it cannot build an `RpcException` — it throws `apiError()` instead, the guard-side twin of `rpcError()` (§5.3).
 
 ### 6.4 Idempotent routes
 
@@ -386,12 +389,12 @@ if (count === 0) { /* re-read: short → OUT_OF_STOCK; else retry, max STOCK_RES
 ### 7.7 Uniqueness
 
 - A rule that is "unique among live rows" is a **partial unique index** in `schema-objects.sql`, never `@unique`.
-- **The index is the enforcement; the pre-check is the error message.** Every insert that can conflict catches `P2002` with `isUniqueConstraintViolation(error)` and maps it to its specific code (`PRODUCT_NAME_TAKEN`) — or, for an idempotency key, returns the existing row.
+- **The index is the enforcement; the pre-check is the error message.** Every insert that can conflict catches `P2002` with `isUniqueConstraintViolation(error, target?)` (`packages/nest-common`) and maps it to its specific code (`PRODUCT_NAME_TAKEN`) — or, for an idempotency key, returns the existing row. `target` (a column name) narrows to one index, so a clash on a different column is never mistaken for the one being checked; it matches both the classic engine's `meta.target` array and the driver adapter's constraint-name shape.
 
 ### 7.8 Query hygiene
 
 - `select` the columns you need. A `findMany` on `users` without `select` loads `password_hash`.
-- Filter and sort in the database, never in JavaScript.
+- Filter and sort in the database, never in JavaScript. **The one exception:** the cached public menu (architecture §2.6) — the cache holds the whole menu (bounded at `MAX_MENU_PRODUCTS`), and a `categoryId` filter is applied to the cached array, because filtering in SQL would mean a query, and therefore a cache, per category.
 - A list query has a `take`. An unbounded `findMany` is a bug even when today's table is small.
 - **Read back after a transaction, not inside it**, when the response needs several relations.
 - A multi-row invariant that is not a single conditional update (a promotion's `max_uses` and per-customer limit) takes a **row lock** — `SELECT … FOR UPDATE` in a `lock…` method taking `tx` — before reading what it checks.
@@ -418,9 +421,11 @@ await this.prisma.$transaction(async (tx) => {
 
 ### 8.2 Consuming: idempotent, three outcomes
 
-Every durable consumer is a `JetStreamConsumer` subclass registered in `main.ts`. Nest's `@EventPattern` is core NATS only and **MUST NOT** be used.
+Every durable consumer is a `JetStreamConsumer` subclass, started from the service's own NATS module (`onModuleInit`, alongside `ensureStreams`), never wired ad hoc in `main.ts`. Nest's `@EventPattern` is core NATS only and **MUST NOT** be used.
 
+- **A subclass names `service` and `subject`, and does one thing in `handle(payload)`** — its own idempotent write. Ack/nak/dead-letter, the request id and schema validation all live once in the base class.
 - **Idempotency is the handler's own write:** a conditional update on the status it expects (`WHERE status = 'HELD'`), or an insert guarded by a unique key (`UNIQUE (order_id, kind)`, `UNIQUE (payment_id)`). A redelivery then changes nothing.
+- **The handler runs inside `runWithRequestId`, seeded from the message's `x-request-id` header** (or its sequence number, if the header is absent) — the same id that started at the original request follows it all the way to this side effect.
 - A handler has three outcomes:
 
   | Situation | Do | Effect |
@@ -445,7 +450,7 @@ Every durable consumer is a `JetStreamConsumer` subclass registered in `main.ts`
 
 - Only the gateway serves SSE. **A frame is never the only record of anything** — it says "order X is now Y", and the page re-reads on every (re)connect.
 - The customer stream checks ownership once, at connect, through ordering.
-- Streams send a `: ping` comment every 25 s and are closed by the gateway on shutdown.
+- Streams send a `: ping` comment every 25 s (one shared timer, not one per connection) and are ended in `beforeApplicationShutdown`.
 
 ---
 
@@ -661,7 +666,8 @@ When `NODE_ENV === 'production'`: the error filter returns a generic message for
 | **Unit — service** | a use case's branches | `PrismaService` and peers mocked | `*.service.spec.ts` beside the source |
 | **Integration** | real SQL, constraints, transactions, the outbox row, concurrency | the service's `_test` database, the test broker | `services/<svc>/test/integration/` |
 | **Contract** | a gRPC server and a real client over the generated code | in-process server, `_test` | `services/<svc>/test/contract/` |
-| **Gateway e2e** | markers, validation, envelope, error mapping, raw webhook body | gRPC peers stubbed | `services/gateway/test/e2e/` |
+| **Gateway e2e** | markers, validation, envelope, error mapping, raw webhook body | gRPC peers, the rate limiter's Redis client and the SSE event source stubbed by `createE2eApp` — **no infrastructure**, so it runs in `pnpm test` before anything is started | `services/gateway/test/e2e/` |
+| **Gateway integration** | real rate limiting, the real ordered consumer behind SSE | Redis database 14, the test broker | `services/gateway/test/integration/`, run by `test:integration` |
 | **Web e2e** *(P1)* | J1 end to end | Playwright against Compose, fake payments | `apps/web/e2e/` |
 
 ### 16.2 Rules
@@ -672,7 +678,8 @@ When `NODE_ENV === 'production'`: the error filter returns a generic message for
 - **Every consumer has a test delivering the same event twice** and asserting one effect, and one delivering a stale event after a newer state.
 - **Every RPC is exercised by a test in the service that owns it**, against its real database.
 - Integration suites migrate once and `TRUNCATE … RESTART IDENTITY CASCADE` between specs; suites touching one database run serially. A setup reads its service's `.env` into a local object and **never writes `process.env`**.
-- Vitest transforms with `unplugin-swc` with decorator metadata on, or Nest DI resolves `undefined`.
+- Vitest transforms with `unplugin-swc` with decorator metadata on, or Nest DI resolves `undefined`. Every package's and service's Vitest config — unit and integration — is built from `nestProject(...)` in `packages/config/vitest.preset.ts`, which aliases `@brewlite/contracts` and `@brewlite/nest-common` to **source**: a config that does not would test a shared package's stale build.
+- **The tier is decided by what a spec needs:** one that opens a real Postgres, Redis or NATS connection is an integration spec; one that points a client at a closed port on purpose needs nothing and stays in its no-infrastructure tier.
 
 ### 16.3 The Task 10 proofs
 
@@ -683,10 +690,11 @@ Graded evidence (product-overview F10). Each is its own named integration test a
 | (a) illegal transitions | `refuses an ILLEGAL transition` — table-driven over every pair not in `ORDER_TRANSITIONS` | `INVALID_STATE`; the row and its history unchanged |
 | (b) idempotency | `creates ONE order for two requests with the same Idempotency-Key` — sequential and concurrent; the same for payments | one row; both responses carry the same id; stock reserved once |
 | (c) concurrent stock | `never oversells under CONCURRENT orders` — N parallel orders for stock K < N | exactly K succeed, N − K get `OUT_OF_STOCK`, `stock_qty` ends at 0 |
+| (d) promotions and loyalty | `applies a valid promotion code ONCE under CONCURRENT orders` · `credits points ONCE when an order becomes PAID` | the use counted once under `max_uses`; one `EARN` however often the payment event is delivered |
 
 ### 16.4 Guard specs
 
-A guard spec turns a repo-wide rule into a failing test. Guards live in `packages/config/guards/` and run as the Vitest project `guards`, in `pnpm test` and as a named CI step. A guard that reads `@brewlite/contracts` reaches its source through a TypeScript `paths` alias, never a package dependency — `contracts` already depends on `config`, and the reverse would be a cycle. Each has four tests: the rule holds over the corpus; planted violations are reported; conforming shapes pass; the corpus is real (non-empty, contains a named file). The corpus comes from `git ls-files`, never a directory walk.
+A guard spec turns a repo-wide rule into a failing test. Guards live in `packages/config/guards/` and run as the Vitest project `guards`, in `pnpm test` and as a named CI step. A guard that reads `@brewlite/contracts` reaches its source through a TypeScript `paths` alias, never a package dependency — `contracts` already depends on `config`, and the reverse would be a cycle. Each has four tests: the rule holds over the corpus; planted violations are reported; conforming shapes pass; the corpus is real (non-empty, contains a named file). The corpus is `git ls-files --cached --others --exclude-standard` — tracked **and** untracked files, `.gitignore` respected — never a directory walk, so a new file is checked before it is committed.
 
 | Guard | Rule |
 | :---- | :---- |
@@ -696,7 +704,9 @@ A guard spec turns a repo-wide rule into a failing test. Guards live in `package
 | `env-contract.spec.ts` | the env schema, `.env.example` and architecture §10 list the same variables |
 | `rdm-contract-sync.spec.ts` | every enumerated column in rdm-spec §3 (a leading backticked `A \| B` span) equals its enum in `packages/contracts`, and every `…_MAX_LENGTH` constant equals its column's `VARCHAR(n)` |
 | `i18n-keys.spec.ts` | once the web app exists: `apps/web/src/i18n/locales/en` and `vi` have the same namespaces and the same keys (plural suffixes normalised), and every code in `ERRORS` has an `errors` key |
-| `api-contract-sync.spec.ts` | api-endpoints-plan §7, §10 and §0.8 agree with `ERRORS` (codes and HTTP status), `PERMISSIONS` / `ROLE_PERMISSIONS` and `RATE_LIMITS`; §8 against the event registry once it exists |
+| `api-contract-sync.spec.ts` | api-endpoints-plan §7, §10 and §0.8 agree with `ERRORS` (codes and HTTP status), `PERMISSIONS` / `ROLE_PERMISSIONS` and `RATE_LIMITS`; §8 against the event registry once it exists · and api-endpoints-plan §1–§4's routes (P1 rows skipped) against the committed `openapi.json`, both ways, with a named exclusion list: ops, `/docs`, the SSE streams, the Stripe webhook, `fake-confirm` |
+| `task10-proofs.spec.ts` | every graded proof name of §16.3 — including `creates ONE payment for two requests with the same Idempotency-Key` — appears in a service's integration specs; a rename or deletion fails and is named |
+| `contract-ports.spec.ts` | every contract spec's fixed gRPC port belongs to one spec file, and is never a port a running service owns (ADR 0027: web 23000, gateway 23100, ops 23101–23104, gRPC 25051–25054) — a collision fails with `EADDRINUSE` only when the timing or the running stack lines up |
 
 ---
 

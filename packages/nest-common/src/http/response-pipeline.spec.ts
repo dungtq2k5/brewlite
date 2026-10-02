@@ -4,6 +4,7 @@ import { createZodDto, ZodSerializerDto } from 'nestjs-zod';
 import { of } from 'rxjs';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
+import { Paged } from './paged.js';
 import { ResponseEnvelopeInterceptor } from './response-envelope.interceptor.js';
 import { ResponseValidationInterceptor } from './response-validation.interceptor.js';
 
@@ -15,6 +16,18 @@ class FakeController {
   @ZodSerializerDto(WidgetResponseDto)
   get() {
     return { id: 'w1', extra: 'stripped-in-prod-only' };
+  }
+
+  @Get('paged')
+  @ZodSerializerDto([WidgetResponseDto])
+  getPaged() {
+    return Paged.page(
+      [
+        { id: 'w1', extra: 'stripped-in-prod-only' },
+        { id: 'w2', extra: 'stripped-in-prod-only' },
+      ],
+      { page: 1, pageSize: 20, total: 2 },
+    );
   }
 }
 
@@ -46,6 +59,46 @@ describe('response pipeline order (validation before envelope)', () => {
 
     const result = await new Promise((resolve) => afterEnvelope$.subscribe(resolve));
     expect(result).toEqual({ data: { id: 'w1' } });
+  });
+
+  it('a Paged value is enveloped as { data: items, meta }, items validated', async () => {
+    const reflector = new Reflector();
+    const validation = new ResponseValidationInterceptor(reflector, false);
+    const envelope = new ResponseEnvelopeInterceptor(reflector);
+    const instance = new FakeController();
+    const ctx = {
+      getHandler: () => instance.getPaged,
+      getClass: () => FakeController,
+    } as unknown as ExecutionContext;
+
+    const rawHandler: CallHandler = { handle: () => of(instance.getPaged()) };
+    const afterValidation$ = validation.intercept(ctx, rawHandler);
+    const afterEnvelope$ = envelope.intercept(ctx, { handle: () => afterValidation$ });
+
+    const result = await new Promise((resolve) => afterEnvelope$.subscribe(resolve));
+    expect(result).toEqual({
+      data: [{ id: 'w1' }, { id: 'w2' }],
+      meta: { page: 1, pageSize: 20, total: 2 },
+    });
+  });
+
+  it('an invalid item inside a Paged value fails validation in development', async () => {
+    const reflector = new Reflector();
+    const validation = new ResponseValidationInterceptor(reflector, false);
+    const instance = new FakeController();
+    const ctx = {
+      getHandler: () => instance.getPaged,
+      getClass: () => FakeController,
+    } as unknown as ExecutionContext;
+
+    const rawHandler: CallHandler = {
+      handle: () =>
+        of(Paged.page([{ notAnId: true }] as never, { page: 1, pageSize: 20, total: 1 })),
+    };
+    const error = await new Promise((resolve) =>
+      validation.intercept(ctx, rawHandler).subscribe({ error: resolve }),
+    );
+    expect(error).toBeInstanceOf(Error);
   });
 
   it('a route with no @ZodSerializerDto passes through validation untouched', async () => {

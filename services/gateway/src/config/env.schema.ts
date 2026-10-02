@@ -12,6 +12,14 @@ export const envSchema = z.object({
     .transform((v) => v === 'true'),
   TRUST_PROXY_HOPS: z.coerce.number().int().nonnegative(),
   CATALOG_GRPC_URL: z.string(),
+  IDENTITY_GRPC_URL: z.string(),
+  ORDERING_GRPC_URL: z.string(),
+  PAYMENT_GRPC_URL: z.string(),
+  NATS_URL: z.string(),
+  NATS_URL_TEST: z.string().optional(),
+  JWT_PUBLIC_KEY: z.string().min(1),
+  REDIS_URL: z.string().url(),
+  REDIS_URL_TEST: z.string().url().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
