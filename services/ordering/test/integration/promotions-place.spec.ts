@@ -1,84 +1,15 @@
-import { ConfigModule } from '@nestjs/config';
-import { Test } from '@nestjs/testing';
-import type { Metadata } from '@grpc/grpc-js';
-import type { RpcException } from '@nestjs/microservices';
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { newId, OrderStatus, Role } from '@brewlite/contracts';
 import type { Caller } from '@brewlite/nest-common';
-import { envSchema } from '../../src/config/env.schema.js';
-import { CatalogMenuGrpcClient } from '../../src/modules/orders/catalog-menu-grpc.client.js';
-import { CatalogStockGrpcClient } from '../../src/modules/orders/catalog-stock-grpc.client.js';
-import { OrdersModule } from '../../src/modules/orders/orders.module.js';
 import { OrdersService } from '../../src/modules/orders/orders.service.js';
-import { PrismaModule } from '../../src/modules/prisma/prisma.module.js';
 import { OrdersExpireJob } from '../../src/jobs/orders-expire.job.js';
+import {
+  buildCatalogMenuStub,
+  buildCatalogStockStub,
+  buildOrdersApp,
+  readError,
+} from './support/place-order.js';
 import { prisma } from '../setup/per-file.js';
-import { testEnv } from '../setup/env.js';
-
-function pricedLine(productId: string, priceVnd = 58_000) {
-  return {
-    productId,
-    productName: { en: 'Iced milk coffee', vi: 'Cà phê sữa đá' },
-    size: 'S',
-    basePriceVnd: priceVnd,
-    sizeDeltaVnd: 0,
-    toppings: [],
-    unitPriceVnd: priceVnd,
-    qty: 1,
-    lineTotalVnd: priceVnd,
-  };
-}
-
-function buildCatalogMenuStub() {
-  return {
-    priceItems: vi.fn().mockImplementation((request: { lines: { productId: string }[] }) => {
-      const lines = request.lines.map((l) => pricedLine(l.productId));
-      const subtotalVnd = lines.reduce((sum, l) => sum + l.lineTotalVnd, 0);
-      return Promise.resolve({ lines, subtotalVnd: String(subtotalVnd) });
-    }),
-  };
-}
-
-function buildCatalogStockStub() {
-  return {
-    reserveStock: vi.fn().mockResolvedValue({ reservations: [] }),
-    releaseStock: vi.fn().mockResolvedValue({ reservations: [] }),
-  };
-}
-
-async function buildModule(catalogMenu: unknown, catalogStock: unknown) {
-  const configModule = ConfigModule.forRoot({
-    isGlobal: true,
-    validate: () =>
-      envSchema.parse({
-        ...testEnv,
-        DATABASE_URL: testEnv.DATABASE_URL_TEST,
-      }),
-  });
-  const moduleRef = await Test.createTestingModule({
-    imports: [configModule, PrismaModule, OrdersModule],
-    providers: [OrdersExpireJob],
-  })
-    .overrideProvider(CatalogMenuGrpcClient)
-    .useValue(catalogMenu)
-    .overrideProvider(CatalogStockGrpcClient)
-    .useValue(catalogStock)
-    .compile();
-  const app = moduleRef.createNestApplication();
-  await app.init();
-  return app;
-}
-
-function errorCodeOf(exception: unknown): { code?: string; details?: Record<string, unknown> } {
-  if (!(exception && typeof exception === 'object' && 'getError' in exception)) return {};
-  const { metadata } = (exception as RpcException).getError() as { metadata: Metadata };
-  const code = metadata.get('bl-error-code')[0] as string | undefined;
-  const detailsBin = metadata.get('bl-error-details-bin')[0] as Buffer | undefined;
-  const details = detailsBin
-    ? (JSON.parse(detailsBin.toString('utf8')) as Record<string, unknown>)
-    : undefined;
-  return { code, details };
-}
 
 function request(overrides: Partial<Record<string, unknown>> = {}) {
   return {
@@ -107,15 +38,15 @@ async function seedPromotion(overrides: Partial<Record<string, unknown>> = {}) {
 }
 
 describe('promotions applied in quote and placeOrder — real DB, catalog stubbed', () => {
-  let app: Awaited<ReturnType<typeof buildModule>>;
+  let app: Awaited<ReturnType<typeof buildOrdersApp>>;
   let orders: OrdersService;
   let catalogMenu: ReturnType<typeof buildCatalogMenuStub>;
   let catalogStock: ReturnType<typeof buildCatalogStockStub>;
 
   beforeAll(async () => {
-    catalogMenu = buildCatalogMenuStub();
+    catalogMenu = buildCatalogMenuStub(58_000);
     catalogStock = buildCatalogStockStub();
-    app = await buildModule(catalogMenu, catalogStock);
+    app = await buildOrdersApp(catalogMenu, catalogStock);
     orders = app.get(OrdersService);
   });
 
@@ -163,8 +94,8 @@ describe('promotions applied in quote and placeOrder — real DB, catalog stubbe
       .quote(request({ promoCode: 'WELCOME10' }), caller)
       .catch((e: unknown) => e);
 
-    expect(errorCodeOf(error).code).toBe('PROMO_CODE_INVALID');
-    expect(errorCodeOf(error).details?.reason).toBe(reason);
+    expect(readError(error).code).toBe('PROMO_CODE_INVALID');
+    expect(readError(error).details?.reason).toBe(reason);
   });
 
   it('PER_USER_LIMIT refuses a second order by the same customer', async () => {
@@ -175,8 +106,8 @@ describe('promotions applied in quote and placeOrder — real DB, catalog stubbe
     const error = await orders
       .quote(request({ promoCode: 'WELCOME10' }), caller)
       .catch((e: unknown) => e);
-    expect(errorCodeOf(error).code).toBe('PROMO_CODE_INVALID');
-    expect(errorCodeOf(error).details?.reason).toBe('PER_USER_LIMIT');
+    expect(readError(error).code).toBe('PROMO_CODE_INVALID');
+    expect(readError(error).details?.reason).toBe('PER_USER_LIMIT');
   });
 
   it('place counts a use; cancelling gives it back and a second order succeeds', async () => {
@@ -238,8 +169,8 @@ describe('promotions applied in quote and placeOrder — real DB, catalog stubbe
     expect(succeeded).toHaveLength(1);
     expect(failed).toHaveLength(4);
     for (const f of failed) {
-      expect(errorCodeOf(f.reason).code).toBe('PROMO_CODE_INVALID');
-      expect(errorCodeOf(f.reason).details?.reason).toBe('EXHAUSTED');
+      expect(readError(f.reason).code).toBe('PROMO_CODE_INVALID');
+      expect(readError(f.reason).details?.reason).toBe('EXHAUSTED');
     }
 
     const final = await prisma.promotion.findUniqueOrThrow({ where: { id: promo.id } });

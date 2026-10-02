@@ -93,6 +93,7 @@ Each title is an **assertion**, not a topic, so this index reads as the rules th
 | [0026](./decisions/0026-the-ui-is-tailwind-with-daisyui.md) | The UI is Tailwind CSS 4 with DaisyUI |
 | [0028](./decisions/0028-the-ui-speaks-english-and-vietnamese-through-i18next.md) | The UI speaks English and Vietnamese through i18next; English is the default |
 | [0031](./decisions/0031-menu-content-is-written-in-english-and-vietnamese.md) | Menu content is written in English and in Vietnamese, as column pairs |
+| [0032](./decisions/0032-the-web-app-is-an-installable-pwa-whose-service-worker-caches-no-data.md) | The web app is an installable PWA whose service worker caches no data |
 | [0024](./decisions/0024-vitest-is-the-only-test-runner.md) | Vitest runs every non-browser test; integration tests use paired test databases |
 
 ---

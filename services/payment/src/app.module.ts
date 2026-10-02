@@ -35,7 +35,7 @@ import { OutboxPruneJob } from './jobs/outbox-prune.job.js';
             return false;
           }
         },
-        new NatsConnectionTracker(nc).readinessCheck(),
+        new NatsConnectionTracker(nc).start().readinessCheck(),
         redisPingCheck(redis),
       ],
     }),

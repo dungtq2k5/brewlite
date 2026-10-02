@@ -1,16 +1,10 @@
-import { generateKeyPairSync } from 'node:crypto';
-import { JwtService } from '@nestjs/jwt';
-import { Test } from '@nestjs/testing';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import request from 'supertest';
+import { createE2eApp, type E2eApp } from './support/e2e-app.js';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { JWT_AUDIENCE, JWT_ISSUER, newId } from '@brewlite/contracts';
+import { newId } from '@brewlite/contracts';
 import { CatalogServiceGrpcClient } from '../../src/modules/catalog/catalog-service-grpc.client.js';
 import { IdentityServiceGrpcClient } from '../../src/modules/auth/identity-service-grpc.client.js';
-
-const { privateKey, publicKey } = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
-const privateKeyPem = privateKey.export({ type: 'pkcs8', format: 'pem' }).toString();
-const publicKeyPem = publicKey.export({ type: 'spki', format: 'pem' }).toString();
 
 const identityClientStub = { getMe: vi.fn(), updateMe: vi.fn() };
 
@@ -27,42 +21,20 @@ function meProto(overrides: Partial<Record<string, unknown>> = {}) {
   };
 }
 
-async function buildApp() {
-  process.env.JWT_PUBLIC_KEY = Buffer.from(publicKeyPem, 'utf8').toString('base64');
-  const { AppModule } = await import('../../src/app.module.js');
-  const { configureApp } = await import('../../src/configure-app.js');
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
-    .overrideProvider(CatalogServiceGrpcClient)
-    .useValue({ listCategories: vi.fn(), listProducts: vi.fn(), getProduct: vi.fn() })
-    .overrideProvider(IdentityServiceGrpcClient)
-    .useValue(identityClientStub)
-    .compile();
-
-  const app = moduleRef.createNestApplication<NestExpressApplication>({ rawBody: true });
-  configureApp(app);
-  await app.init();
-  return app;
-}
-
-function signAccessToken(userId: string, role = 'CUSTOMER') {
-  const jwt = new JwtService();
-  return jwt.sign(
-    { sub: userId, role, sid: newId() },
-    {
-      algorithm: 'ES256',
-      privateKey: privateKeyPem,
-      issuer: JWT_ISSUER,
-      audience: JWT_AUDIENCE,
-      expiresIn: 900,
-    },
-  );
-}
-
 describe('gateway e2e — /users/me routes', () => {
   let app: NestExpressApplication;
+  let e2e: E2eApp;
+  const tokenFor = (userId: string, role = 'CUSTOMER') => e2e.tokenFor(role, userId);
 
   beforeAll(async () => {
-    app = await buildApp();
+    e2e = await createE2eApp([
+      [
+        CatalogServiceGrpcClient,
+        { listCategories: vi.fn(), listProducts: vi.fn(), getProduct: vi.fn() },
+      ],
+      [IdentityServiceGrpcClient, identityClientStub],
+    ]);
+    app = e2e.app;
   });
 
   afterEach(() => {
@@ -71,8 +43,7 @@ describe('gateway e2e — /users/me routes', () => {
   });
 
   afterAll(async () => {
-    delete process.env.JWT_PUBLIC_KEY;
-    await app.close();
+    await e2e.close();
   });
 
   it('GET /users/me — 200 Me, Cache-Control private no-store', async () => {
@@ -80,7 +51,7 @@ describe('gateway e2e — /users/me routes', () => {
     identityClientStub.getMe.mockResolvedValue({ me: meProto({ id: userId }) });
     const res = await request(app.getHttpServer())
       .get('/api/v1/users/me')
-      .set('Authorization', `Bearer ${signAccessToken(userId)}`);
+      .set('Authorization', `Bearer ${tokenFor(userId)}`);
     expect(res.status).toBe(200);
     expect(res.body.data.id).toBe(userId);
     expect(res.headers['cache-control']).toBe('private, no-store');
@@ -99,7 +70,7 @@ describe('gateway e2e — /users/me routes', () => {
     });
     const res = await request(app.getHttpServer())
       .patch('/api/v1/users/me')
-      .set('Authorization', `Bearer ${signAccessToken(userId)}`)
+      .set('Authorization', `Bearer ${tokenFor(userId)}`)
       .send({ fullName: 'New Name' });
     expect(res.status).toBe(200);
     expect(res.body.data.fullName).toBe('New Name');
@@ -110,7 +81,7 @@ describe('gateway e2e — /users/me routes', () => {
     identityClientStub.getMe.mockResolvedValue({ me: meProto({ id: userId, role: 'STAFF' }) });
     const res = await request(app.getHttpServer())
       .get('/api/v1/users/me')
-      .set('Authorization', `Bearer ${signAccessToken(userId, 'STAFF')}`);
+      .set('Authorization', `Bearer ${tokenFor(userId, 'STAFF')}`);
     expect(res.status).toBe(200);
     expect(res.body.data.permissions).toEqual([
       'stock.update',

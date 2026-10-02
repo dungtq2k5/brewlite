@@ -36,4 +36,12 @@ const idToken = await getEmulatorIdToken({
   name: values.name ?? null,
 });
 
+// Printed only if it is a JWT (the emulator's tokens are unsigned, so the third segment may
+// be empty) — nothing else the network returned reaches the terminal, and the refusal does
+// not echo it.
+if (!/^[\w-]+\.[\w-]+\.[\w-]*$/.test(idToken)) {
+  console.error('the emulator did not return a JWT');
+  process.exit(1);
+}
+
 console.log(idToken);

@@ -64,7 +64,7 @@ A customer opens BrewLite in a browser — in English by default, or Vietnamese 
 
 ## 3. Product surfaces
 
-**One Next.js app, three areas, route-level RBAC** ([ADR 0014](./decisions/0014-the-web-server-is-the-gateways-only-client.md)). Mobile-first layout — most customers order on a phone — but it is a website, not an installed app.
+**One Next.js app, three areas, route-level RBAC** ([ADR 0014](./decisions/0014-the-web-server-is-the-gateways-only-client.md)). Mobile-first layout — most customers order on a phone — and it is an **installable PWA**: added to the home screen it opens full screen, but it orders only online — nothing is ordered, priced or paid offline ([ADR 0032](./decisions/0032-the-web-app-is-an-installable-pwa-whose-service-worker-caches-no-data.md)).
 
 ### 3.1 Customer pages (A1, A2) — the product
 

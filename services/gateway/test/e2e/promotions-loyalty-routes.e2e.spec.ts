@@ -1,21 +1,10 @@
-import { generateKeyPairSync } from 'node:crypto';
-import { JwtService } from '@nestjs/jwt';
-import { Test } from '@nestjs/testing';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import request from 'supertest';
+import { createE2eApp, type E2eApp } from './support/e2e-app.js';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { JWT_AUDIENCE, JWT_ISSUER, newId } from '@brewlite/contracts';
-import { CatalogServiceGrpcClient } from '../../src/modules/catalog/catalog-service-grpc.client.js';
-import { CatalogStockGrpcClient } from '../../src/modules/catalog/catalog-stock-grpc.client.js';
-import { CatalogAdminGrpcClient } from '../../src/modules/catalog/catalog-admin-grpc.client.js';
-import { OrderingServiceGrpcClient } from '../../src/modules/orders/ordering-service-grpc.client.js';
-import { IdentityServiceGrpcClient } from '../../src/modules/auth/identity-service-grpc.client.js';
+import { newId } from '@brewlite/contracts';
 import { PromotionAdminGrpcClient } from '../../src/modules/promotions/promotion-admin-grpc.client.js';
 import { LoyaltyGrpcClient } from '../../src/modules/loyalty/loyalty-grpc.client.js';
-
-const { privateKey, publicKey } = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
-const privateKeyPem = privateKey.export({ type: 'pkcs8', format: 'pem' }).toString();
-const publicKeyPem = publicKey.export({ type: 'spki', format: 'pem' }).toString();
 
 const promotionAdminStub = {
   listPromotions: vi.fn(),
@@ -48,52 +37,16 @@ function promotionProto(overrides: Partial<Record<string, unknown>> = {}) {
   };
 }
 
-async function buildApp() {
-  process.env.JWT_PUBLIC_KEY = Buffer.from(publicKeyPem, 'utf8').toString('base64');
-  const { AppModule } = await import('../../src/app.module.js');
-  const { configureApp } = await import('../../src/configure-app.js');
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
-    .overrideProvider(CatalogServiceGrpcClient)
-    .useValue({})
-    .overrideProvider(CatalogStockGrpcClient)
-    .useValue({})
-    .overrideProvider(CatalogAdminGrpcClient)
-    .useValue({})
-    .overrideProvider(IdentityServiceGrpcClient)
-    .useValue({})
-    .overrideProvider(OrderingServiceGrpcClient)
-    .useValue({})
-    .overrideProvider(PromotionAdminGrpcClient)
-    .useValue(promotionAdminStub)
-    .overrideProvider(LoyaltyGrpcClient)
-    .useValue(loyaltyStub)
-    .compile();
-
-  const app = moduleRef.createNestApplication<NestExpressApplication>({ rawBody: true });
-  configureApp(app);
-  await app.init();
-  return app;
-}
-
-function signAccessToken(role: string) {
-  const jwt = new JwtService();
-  return jwt.sign(
-    { sub: newId(), role, sid: newId() },
-    {
-      algorithm: 'ES256',
-      privateKey: privateKeyPem,
-      issuer: JWT_ISSUER,
-      audience: JWT_AUDIENCE,
-      expiresIn: 900,
-    },
-  );
-}
-
 describe('gateway e2e — /admin/promotions and /loyalty routes', () => {
   let app: NestExpressApplication;
+  let e2e: E2eApp;
 
   beforeAll(async () => {
-    app = await buildApp();
+    e2e = await createE2eApp([
+      [PromotionAdminGrpcClient, promotionAdminStub],
+      [LoyaltyGrpcClient, loyaltyStub],
+    ]);
+    app = e2e.app;
   });
 
   afterEach(() => {
@@ -102,14 +55,13 @@ describe('gateway e2e — /admin/promotions and /loyalty routes', () => {
   });
 
   afterAll(async () => {
-    delete process.env.JWT_PUBLIC_KEY;
-    await app.close();
+    await e2e.close();
   });
 
   it('GET /admin/promotions refused to STAFF — 403', async () => {
     const res = await request(app.getHttpServer())
       .get('/api/v1/admin/promotions')
-      .set('Authorization', `Bearer ${signAccessToken('STAFF')}`);
+      .set('Authorization', `Bearer ${e2e.tokenFor('STAFF')}`);
     expect(res.status).toBe(403);
     expect(promotionAdminStub.listPromotions).not.toHaveBeenCalled();
   });
@@ -118,7 +70,7 @@ describe('gateway e2e — /admin/promotions and /loyalty routes', () => {
     promotionAdminStub.createPromotion.mockResolvedValueOnce({ promotion: promotionProto() });
     const res = await request(app.getHttpServer())
       .post('/api/v1/admin/promotions')
-      .set('Authorization', `Bearer ${signAccessToken('ADMIN')}`)
+      .set('Authorization', `Bearer ${e2e.tokenFor('ADMIN')}`)
       .send({
         code: 'welcome10',
         discountType: 'PERCENT',
@@ -133,7 +85,7 @@ describe('gateway e2e — /admin/promotions and /loyalty routes', () => {
   it('PATCH /admin/promotions/:id with discountValue — 400 VALIDATION_FAILED (.strict() refuses it)', async () => {
     const res = await request(app.getHttpServer())
       .patch(`/api/v1/admin/promotions/${newId()}`)
-      .set('Authorization', `Bearer ${signAccessToken('ADMIN')}`)
+      .set('Authorization', `Bearer ${e2e.tokenFor('ADMIN')}`)
       .send({ discountValue: 50 });
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_FAILED');
@@ -150,7 +102,7 @@ describe('gateway e2e — /admin/promotions and /loyalty routes', () => {
     loyaltyStub.getMyLoyalty.mockResolvedValueOnce({ balance: 5, lifetimeEarned: 5, recent: [] });
     const res = await request(app.getHttpServer())
       .get('/api/v1/loyalty/me')
-      .set('Authorization', `Bearer ${signAccessToken('CUSTOMER')}`);
+      .set('Authorization', `Bearer ${e2e.tokenFor('CUSTOMER')}`);
     expect(res.status).toBe(200);
     expect(res.body.data.balance).toBe(5);
   });

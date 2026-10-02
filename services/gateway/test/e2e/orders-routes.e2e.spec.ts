@@ -1,19 +1,9 @@
-import { generateKeyPairSync } from 'node:crypto';
-import { JwtService } from '@nestjs/jwt';
-import { Test } from '@nestjs/testing';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import request from 'supertest';
+import { createE2eApp, type E2eApp } from './support/e2e-app.js';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { JWT_AUDIENCE, JWT_ISSUER, newId } from '@brewlite/contracts';
-import { CatalogServiceGrpcClient } from '../../src/modules/catalog/catalog-service-grpc.client.js';
-import { CatalogStockGrpcClient } from '../../src/modules/catalog/catalog-stock-grpc.client.js';
-import { CatalogAdminGrpcClient } from '../../src/modules/catalog/catalog-admin-grpc.client.js';
+import { newId } from '@brewlite/contracts';
 import { OrderingServiceGrpcClient } from '../../src/modules/orders/ordering-service-grpc.client.js';
-import { IdentityServiceGrpcClient } from '../../src/modules/auth/identity-service-grpc.client.js';
-
-const { privateKey, publicKey } = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
-const privateKeyPem = privateKey.export({ type: 'pkcs8', format: 'pem' }).toString();
-const publicKeyPem = publicKey.export({ type: 'spki', format: 'pem' }).toString();
 
 const orderingClientStub = {
   quote: vi.fn(),
@@ -60,48 +50,13 @@ function orderProto(overrides: Partial<Record<string, unknown>> = {}) {
   };
 }
 
-async function buildApp() {
-  process.env.JWT_PUBLIC_KEY = Buffer.from(publicKeyPem, 'utf8').toString('base64');
-  const { AppModule } = await import('../../src/app.module.js');
-  const { configureApp } = await import('../../src/configure-app.js');
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
-    .overrideProvider(CatalogServiceGrpcClient)
-    .useValue({})
-    .overrideProvider(CatalogStockGrpcClient)
-    .useValue({})
-    .overrideProvider(CatalogAdminGrpcClient)
-    .useValue({})
-    .overrideProvider(IdentityServiceGrpcClient)
-    .useValue({})
-    .overrideProvider(OrderingServiceGrpcClient)
-    .useValue(orderingClientStub)
-    .compile();
-
-  const app = moduleRef.createNestApplication<NestExpressApplication>({ rawBody: true });
-  configureApp(app);
-  await app.init();
-  return app;
-}
-
-function signAccessToken(role: string) {
-  const jwt = new JwtService();
-  return jwt.sign(
-    { sub: newId(), role, sid: newId() },
-    {
-      algorithm: 'ES256',
-      privateKey: privateKeyPem,
-      issuer: JWT_ISSUER,
-      audience: JWT_AUDIENCE,
-      expiresIn: 900,
-    },
-  );
-}
-
 describe('gateway e2e — /orders routes', () => {
   let app: NestExpressApplication;
+  let e2e: E2eApp;
 
   beforeAll(async () => {
-    app = await buildApp();
+    e2e = await createE2eApp([[OrderingServiceGrpcClient, orderingClientStub]]);
+    app = e2e.app;
   });
 
   afterEach(() => {
@@ -109,8 +64,7 @@ describe('gateway e2e — /orders routes', () => {
   });
 
   afterAll(async () => {
-    delete process.env.JWT_PUBLIC_KEY;
-    await app.close();
+    await e2e.close();
   });
 
   const validBody = {
@@ -120,7 +74,7 @@ describe('gateway e2e — /orders routes', () => {
   it('POST /orders with no Idempotency-Key — 400 IDEMPOTENCY_KEY_REQUIRED', async () => {
     const res = await request(app.getHttpServer())
       .post('/api/v1/orders')
-      .set('Authorization', `Bearer ${signAccessToken('CUSTOMER')}`)
+      .set('Authorization', `Bearer ${e2e.tokenFor('CUSTOMER')}`)
       .send(validBody);
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('IDEMPOTENCY_KEY_REQUIRED');
@@ -130,7 +84,7 @@ describe('gateway e2e — /orders routes', () => {
   it('POST /orders with a v4 Idempotency-Key — 400 IDEMPOTENCY_KEY_REQUIRED', async () => {
     const res = await request(app.getHttpServer())
       .post('/api/v1/orders')
-      .set('Authorization', `Bearer ${signAccessToken('CUSTOMER')}`)
+      .set('Authorization', `Bearer ${e2e.tokenFor('CUSTOMER')}`)
       .set('Idempotency-Key', '3fa85f64-5717-4562-b3fc-2c963f66afa6') // a v4 UUID
       .send(validBody);
     expect(res.status).toBe(400);
@@ -142,7 +96,7 @@ describe('gateway e2e — /orders routes', () => {
     orderingClientStub.placeOrder.mockResolvedValueOnce({ order: orderProto(), created: true });
     const created = await request(app.getHttpServer())
       .post('/api/v1/orders')
-      .set('Authorization', `Bearer ${signAccessToken('CUSTOMER')}`)
+      .set('Authorization', `Bearer ${e2e.tokenFor('CUSTOMER')}`)
       .set('Idempotency-Key', newId())
       .send(validBody);
     expect(created.status).toBe(201);
@@ -150,7 +104,7 @@ describe('gateway e2e — /orders routes', () => {
     orderingClientStub.placeOrder.mockResolvedValueOnce({ order: orderProto(), created: false });
     const replayed = await request(app.getHttpServer())
       .post('/api/v1/orders')
-      .set('Authorization', `Bearer ${signAccessToken('CUSTOMER')}`)
+      .set('Authorization', `Bearer ${e2e.tokenFor('CUSTOMER')}`)
       .set('Idempotency-Key', newId())
       .send(validBody);
     expect(replayed.status).toBe(200);
@@ -159,7 +113,7 @@ describe('gateway e2e — /orders routes', () => {
   it('pointsToRedeem in the body — 400 VALIDATION_FAILED (.strict() refuses it)', async () => {
     const res = await request(app.getHttpServer())
       .post('/api/v1/orders')
-      .set('Authorization', `Bearer ${signAccessToken('CUSTOMER')}`)
+      .set('Authorization', `Bearer ${e2e.tokenFor('CUSTOMER')}`)
       .set('Idempotency-Key', newId())
       .send({ ...validBody, pointsToRedeem: 10 });
     expect(res.status).toBe(400);
@@ -174,7 +128,7 @@ describe('gateway e2e — /orders routes', () => {
     });
     const res = await request(app.getHttpServer())
       .get('/api/v1/orders/me')
-      .set('Authorization', `Bearer ${signAccessToken('CUSTOMER')}`);
+      .set('Authorization', `Bearer ${e2e.tokenFor('CUSTOMER')}`);
     expect(res.status).toBe(200);
     expect(orderingClientStub.listMyOrders).toHaveBeenCalledTimes(1);
     expect(orderingClientStub.getOrder).not.toHaveBeenCalled();
@@ -183,7 +137,7 @@ describe('gateway e2e — /orders routes', () => {
   it('GET /orders/:id with a malformed id — 400 VALIDATION_FAILED', async () => {
     const res = await request(app.getHttpServer())
       .get('/api/v1/orders/not-a-uuid')
-      .set('Authorization', `Bearer ${signAccessToken('CUSTOMER')}`);
+      .set('Authorization', `Bearer ${e2e.tokenFor('CUSTOMER')}`);
     expect(res.status).toBe(400);
   });
 
@@ -193,7 +147,7 @@ describe('gateway e2e — /orders routes', () => {
     });
     const res = await request(app.getHttpServer())
       .post(`/api/v1/orders/${newId()}/cancel`)
-      .set('Authorization', `Bearer ${signAccessToken('CUSTOMER')}`);
+      .set('Authorization', `Bearer ${e2e.tokenFor('CUSTOMER')}`);
     expect(res.status).toBe(200);
     expect(res.body.data.status).toBe('CANCELLED');
   });

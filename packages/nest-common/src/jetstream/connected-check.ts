@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { Events, type NatsConnection } from 'nats';
 import type { ReadinessCheck } from '../health/readiness.js';
 
@@ -9,10 +10,19 @@ import type { ReadinessCheck } from '../health/readiness.js';
  * (api-endpoints-plan §11).
  */
 export class NatsConnectionTracker {
+  private readonly logger = new Logger(NatsConnectionTracker.name);
   private connected = true;
+  private watcher?: Promise<void>;
 
-  constructor(private readonly nc: NatsConnection) {
-    void this.watch();
+  constructor(private readonly nc: NatsConnection) {}
+
+  /** Starts watching, once; chainable. A watcher that fails marks the tracker not ready. */
+  start(): this {
+    this.watcher ??= this.watch().catch((error: unknown) => {
+      this.connected = false;
+      this.logger.error({ err: error }, 'NATS status watcher stopped — reporting not ready');
+    });
+    return this;
   }
 
   private async watch(): Promise<void> {

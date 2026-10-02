@@ -37,7 +37,7 @@ import { ReservationsReleaseOrphansJob } from './jobs/reservations-release-orpha
             return false;
           }
         },
-        new NatsConnectionTracker(nc).readinessCheck(),
+        new NatsConnectionTracker(nc).start().readinessCheck(),
         redisPingCheck(redis),
       ],
     }),

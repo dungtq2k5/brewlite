@@ -186,6 +186,7 @@ export const baseConfig = tseslint.config(
           '**/vitest.config.mts',
           '**/test/setup/**',
           '**/test/support/**',
+          '**/test/e2e/support/**',
           '**/scripts/**',
           // Deliberately redirects a client to an unreachable port for one e2e case.
           '**/catalog-unavailable.e2e.spec.ts',
@@ -195,14 +196,6 @@ export const baseConfig = tseslint.config(
           '**/auth-guard-production.e2e.spec.ts',
           '**/route-markers.e2e.spec.ts',
           '**/rate-limit-redis-down.e2e.spec.ts',
-          '**/users-routes.e2e.spec.ts',
-          '**/admin-users.e2e.spec.ts',
-          '**/staff-routes.e2e.spec.ts',
-          '**/admin-catalog.e2e.spec.ts',
-          '**/orders-routes.e2e.spec.ts',
-          '**/payments-routes.e2e.spec.ts',
-          '**/staff-orders-events.e2e.spec.ts',
-          '**/promotions-loyalty-routes.e2e.spec.ts',
         ],
         rules: {
           'no-restricted-syntax': [

@@ -1,28 +1,19 @@
-import { generateKeyPairSync } from 'node:crypto';
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { JwtService } from '@nestjs/jwt';
-import { Test } from '@nestjs/testing';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import request from 'supertest';
+import { createE2eApp, type E2eApp } from './support/e2e-app.js';
 import { Subject } from 'rxjs';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { JWT_AUDIENCE, JWT_ISSUER, newId, OrderStatus } from '@brewlite/contracts';
+import { newId, OrderStatus } from '@brewlite/contracts';
 import { rpcError } from '@brewlite/nest-common';
-import { CatalogServiceGrpcClient } from '../../src/modules/catalog/catalog-service-grpc.client.js';
-import { CatalogStockGrpcClient } from '../../src/modules/catalog/catalog-stock-grpc.client.js';
-import { CatalogAdminGrpcClient } from '../../src/modules/catalog/catalog-admin-grpc.client.js';
-import { IdentityServiceGrpcClient } from '../../src/modules/auth/identity-service-grpc.client.js';
 import { OrderingServiceGrpcClient } from '../../src/modules/orders/ordering-service-grpc.client.js';
-import { PaymentServiceGrpcClient } from '../../src/modules/payments/payment-service-grpc.client.js';
 import { StaffOrdersGrpcClient } from '../../src/modules/staff-orders/staff-orders-grpc.client.js';
 import { OrderEventsSource } from '../../src/events/order-events.source.js';
 import type { OrderStatusFrame } from '../../src/events/order-status-frame.js';
 
-const { privateKey, publicKey } = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
-const privateKeyPem = privateKey.export({ type: 'pkcs8', format: 'pem' }).toString();
-const publicKeyPem = publicKey.export({ type: 'spki', format: 'pem' }).toString();
-
+let e2e: E2eApp;
+const token = (role: string, sub?: string) => e2e.tokenFor(role, sub);
 const frames = new Subject<OrderStatusFrame>();
 const sourceStub = {
   frames$: frames.asObservable(),
@@ -30,47 +21,6 @@ const sourceStub = {
 };
 const orderingStub = { getOrder: vi.fn() };
 const staffOrdersStub = { listBoard: vi.fn(), advanceStatus: vi.fn(), cancelPaid: vi.fn() };
-
-async function buildApp() {
-  process.env.JWT_PUBLIC_KEY = Buffer.from(publicKeyPem, 'utf8').toString('base64');
-  const { AppModule } = await import('../../src/app.module.js');
-  const { configureApp } = await import('../../src/configure-app.js');
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
-    .overrideProvider(CatalogServiceGrpcClient)
-    .useValue({})
-    .overrideProvider(CatalogStockGrpcClient)
-    .useValue({})
-    .overrideProvider(CatalogAdminGrpcClient)
-    .useValue({})
-    .overrideProvider(IdentityServiceGrpcClient)
-    .useValue({})
-    .overrideProvider(PaymentServiceGrpcClient)
-    .useValue({})
-    .overrideProvider(OrderingServiceGrpcClient)
-    .useValue(orderingStub)
-    .overrideProvider(StaffOrdersGrpcClient)
-    .useValue(staffOrdersStub)
-    .overrideProvider(OrderEventsSource)
-    .useValue(sourceStub)
-    .compile();
-  const app = moduleRef.createNestApplication<NestExpressApplication>({ rawBody: true });
-  configureApp(app);
-  await app.listen(0);
-  return app;
-}
-
-function token(role: string, sub = newId()) {
-  return new JwtService().sign(
-    { sub, role, sid: newId() },
-    {
-      algorithm: 'ES256',
-      privateKey: privateKeyPem,
-      issuer: JWT_ISSUER,
-      audience: JWT_AUDIENCE,
-      expiresIn: 900,
-    },
-  );
-}
 
 interface OpenStream {
   status: number;
@@ -131,7 +81,15 @@ describe('gateway e2e — SSE streams and /staff/orders', () => {
   let app: NestExpressApplication;
 
   beforeAll(async () => {
-    app = await buildApp();
+    e2e = await createE2eApp(
+      [
+        [OrderingServiceGrpcClient, orderingStub],
+        [StaffOrdersGrpcClient, staffOrdersStub],
+        [OrderEventsSource, sourceStub],
+      ],
+      { listen: true },
+    );
+    app = e2e.app;
   });
 
   afterEach(() => {
@@ -141,8 +99,7 @@ describe('gateway e2e — SSE streams and /staff/orders', () => {
   });
 
   afterAll(async () => {
-    delete process.env.JWT_PUBLIC_KEY;
-    await app.close();
+    await e2e.close();
   });
 
   const openOrder = (status: string) => ({ order: { id: newId(), status } });
@@ -234,7 +191,8 @@ describe('gateway e2e — SSE streams and /staff/orders', () => {
   });
 
   it('shutdown ends every open stream', async () => {
-    const other = await buildApp();
+    const second = await createE2eApp([[OrderEventsSource, sourceStub]], { listen: true });
+    const other = second.app;
     // Same stub source, separate app: closing it must end its own open stream.
     const stream = await openStream(other, '/api/v1/staff/orders/events', token('STAFF'));
     await other.close();

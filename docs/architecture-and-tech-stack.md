@@ -301,6 +301,7 @@ One Redis 8 container, `maxmemory-policy noeviction` (BullMQ requires it). Key p
 - **Forms:** plain `<form action={serverAction}>` with `useActionState`; the Orval-generated zod schema validates on the server (and optionally on the client for instant feedback). No form library.
 - **Languages:** the UI speaks **English (default) and Vietnamese** through **i18next** (§4.7); the code and the docs are English.
 - **Routes:** route groups `(customer)`, `staff/`, `admin/`, each with its own layout; see product-overview §3.
+- **Installable PWA** ([ADR 0032](./decisions/0032-the-web-app-is-an-installable-pwa-whose-service-worker-caches-no-data.md)): `app/manifest.ts`, and one hand-written `public/sw.js` that caches **only** content-hashed `/_next/static/*`, icons and fonts, and serves an offline page when a navigation fails. Documents, Server Actions, Route Handlers (the event streams) and cross-origin requests always go to the network.
 
 ### 4.2 The web server is the BFF
 

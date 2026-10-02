@@ -50,7 +50,7 @@ export class OrderEventsSource implements OnModuleInit, OnApplicationShutdown {
         this.nc ??= await connectNats(this.config.get('NATS_URL', { infer: true }), {
           resilient: true,
         });
-        this.tracker ??= new NatsConnectionTracker(this.nc);
+        this.tracker ??= new NatsConnectionTracker(this.nc).start();
         const jsm = await this.nc.jetstreamManager();
         await ensureStreams(jsm, ['ORDERING']);
         const consumer = await this.nc.jetstream().consumers.get('ORDERING', {

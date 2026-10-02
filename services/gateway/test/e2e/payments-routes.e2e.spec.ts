@@ -1,21 +1,10 @@
-import { generateKeyPairSync } from 'node:crypto';
-import { JwtService } from '@nestjs/jwt';
-import { Test } from '@nestjs/testing';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import request from 'supertest';
+import { createE2eApp, type E2eApp } from './support/e2e-app.js';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { JWT_AUDIENCE, JWT_ISSUER, newId } from '@brewlite/contracts';
-import { CatalogServiceGrpcClient } from '../../src/modules/catalog/catalog-service-grpc.client.js';
-import { CatalogStockGrpcClient } from '../../src/modules/catalog/catalog-stock-grpc.client.js';
-import { CatalogAdminGrpcClient } from '../../src/modules/catalog/catalog-admin-grpc.client.js';
-import { OrderingServiceGrpcClient } from '../../src/modules/orders/ordering-service-grpc.client.js';
-import { IdentityServiceGrpcClient } from '../../src/modules/auth/identity-service-grpc.client.js';
+import { newId } from '@brewlite/contracts';
 import { PaymentServiceGrpcClient } from '../../src/modules/payments/payment-service-grpc.client.js';
 import { WebhookServiceGrpcClient } from '../../src/modules/payments/webhook-service-grpc.client.js';
-
-const { privateKey, publicKey } = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
-const privateKeyPem = privateKey.export({ type: 'pkcs8', format: 'pem' }).toString();
-const publicKeyPem = publicKey.export({ type: 'spki', format: 'pem' }).toString();
 
 const paymentClientStub = {
   createPayment: vi.fn(),
@@ -40,52 +29,16 @@ function paymentProto(overrides: Partial<Record<string, unknown>> = {}) {
   };
 }
 
-async function buildApp() {
-  process.env.JWT_PUBLIC_KEY = Buffer.from(publicKeyPem, 'utf8').toString('base64');
-  const { AppModule } = await import('../../src/app.module.js');
-  const { configureApp } = await import('../../src/configure-app.js');
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
-    .overrideProvider(CatalogServiceGrpcClient)
-    .useValue({})
-    .overrideProvider(CatalogStockGrpcClient)
-    .useValue({})
-    .overrideProvider(CatalogAdminGrpcClient)
-    .useValue({})
-    .overrideProvider(IdentityServiceGrpcClient)
-    .useValue({})
-    .overrideProvider(OrderingServiceGrpcClient)
-    .useValue({})
-    .overrideProvider(PaymentServiceGrpcClient)
-    .useValue(paymentClientStub)
-    .overrideProvider(WebhookServiceGrpcClient)
-    .useValue(webhookClientStub)
-    .compile();
-
-  const app = moduleRef.createNestApplication<NestExpressApplication>({ rawBody: true });
-  configureApp(app);
-  await app.init();
-  return app;
-}
-
-function signAccessToken(role: string) {
-  const jwt = new JwtService();
-  return jwt.sign(
-    { sub: newId(), role, sid: newId() },
-    {
-      algorithm: 'ES256',
-      privateKey: privateKeyPem,
-      issuer: JWT_ISSUER,
-      audience: JWT_AUDIENCE,
-      expiresIn: 900,
-    },
-  );
-}
-
 describe('gateway e2e — /payments routes', () => {
   let app: NestExpressApplication;
+  let e2e: E2eApp;
 
   beforeAll(async () => {
-    app = await buildApp();
+    e2e = await createE2eApp([
+      [PaymentServiceGrpcClient, paymentClientStub],
+      [WebhookServiceGrpcClient, webhookClientStub],
+    ]);
+    app = e2e.app;
   });
 
   afterEach(() => {
@@ -94,14 +47,13 @@ describe('gateway e2e — /payments routes', () => {
   });
 
   afterAll(async () => {
-    delete process.env.JWT_PUBLIC_KEY;
-    await app.close();
+    await e2e.close();
   });
 
   it('POST /payments with no Idempotency-Key — 400 IDEMPOTENCY_KEY_REQUIRED', async () => {
     const res = await request(app.getHttpServer())
       .post('/api/v1/payments')
-      .set('Authorization', `Bearer ${signAccessToken('CUSTOMER')}`)
+      .set('Authorization', `Bearer ${e2e.tokenFor('CUSTOMER')}`)
       .send({ orderId: newId() });
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('IDEMPOTENCY_KEY_REQUIRED');
@@ -115,7 +67,7 @@ describe('gateway e2e — /payments routes', () => {
     });
     const created = await request(app.getHttpServer())
       .post('/api/v1/payments')
-      .set('Authorization', `Bearer ${signAccessToken('CUSTOMER')}`)
+      .set('Authorization', `Bearer ${e2e.tokenFor('CUSTOMER')}`)
       .set('Idempotency-Key', newId())
       .send({ orderId: newId() });
     expect(created.status).toBe(201);
@@ -126,7 +78,7 @@ describe('gateway e2e — /payments routes', () => {
     });
     const replayed = await request(app.getHttpServer())
       .post('/api/v1/payments')
-      .set('Authorization', `Bearer ${signAccessToken('CUSTOMER')}`)
+      .set('Authorization', `Bearer ${e2e.tokenFor('CUSTOMER')}`)
       .set('Idempotency-Key', newId())
       .send({ orderId: newId() });
     expect(replayed.status).toBe(200);
@@ -135,7 +87,7 @@ describe('gateway e2e — /payments routes', () => {
   it('a client-secret field in the body — 400 VALIDATION_FAILED (.strict() refuses it)', async () => {
     const res = await request(app.getHttpServer())
       .post('/api/v1/payments')
-      .set('Authorization', `Bearer ${signAccessToken('CUSTOMER')}`)
+      .set('Authorization', `Bearer ${e2e.tokenFor('CUSTOMER')}`)
       .set('Idempotency-Key', newId())
       .send({ orderId: newId(), clientSecret: 'nope' });
     expect(res.status).toBe(400);
@@ -146,7 +98,7 @@ describe('gateway e2e — /payments routes', () => {
   it('GET /payments/:id with a malformed id — 400 VALIDATION_FAILED', async () => {
     const res = await request(app.getHttpServer())
       .get('/api/v1/payments/not-a-uuid')
-      .set('Authorization', `Bearer ${signAccessToken('CUSTOMER')}`);
+      .set('Authorization', `Bearer ${e2e.tokenFor('CUSTOMER')}`);
     expect(res.status).toBe(400);
   });
 
@@ -154,7 +106,7 @@ describe('gateway e2e — /payments routes', () => {
     paymentClientStub.getPayment.mockResolvedValueOnce({ payment: paymentProto() });
     const res = await request(app.getHttpServer())
       .get(`/api/v1/payments/${newId()}`)
-      .set('Authorization', `Bearer ${signAccessToken('CUSTOMER')}`);
+      .set('Authorization', `Bearer ${e2e.tokenFor('CUSTOMER')}`);
     expect(res.status).toBe(200);
     expect(res.body.data.status).toBe('PENDING');
   });
@@ -165,7 +117,7 @@ describe('gateway e2e — /payments routes', () => {
     });
     const res = await request(app.getHttpServer())
       .post(`/api/v1/payments/${newId()}/fake-confirm`)
-      .set('Authorization', `Bearer ${signAccessToken('CUSTOMER')}`)
+      .set('Authorization', `Bearer ${e2e.tokenFor('CUSTOMER')}`)
       .send({ outcome: 'SUCCEEDED' });
     expect(res.status).toBe(200);
     expect(res.body.data.status).toBe('SUCCEEDED');
@@ -174,7 +126,7 @@ describe('gateway e2e — /payments routes', () => {
   it('POST /payments/:id/fake-confirm with a bad outcome — 400 VALIDATION_FAILED', async () => {
     const res = await request(app.getHttpServer())
       .post(`/api/v1/payments/${newId()}/fake-confirm`)
-      .set('Authorization', `Bearer ${signAccessToken('CUSTOMER')}`)
+      .set('Authorization', `Bearer ${e2e.tokenFor('CUSTOMER')}`)
       .send({ outcome: 'MAYBE' });
     expect(res.status).toBe(400);
     expect(paymentClientStub.fakeConfirm).not.toHaveBeenCalled();
