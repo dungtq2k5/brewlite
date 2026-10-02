@@ -14,6 +14,9 @@ export default defineConfig({
           name: 'config',
           include: ['**/*.spec.ts'],
           exclude: ['**/node_modules/**', 'guards/**'],
+          // Each ESLint case builds a TypeScript project service from cold (~2 s here); on a
+          // CI runner sharing its CPUs with other packages' tests that passes the 5 s default.
+          testTimeout: 30_000,
         },
       },
       nestProject('.', {
