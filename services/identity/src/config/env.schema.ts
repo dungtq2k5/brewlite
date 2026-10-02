@@ -14,7 +14,11 @@ export const envSchema = z
     JWT_KEY_ID: z.string().min(1),
     FIREBASE_PROJECT_ID: z.string().min(1),
     FIREBASE_AUTH_EMULATOR_HOST: z.string().min(1).optional(),
-    GOOGLE_APPLICATION_CREDENTIALS: z.string().min(1).optional(),
+    // `.env.example` ships it empty (the emulators need no key) — empty means unset.
+    GOOGLE_APPLICATION_CREDENTIALS: z
+      .string()
+      .optional()
+      .transform((v) => v || undefined),
   })
   .superRefine((env, ctx) => {
     // `firebase-admin` accepts unsigned tokens whenever this variable is set — that is

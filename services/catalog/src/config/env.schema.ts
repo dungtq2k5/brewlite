@@ -17,7 +17,11 @@ export const envSchema = z.object({
   FIREBASE_STORAGE_BUCKET: z.string().min(1),
   FIREBASE_STORAGE_EMULATOR_HOST: z.string().min(1).optional(),
   STORAGE_PUBLIC_BASE_URL: z.string().url(),
-  GOOGLE_APPLICATION_CREDENTIALS: z.string().min(1).optional(),
+  // `.env.example` ships it empty (the emulators need no key) — empty means unset.
+  GOOGLE_APPLICATION_CREDENTIALS: z
+    .string()
+    .optional()
+    .transform((v) => v || undefined),
 });
 
 export type Env = z.infer<typeof envSchema>;
