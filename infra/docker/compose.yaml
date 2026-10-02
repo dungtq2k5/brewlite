@@ -3,8 +3,10 @@ services:
     image: postgres:18-alpine
     container_name: brewlite-postgres
     environment:
-      POSTGRES_USER: brewlite
-      POSTGRES_PASSWORD: brewlite
+      # The local-development credential lives in `compose.env` (read through the root
+      # compose.yaml's `include.env_file`); every service's DATABASE_URL below reads the same pair.
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: brewlite
     ports:
       - '127.0.0.1:25432:5432'
@@ -12,7 +14,7 @@ services:
       - postgres-data:/var/lib/postgresql
       - ./postgres-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U brewlite']
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER"']
       interval: 2s
       timeout: 3s
       retries: 30
@@ -102,7 +104,7 @@ services:
     environment:
       NODE_ENV: production
       LOG_LEVEL: info
-      DATABASE_URL: postgresql://brewlite:brewlite@postgres:5432/brewlite_catalog
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/brewlite_catalog
       GRPC_URL: 0.0.0.0:25052
       OPS_PORT: '23102'
       REDIS_URL: redis://redis:6379/0
@@ -144,7 +146,7 @@ services:
     environment:
       NODE_ENV: production
       LOG_LEVEL: info
-      DATABASE_URL: postgresql://brewlite:brewlite@postgres:5432/brewlite_ordering
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/brewlite_ordering
       GRPC_URL: 0.0.0.0:25053
       OPS_PORT: '23103'
       CATALOG_GRPC_URL: catalog:25052
@@ -187,7 +189,7 @@ services:
       # `fake` by default, `stripe` once the developer's own test keys are in `.env`.
       NODE_ENV: development
       LOG_LEVEL: info
-      DATABASE_URL: postgresql://brewlite:brewlite@postgres:5432/brewlite_payment
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/brewlite_payment
       GRPC_URL: 0.0.0.0:25054
       OPS_PORT: '23104'
       ORDERING_GRPC_URL: ordering:25053
@@ -227,7 +229,7 @@ services:
       # `FIREBASE_AUTH_EMULATOR_HOST` set (architecture §5).
       NODE_ENV: development
       LOG_LEVEL: info
-      DATABASE_URL: postgresql://brewlite:brewlite@postgres:5432/brewlite_identity
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/brewlite_identity
       GRPC_URL: 0.0.0.0:25051
       OPS_PORT: '23101'
       REDIS_URL: redis://redis:6379/0

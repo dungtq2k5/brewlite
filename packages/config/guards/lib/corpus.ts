@@ -1,11 +1,24 @@
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 /**
  * The repo root — three levels up from `packages/config/guards/lib`.
  */
 const REPO_ROOT = join(__dirname, '..', '..', '..', '..');
+
+/**
+ * Where `git` is looked for — fixed locations, never a search of `PATH`, so a hostile
+ * directory early on `PATH` cannot substitute its own `git` (Sonar S4036). Covers Linux
+ * and CI runners, macOS with Xcode's tools, and Homebrew.
+ */
+const GIT_LOCATIONS = ['/usr/bin/git', '/usr/local/bin/git', '/opt/homebrew/bin/git', '/bin/git'];
+
+function resolveGit(): string {
+  const found = GIT_LOCATIONS.find((path) => existsSync(path));
+  if (!found) throw new Error(`git not found in ${GIT_LOCATIONS.join(', ')}`);
+  return found;
+}
 
 /**
  * Every file `git` tracks **and** every untracked one, repo-relative, forward-slashed —
@@ -15,10 +28,14 @@ const REPO_ROOT = join(__dirname, '..', '..', '..', '..');
  * is invisible to the guards.
  */
 export function gitFiles(): string[] {
-  const out = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard'], {
-    cwd: REPO_ROOT,
-    encoding: 'utf8',
-  });
+  const out = execFileSync(
+    resolveGit(),
+    ['ls-files', '--cached', '--others', '--exclude-standard'],
+    {
+      cwd: REPO_ROOT,
+      encoding: 'utf8',
+    },
+  );
   return [...new Set(out.split('\n').filter(Boolean))];
 }
 
