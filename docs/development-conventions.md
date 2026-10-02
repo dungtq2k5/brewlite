@@ -688,6 +688,7 @@ Graded evidence (product-overview F10). Each is its own named integration test a
 | (a) illegal transitions | `refuses an ILLEGAL transition` — table-driven over every pair not in `ORDER_TRANSITIONS` | `INVALID_STATE`; the row and its history unchanged |
 | (b) idempotency | `creates ONE order for two requests with the same Idempotency-Key` — sequential and concurrent; the same for payments | one row; both responses carry the same id; stock reserved once |
 | (c) concurrent stock | `never oversells under CONCURRENT orders` — N parallel orders for stock K < N | exactly K succeed, N − K get `OUT_OF_STOCK`, `stock_qty` ends at 0 |
+| (d) promotions and loyalty | `applies a valid promotion code ONCE under CONCURRENT orders` · `credits points ONCE when an order becomes PAID` | the use counted once under `max_uses`; one `EARN` however often the payment event is delivered |
 
 ### 16.4 Guard specs
 
@@ -701,7 +702,8 @@ A guard spec turns a repo-wide rule into a failing test. Guards live in `package
 | `env-contract.spec.ts` | the env schema, `.env.example` and architecture §10 list the same variables |
 | `rdm-contract-sync.spec.ts` | every enumerated column in rdm-spec §3 (a leading backticked `A \| B` span) equals its enum in `packages/contracts`, and every `…_MAX_LENGTH` constant equals its column's `VARCHAR(n)` |
 | `i18n-keys.spec.ts` | once the web app exists: `apps/web/src/i18n/locales/en` and `vi` have the same namespaces and the same keys (plural suffixes normalised), and every code in `ERRORS` has an `errors` key |
-| `api-contract-sync.spec.ts` | api-endpoints-plan §7, §10 and §0.8 agree with `ERRORS` (codes and HTTP status), `PERMISSIONS` / `ROLE_PERMISSIONS` and `RATE_LIMITS`; §8 against the event registry once it exists |
+| `api-contract-sync.spec.ts` | api-endpoints-plan §7, §10 and §0.8 agree with `ERRORS` (codes and HTTP status), `PERMISSIONS` / `ROLE_PERMISSIONS` and `RATE_LIMITS`; §8 against the event registry once it exists · and api-endpoints-plan §1–§4's routes (P1 rows skipped) against the committed `openapi.json`, both ways, with a named exclusion list: ops, `/docs`, the SSE streams, the Stripe webhook, `fake-confirm` |
+| `task10-proofs.spec.ts` | every graded proof name of §16.3 — including `creates ONE payment for two requests with the same Idempotency-Key` — appears in a service's integration specs; a rename or deletion fails and is named |
 
 ---
 

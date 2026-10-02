@@ -17,6 +17,12 @@ function payment(overrides: Partial<Record<string, unknown>> = {}) {
 }
 
 describe('payments P-1 schema objects', () => {
+  it('payments_amount_ck is re-added NOT VALID, so an older row cannot fail a deploy', async () => {
+    const [row] = await prisma.$queryRaw<{ convalidated: boolean }[]>`
+      SELECT convalidated FROM pg_constraint WHERE conname = 'payments_amount_ck'`;
+    expect(row?.convalidated).toBe(false);
+  });
+
   it('refuses amount_vnd below MIN_PAYABLE_VND (15,000) and allows exactly it', async () => {
     await expect(prisma.payment.create({ data: payment({ amountVnd: 14_999 }) })).rejects.toThrow();
     await expect(

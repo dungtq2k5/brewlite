@@ -188,7 +188,7 @@ In **ordering** and **payment** — the two services that publish. Identical in 
 
 Everything Prisma cannot declare — partial unique indexes, `CHECK` constraints, the order-number sequence's start — lives in `services/<svc>/prisma/sql/schema-objects.sql` as idempotent statements, each with a comment naming the invariant and the table identifier. It is applied after every `prisma migrate deploy` by `pnpm db:objects`. **§5 is the complete list; the file is its executable form**, and a PR that changes one changes the other.
 
-**A changed object is replaced, not skipped.** Statements are `IF NOT EXISTS` so a deploy can run them again — but an object whose definition changes (the minimum in `orders_min_payable_ck` and `payments_amount_ck` rose from 10,000 to 15,000) is `DROP … IF EXISTS` then added, or a database that already has the old one keeps it.
+**A changed object is replaced, not skipped.** Statements are `IF NOT EXISTS` so a deploy can run them again — but an object whose definition changes (the minimum in `orders_min_payable_ck` and `payments_amount_ck` rose from 10,000 to 15,000) is `DROP … IF EXISTS` then added, or a database that already has the old one keeps it. A **tightened** CHECK is re-added `NOT VALID`: enforced on every new and updated row, while a row written under the old rule cannot fail a deploy by being re-checked.
 
 ⚠️ `prisma migrate reset` and `prisma db push` leave a database with every table and **none** of these objects — it boots and serves traffic without its constraints. Always follow either with `pnpm db:objects`.
 

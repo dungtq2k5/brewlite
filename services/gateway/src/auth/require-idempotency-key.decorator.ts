@@ -1,4 +1,5 @@
 import { createParamDecorator, type ExecutionContext } from '@nestjs/common';
+import { ApiHeader } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { zUuidV7 } from '@brewlite/contracts';
 import { apiError } from '@brewlite/nest-common';
@@ -19,3 +20,17 @@ export const RequireIdempotencyKey = createParamDecorator(
     return parsed.data;
   },
 );
+
+/**
+ * The same header as OpenAPI metadata — a param decorator is invisible to Swagger, so the
+ * generated client would otherwise have no `Idempotency-Key` parameter at all. Put it on the
+ * handler beside `@RequireIdempotencyKey()`.
+ */
+export const ApiIdempotencyKey = () =>
+  ApiHeader({
+    name: 'Idempotency-Key',
+    required: true,
+    description:
+      'A UUIDv7 — the same key and body replay the first answer (api-endpoints-plan §0.6).',
+    schema: { type: 'string', format: 'uuid' },
+  });

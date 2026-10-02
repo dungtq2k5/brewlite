@@ -118,7 +118,7 @@ describe('OrdersService.applyPaymentSucceeded', () => {
     expect(earns).toBe(1);
   });
 
-  it('the same event twice — one EARN (idempotent)', async () => {
+  it('credits points ONCE when an order becomes PAID — the same event twice gives one EARN', async () => {
     const order = await seedOrder();
     const payload = succeededPayload({
       orderId: order.id,

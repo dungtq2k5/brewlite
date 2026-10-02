@@ -33,10 +33,12 @@ BEGIN
   END IF;
   -- Replaced, not skipped: the minimum has changed once (Stripe's floor), and a bare
   -- IF NOT EXISTS would keep the old value on a database that already has the constraint.
+  -- NOT VALID: enforced on every new and updated row, but an older row below the new
+  -- minimum (a development database) cannot fail the deploy by being re-checked.
   ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_min_payable_ck;
   ALTER TABLE orders
     ADD CONSTRAINT orders_min_payable_ck
-    CHECK (total_vnd >= 15000);
+    CHECK (total_vnd >= 15000) NOT VALID;
 END $$;
 
 -- O-1: promotion_id and promo_code move together.

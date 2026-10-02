@@ -6,10 +6,12 @@ DO $$
 BEGIN
   -- Replaced, not skipped: the minimum has changed once (Stripe's floor), and a bare
   -- IF NOT EXISTS would keep the old value on a database that already has the constraint.
+  -- NOT VALID: enforced on every new and updated row, but an older row below the new
+  -- minimum (a development database) cannot fail the deploy by being re-checked.
   ALTER TABLE payments DROP CONSTRAINT IF EXISTS payments_amount_ck;
   ALTER TABLE payments
     ADD CONSTRAINT payments_amount_ck
-    CHECK (amount_vnd >= 15000);
+    CHECK (amount_vnd >= 15000) NOT VALID;
 END $$;
 
 -- P-1: SUCCEEDED <=> succeeded_at.

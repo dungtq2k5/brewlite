@@ -9,7 +9,10 @@ import {
   type CursorMeta,
 } from '@brewlite/nest-common';
 import { Ctx, type UserContext } from '../../auth/request-context.js';
-import { RequireIdempotencyKey } from '../../auth/require-idempotency-key.decorator.js';
+import {
+  ApiIdempotencyKey,
+  RequireIdempotencyKey,
+} from '../../auth/require-idempotency-key.decorator.js';
 import { OrdersService } from './orders.service.js';
 import {
   ListMyOrdersQueryDto,
@@ -44,6 +47,7 @@ export class OrdersController {
   }
 
   @Post()
+  @ApiIdempotencyKey()
   @RateLimit('ORDER_WRITE')
   @ApiEnvelope(OrderResponseDto)
   @ApiErrors(

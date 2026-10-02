@@ -3,7 +3,10 @@ import { ApiExcludeEndpoint } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { ApiEnvelope, ApiErrors, Auth, RateLimit } from '@brewlite/nest-common';
 import { Ctx, type UserContext } from '../../auth/request-context.js';
-import { RequireIdempotencyKey } from '../../auth/require-idempotency-key.decorator.js';
+import {
+  ApiIdempotencyKey,
+  RequireIdempotencyKey,
+} from '../../auth/require-idempotency-key.decorator.js';
 import { PaymentsService } from './payments.service.js';
 import {
   CreatePaymentDto,
@@ -18,6 +21,7 @@ export class PaymentsController {
   constructor(private readonly payments: PaymentsService) {}
 
   @Post()
+  @ApiIdempotencyKey()
   @RateLimit('PAYMENT')
   @ApiEnvelope(PaymentResponseDto)
   @ApiErrors(

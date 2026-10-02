@@ -221,7 +221,7 @@ describe('promotions applied in quote and placeOrder — real DB, catalog stubbe
     expect(afterSecondAttempt.usedCount).toBe(0);
   });
 
-  it('max_uses: 1 under five concurrent customers — one wins, four EXHAUSTED, four released', async () => {
+  it('applies a valid promotion code ONCE under CONCURRENT orders — max_uses: 1, five customers: one wins, four EXHAUSTED, four released', async () => {
     const promo = await seedPromotion({ code: 'CAPPED', maxUses: 1, perUserLimit: null });
     const callers: Caller[] = Array.from({ length: 5 }, () => ({
       kind: 'USER',

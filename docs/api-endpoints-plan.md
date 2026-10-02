@@ -595,6 +595,8 @@ Every service serves these — backend services on `OPS_PORT`, the gateway on it
 | **C — handover** | no new routes; the Compose `apps` profile runs everything, the README, the J1 demo |
 | **P1** | `PATCH /users/me/password` · §3.4 admin orders and reports · `pointsToRedeem` on quote and order · `ListPaymentsForOrder` |
 
+**Phase A is done.** Audited at the end of the phase: every §1–§4 route is built and documented (58 operations), each with this plan's marker and rate-limit class; every `ERRORS` code is raised except the two P1 ones. A guard keeps this plan and `openapi.json` in sync from here on.
+
 ---
 
 ## 13. Open decisions

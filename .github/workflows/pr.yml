@@ -51,6 +51,9 @@ jobs:
       - name: Regenerate the OpenAPI document and fail on drift
         run: pnpm --filter @brewlite/gateway openapi:emit && git diff --exit-code
 
+      - name: Regenerate the API client and fail on drift
+        run: pnpm --filter @brewlite/api-client generate && git diff --exit-code
+
       - name: Start the infra stack
         run: docker compose up -d --wait
 

@@ -147,7 +147,8 @@ zod schema (gateway dto/) ─nestjs-zod─▶ DTO class + runtime validation
 
 - Request and response shapes are **zod schemas**, turned into Nest DTOs by **nestjs-zod**, so the schema that validates is the schema that is documented.
 - `pnpm --filter @brewlite/gateway openapi:emit` builds the OpenAPI document **without listening** and writes `services/gateway/openapi.json`, **formatted with Prettier** so it matches `format:check` byte for byte. That file is committed; CI regenerates it and the Orval output and fails on any diff. A backend change that breaks the client **fails the web app's type check**.
-- **Orval** generates with the `fetch` client and a custom mutator (base URL, bearer token, `Idempotency-Key`), plus zod schemas the web app reuses for form validation. No TanStack Query hooks.
+- **Orval** generates `packages/api-client` with the `fetch` client and one mutator, and zod schemas the web app reuses for forms. No TanStack Query hooks. Two entry points: **`@brewlite/api-client`** (`import 'server-only'` — a Client Component importing it fails the build) and **`@brewlite/api-client/zod`** (schemas only, client-safe). The package imports nothing from Next.js: the web app calls `configureApiClient({ baseUrl, getRequestHeaders })` once and supplies the bearer token, `X-Request-Id` and `X-Forwarded-For`. Every generated function resolves to `{ data, status, headers }`, where `data` is the gateway's body **with its `{ data, meta }` envelope intact**; a non-2xx throws `ApiClientError { status, code, details, requestId }`. A request's `Idempotency-Key` goes in the call's `options.headers`.
+- The gateway's `openapi.json` is **OpenAPI 3.1** — zod's JSON Schema output is 3.1-only, and a document labelled 3.0 is invalid.
 - **Prefix and versioning:** `GLOBAL_PREFIX` (`api`) + Nest URI versioning, `defaultVersion: '1'` → `/api/v1/...`. A breaking change versions one route, never the API. Ops routes and the Stripe webhook are version-neutral.
 - Swagger UI at `/docs`, JSON at `/docs-json` — off in production.
 
@@ -312,7 +313,7 @@ browser ──cookies──▶ Next.js server ──Bearer + X-Request-Id──�
 ```
 
 - Tokens live in **`httpOnly`, `SameSite=Lax`** cookies on the web origin — `bl_at` (access, 15 min) and `bl_rt` (refresh, 30 days), `Secure` outside development. **Browser JavaScript never sees a token.**
-- The generated client runs **only on the server** (`import 'server-only'` in the mutator). `API_URL` is a server-only variable, never `NEXT_PUBLIC_`.
+- The generated client runs **only on the server** (`@brewlite/api-client` imports `server-only`). `API_URL` is a server-only variable, never `NEXT_PUBLIC_`.
 - **`proxy.ts`** (Next 16's name for middleware) does three things, in order:
   1. **Refresh:** when `bl_at` is missing or expired and `bl_rt` exists, call `POST /auth/refresh` and set fresh cookies. A refresh answered `401` (expired session, locked or deactivated account) clears both cookies — the visitor is a guest again.
   2. **Guests to sign-in** ([ADR 0029](./decisions/0029-guests-browse-and-build-a-cart-and-sign-in-only-to-order.md)): with no session, a request for `/checkout`, `/orders*` or `/account` is redirected to `/login?next=<path>`. Everything else — the menu, product pages, the cart, sign-in and registration — renders for a guest. After sign-in the Server Action redirects to `next` only if it is a **relative path** (starts with one `/`, not `//`, no `\`); anything else goes to `/`, so the parameter cannot become an open redirect.
@@ -439,6 +440,7 @@ Locally the SDK talks to the **Firebase Auth emulator**, which offers fake Googl
 | **Contract** | `_test` | one real gRPC round trip per RPC |
 | **Gateway e2e** | none (gRPC peers stubbed) | auth markers, validation, envelope, error mapping, the webhook's raw body |
 | **Web e2e** *(P1)* | Compose stack, fake payment provider | J1 with Playwright |
+| **Latency** (`pnpm perf`) | the `apps` stack, seeded, `PAYMENT_PROVIDER=fake` | p95 of every P0 route < 500 ms — autocannon, **by hand, never in CI**. It stays under the rate limits instead of disabling them: a distinct `X-Forwarded-For` per request for IP-keyed classes (the gateway trusts one hop), user-keyed classes paced below their limit |
 
 **The Task 10 proofs** (product-overview F10), each its own integration test, named for what it proves:
 
@@ -460,7 +462,7 @@ Locally the SDK talks to the **Firebase Auth emulator**, which offers fake Googl
 3. `pnpm lint:md` and the repo guard specs
 4. Integration tests against the project's own Compose stack (`docker compose up -d --wait`) — the same file as local, not separate CI service containers
 5. `turbo run build`
-6. OpenAPI + Orval and `buf generate` drift checks — regenerate, fail on a non-empty diff
+6. OpenAPI, the Orval client (`pnpm --filter @brewlite/api-client generate`) and `buf generate` drift checks — regenerate, fail on a non-empty diff
 7. Prisma migration drift check per service
 
 **Practices:** trunk-based, short branches, one review required, Conventional Commits.

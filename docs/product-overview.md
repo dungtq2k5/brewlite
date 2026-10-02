@@ -429,7 +429,7 @@ From the course brief, made measurable.
 
 ### Performance
 
-- API response **p95 < 500 ms** on seed data, measured at the gateway for every P0 route.
+- API response **p95 < 500 ms** on seed data, measured at the gateway for every P0 route. Measured with `pnpm perf` (architecture §8): every route p95 ≤ 60 ms on the seed data at the end of the backend phase.
 - Menu first render **< 1 s** on a mid-range phone on 4G.
 
 ### Security
