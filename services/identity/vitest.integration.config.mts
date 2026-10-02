@@ -1,27 +1,15 @@
-import { fileURLToPath } from 'node:url';
-import swc from 'unplugin-swc';
 import { defineConfig } from 'vitest/config';
+import { nestProject } from '../../packages/config/vitest.preset.js';
 
-export default defineConfig({
-  resolve: {
-    alias: {
-      '@brewlite/contracts': fileURLToPath(
-        new URL('../../packages/contracts/src', import.meta.url),
-      ),
+export default defineConfig(
+  nestProject('.', {
+    test: {
+      name: 'identity-integration',
+      include: ['test/integration/**/*.spec.ts', 'test/contract/**/*.spec.ts'],
+      environment: 'node',
+      globalSetup: ['test/setup/global.ts'],
+      setupFiles: ['test/setup/per-file.ts'],
+      fileParallelism: false,
     },
-  },
-  plugins: [
-    swc.vite({
-      module: { type: 'es6' },
-      jsc: { transform: { legacyDecorator: true, decoratorMetadata: true } },
-    }),
-  ],
-  test: {
-    name: 'identity-integration',
-    include: ['test/integration/**/*.spec.ts', 'test/contract/**/*.spec.ts'],
-    environment: 'node',
-    globalSetup: ['test/setup/global.ts'],
-    setupFiles: ['test/setup/per-file.ts'],
-    fileParallelism: false,
-  },
-});
+  }),
+);

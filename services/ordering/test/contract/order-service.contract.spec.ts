@@ -135,7 +135,7 @@ class TestOrderClient extends BaseGrpcClient {
 }
 
 describe('OrderService gRPC contract', () => {
-  const url = 'localhost:25097';
+  const url = 'localhost:25094';
   let app: Awaited<ReturnType<typeof NestFactory.createMicroservice>>;
   let client: TestOrderClient;
 

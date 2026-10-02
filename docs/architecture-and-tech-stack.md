@@ -439,7 +439,8 @@ Locally the SDK talks to the **Firebase Auth emulator**, which offers fake Googl
 | **Unit** | none | pure rules (`assertTransition`, pricing, promotions, loyalty); services with `PrismaService` mocked |
 | **Integration** | the service's `_test` database, the test broker | real SQL, constraints, transactions, the outbox row, **the three graded Task 10 proofs** |
 | **Contract** | `_test` | one real gRPC round trip per RPC |
-| **Gateway e2e** | none (gRPC peers stubbed) | auth markers, validation, envelope, error mapping, the webhook's raw body |
+| **Gateway e2e** | none — gRPC peers, Redis and the event source stubbed | auth markers, validation, envelope, error mapping, the webhook's raw body |
+| **Gateway integration** | Redis database 14, the test broker | real rate limiting, the SSE source's ordered consumer |
 | **Web e2e** *(P1)* | Compose stack, fake payment provider | J1 with Playwright |
 | **Latency** (`pnpm perf`) | the `apps` stack, seeded, `PAYMENT_PROVIDER=fake` | p95 of every P0 route < 500 ms — autocannon, **by hand, never in CI**. It stays under the rate limits instead of disabling them: a distinct `X-Forwarded-For` per request for IP-keyed classes (the gateway trusts one hop), user-keyed classes paced below their limit |
 

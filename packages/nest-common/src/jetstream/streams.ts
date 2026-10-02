@@ -20,9 +20,14 @@ function toStreamConfig(def: StreamDefinition) {
  * difference — a changed stream config is a decision made by hand, never a deploy
  * side effect (architecture §2.3).
  */
-export async function ensureStreams(jsm: JetStreamManager, names: string[]): Promise<void> {
+export async function ensureStreams(
+  jsm: JetStreamManager,
+  names: string[],
+  /** Overridable so a test can exercise this on a private stream, never on the real ones. */
+  definitions: readonly StreamDefinition[] = STREAMS,
+): Promise<void> {
   for (const name of names) {
-    const def = STREAMS.find((s) => s.name === name);
+    const def = definitions.find((s) => s.name === name);
     if (!def) throw new Error(`ensureStreams: unknown stream "${name}" — not in STREAMS`);
     const wanted = toStreamConfig(def);
 

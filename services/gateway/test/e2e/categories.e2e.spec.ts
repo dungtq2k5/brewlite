@@ -7,6 +7,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import { z } from 'zod';
 import { AppModule } from '../../src/app.module.js';
 import { configureApp } from '../../src/configure-app.js';
+import { OrderEventsSource } from '../../src/events/order-events.source.js';
 import { CatalogServiceGrpcClient } from '../../src/modules/catalog/catalog-service-grpc.client.js';
 
 class TestQueryDto extends createZodDto(z.object({ name: z.string().min(3) })) {}
@@ -22,11 +23,16 @@ class TestOnlyController {
 
 const grpcClientStub = { listCategories: vi.fn() };
 
+let eventsReady = true;
+
 async function buildApp() {
   const moduleRef = await Test.createTestingModule({
     imports: [AppModule],
     controllers: [TestOnlyController],
   })
+    // No broker here: readiness reports NATS through the event source, so it is stubbed.
+    .overrideProvider(OrderEventsSource)
+    .useValue({ readinessCheck: () => () => Promise.resolve(eventsReady) })
     .overrideProvider(CatalogServiceGrpcClient)
     .useValue(grpcClientStub)
     .compile();
@@ -132,6 +138,16 @@ describe('gateway e2e — GET /categories', () => {
   it('serves /health/ready unprefixed', async () => {
     const res = await request(app.getHttpServer()).get('/health/ready');
     expect(res.status).toBe(200);
+  });
+
+  it('/health/ready is 503 while NATS is down, and the menu still answers', async () => {
+    eventsReady = false;
+    try {
+      expect((await request(app.getHttpServer()).get('/health/ready')).status).toBe(503);
+      expect((await request(app.getHttpServer()).get('/api/v1/categories')).status).not.toBe(503);
+    } finally {
+      eventsReady = true;
+    }
   });
 
   it('answers 404 for the prefixed health path', async () => {

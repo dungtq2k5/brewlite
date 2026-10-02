@@ -666,7 +666,8 @@ When `NODE_ENV === 'production'`: the error filter returns a generic message for
 | **Unit — service** | a use case's branches | `PrismaService` and peers mocked | `*.service.spec.ts` beside the source |
 | **Integration** | real SQL, constraints, transactions, the outbox row, concurrency | the service's `_test` database, the test broker | `services/<svc>/test/integration/` |
 | **Contract** | a gRPC server and a real client over the generated code | in-process server, `_test` | `services/<svc>/test/contract/` |
-| **Gateway e2e** | markers, validation, envelope, error mapping, raw webhook body | gRPC peers stubbed | `services/gateway/test/e2e/` |
+| **Gateway e2e** | markers, validation, envelope, error mapping, raw webhook body | gRPC peers, the rate limiter's Redis client and the SSE event source stubbed by `createE2eApp` — **no infrastructure**, so it runs in `pnpm test` before anything is started | `services/gateway/test/e2e/` |
+| **Gateway integration** | real rate limiting, the real ordered consumer behind SSE | Redis database 14, the test broker | `services/gateway/test/integration/`, run by `test:integration` |
 | **Web e2e** *(P1)* | J1 end to end | Playwright against Compose, fake payments | `apps/web/e2e/` |
 
 ### 16.2 Rules
@@ -677,7 +678,8 @@ When `NODE_ENV === 'production'`: the error filter returns a generic message for
 - **Every consumer has a test delivering the same event twice** and asserting one effect, and one delivering a stale event after a newer state.
 - **Every RPC is exercised by a test in the service that owns it**, against its real database.
 - Integration suites migrate once and `TRUNCATE … RESTART IDENTITY CASCADE` between specs; suites touching one database run serially. A setup reads its service's `.env` into a local object and **never writes `process.env`**.
-- Vitest transforms with `unplugin-swc` with decorator metadata on, or Nest DI resolves `undefined`.
+- Vitest transforms with `unplugin-swc` with decorator metadata on, or Nest DI resolves `undefined`. Every package's and service's Vitest config — unit and integration — is built from `nestProject(...)` in `packages/config/vitest.preset.ts`, which aliases `@brewlite/contracts` and `@brewlite/nest-common` to **source**: a config that does not would test a shared package's stale build.
+- **The tier is decided by what a spec needs:** one that opens a real Postgres, Redis or NATS connection is an integration spec; one that points a client at a closed port on purpose needs nothing and stays in its no-infrastructure tier.
 
 ### 16.3 The Task 10 proofs
 
@@ -704,6 +706,7 @@ A guard spec turns a repo-wide rule into a failing test. Guards live in `package
 | `i18n-keys.spec.ts` | once the web app exists: `apps/web/src/i18n/locales/en` and `vi` have the same namespaces and the same keys (plural suffixes normalised), and every code in `ERRORS` has an `errors` key |
 | `api-contract-sync.spec.ts` | api-endpoints-plan §7, §10 and §0.8 agree with `ERRORS` (codes and HTTP status), `PERMISSIONS` / `ROLE_PERMISSIONS` and `RATE_LIMITS`; §8 against the event registry once it exists · and api-endpoints-plan §1–§4's routes (P1 rows skipped) against the committed `openapi.json`, both ways, with a named exclusion list: ops, `/docs`, the SSE streams, the Stripe webhook, `fake-confirm` |
 | `task10-proofs.spec.ts` | every graded proof name of §16.3 — including `creates ONE payment for two requests with the same Idempotency-Key` — appears in a service's integration specs; a rename or deletion fails and is named |
+| `contract-ports.spec.ts` | every contract spec's fixed gRPC port belongs to one spec file, and is never a port a running service owns (ADR 0027: web 23000, gateway 23100, ops 23101–23104, gRPC 25051–25054) — a collision fails with `EADDRINUSE` only when the timing or the running stack lines up |
 
 ---
 

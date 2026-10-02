@@ -1,9 +1,11 @@
 import { generateKeyPairSync } from 'node:crypto';
-import type { Type } from '@nestjs/common';
+import type { InjectionToken, Type } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { JWT_AUDIENCE, JWT_ISSUER, newId } from '@brewlite/contracts';
+import { RATE_LIMIT_REDIS_CLIENT } from '../../../src/auth/rate-limit-redis.token.js';
+import { OrderEventsSource } from '../../../src/events/order-events.source.js';
 import { IdentityServiceGrpcClient } from '../../../src/modules/auth/identity-service-grpc.client.js';
 import { CatalogAdminGrpcClient } from '../../../src/modules/catalog/catalog-admin-grpc.client.js';
 import { CatalogServiceGrpcClient } from '../../../src/modules/catalog/catalog-service-grpc.client.js';
@@ -34,6 +36,33 @@ const PEER_CLIENTS: Type<unknown>[] = [
   StaffOrdersGrpcClient,
 ];
 
+/**
+ * The two pieces of infrastructure the app would otherwise dial: the rate limiter's Redis
+ * client (it fails open without one, but logs an error per request) and the SSE event
+ * source's NATS connection. The real ones are exercised in `test/integration`.
+ */
+const INFRASTRUCTURE_STUBS: ReadonlyArray<readonly [InjectionToken, object]> = [
+  [
+    RATE_LIMIT_REDIS_CLIENT,
+    {
+      // Counts every key as 1 — a limit is never hit; counting is proven against real Redis.
+      multi: () => ({
+        incr: () => ({ pexpire: () => ({ exec: async () => [[null, 1]] }) }),
+      }),
+      pttl: async () => 0,
+      quit: async () => 'OK',
+      disconnect: () => undefined,
+    },
+  ],
+  [
+    OrderEventsSource,
+    {
+      frames$: { subscribe: () => ({ unsubscribe: () => undefined }) },
+      readinessCheck: () => () => Promise.resolve(true),
+    },
+  ],
+];
+
 export interface E2eApp {
   app: NestExpressApplication;
   /** A signed access token for `role`; a fresh user id unless one is given. */
@@ -52,14 +81,17 @@ export interface E2eOptions {
  * `beforeAll` could set it — so the import is dynamic, here, for every spec.
  */
 export async function createE2eApp(
-  stubs: ReadonlyArray<readonly [token: Type<unknown>, stub: object]> = [],
+  stubs: ReadonlyArray<readonly [token: InjectionToken, stub: object]> = [],
   { listen = false }: E2eOptions = {},
 ): Promise<E2eApp> {
   process.env.JWT_PUBLIC_KEY = Buffer.from(PUBLIC_KEY_PEM, 'utf8').toString('base64');
   const { AppModule } = await import('../../../src/app.module.js');
   const { configureApp } = await import('../../../src/configure-app.js');
 
-  const overrides = new Map<Type<unknown>, object>(PEER_CLIENTS.map((token) => [token, {}]));
+  const overrides = new Map<InjectionToken, object>([
+    ...PEER_CLIENTS.map((token) => [token, {}] as const),
+    ...INFRASTRUCTURE_STUBS,
+  ]);
   for (const [token, stub] of stubs) overrides.set(token, stub);
 
   let builder = Test.createTestingModule({ imports: [AppModule] });
