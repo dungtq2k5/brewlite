@@ -1,4 +1,4 @@
-import { NotFoundException, type ArgumentsHost } from '@nestjs/common';
+import { NotFoundException, PayloadTooLargeException, type ArgumentsHost } from '@nestjs/common';
 import { Metadata } from '@grpc/grpc-js';
 import { z } from 'zod';
 import { ZodValidationException } from 'nestjs-zod';
@@ -62,6 +62,15 @@ describe('ErrorFilter', () => {
     filter.catch({ type: 'entity.parse.failed' }, host);
     expect(res.status).toHaveBeenCalledWith(400);
     expect(body(res).error.code).toBe('MALFORMED_REQUEST');
+  });
+
+  it("maps multer's translated PayloadTooLargeException to 422 IMAGE_INVALID SIZE", () => {
+    const filter = new ErrorFilter(false);
+    const { host, res } = fakeHost();
+    filter.catch(new PayloadTooLargeException('File too large'), host);
+    expect(res.status).toHaveBeenCalledWith(422);
+    expect(body(res).error.code).toBe('IMAGE_INVALID');
+    expect(body(res).error.details).toEqual({ reason: 'SIZE' });
   });
 
   it('maps NotFoundException to 404 ROUTE_NOT_FOUND', () => {

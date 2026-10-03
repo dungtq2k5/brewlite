@@ -64,7 +64,7 @@ A customer opens BrewLite in a browser — in English by default, or Vietnamese 
 
 ## 3. Product surfaces
 
-**One Next.js app, three areas, route-level RBAC** ([ADR 0014](./decisions/0014-the-web-server-is-the-gateways-only-client.md)). Mobile-first layout — most customers order on a phone — but it is a website, not an installed app.
+**One Next.js app, three areas, route-level RBAC** ([ADR 0014](./decisions/0014-the-web-server-is-the-gateways-only-client.md)). Mobile-first layout — most customers order on a phone — and it is an **installable PWA**: added to the home screen it opens full screen, but it orders only online — nothing is ordered, priced or paid offline ([ADR 0032](./decisions/0032-the-web-app-is-an-installable-pwa-whose-service-worker-caches-no-data.md)).
 
 ### 3.1 Customer pages (A1, A2) — the product
 
@@ -295,7 +295,7 @@ A promo code is:
 
 Rules:
 
-- **One code per order.** The discount never exceeds the subtotal, and the total never drops below `MIN_PAYABLE_VND`.
+- **One code per order.** The discount is capped at `subtotal − MIN_PAYABLE_VND`, so a valid code never drops the total below `MIN_PAYABLE_VND` — the customer pays the minimum rather than being refused. A cart whose **subtotal** is already below `MIN_PAYABLE_VND` is refused `ORDER_TOTAL_TOO_LOW`, code or not.
 - Percent discounts round **down** to the đồng.
 - A use is counted when the order is **placed** and given back if the order is **cancelled** — so a cap of 100 can never be exceeded by 100 unpaid orders plus one paid one.
 - An invalid code refuses the quote or the order with a reason the UI can show: not found, not active, not started, expired, below the minimum, exhausted, or already used by this customer.
@@ -405,7 +405,8 @@ Product decisions, not implementation details. Each is one constant in `packages
 | `MAX_QTY_PER_LINE` | 10 | Same. |
 | `MAX_TOPPINGS_PER_LINE` | 3 | A drink, not a sundae. |
 | `ORDER_NOTE_MAX_LENGTH` | 200 chars | "Ít đá, ít ngọt" fits. |
-| `MIN_PAYABLE_VND` | 10,000₫ | No free or near-free charges after discounts; also above Stripe's minimum charge (to verify, §12). |
+| `MIN_PAYABLE_VND` | 15,000₫ | No free or near-free charges after discounts, and above Stripe's minimum charge in VND — about 12,900₫ (US$0.50 converted), checked in test mode; 15,000₫ leaves a margin for the exchange rate. |
+| `MAX_ORDER_TOTAL_VND` | 5,000,000₫ | A café order above this is a mistake or abuse, not a real cart; also keeps the total well under the `INT` column's overflow point. |
 | `LOYALTY_EARN_STEP_VND` | 10,000₫ | 1 point per 10,000₫ paid. |
 | `LOYALTY_POINT_VALUE_VND` | 1,000₫ | *(P1)* 1 point = 1,000₫ off — 10% back. |
 | `LOYALTY_MAX_REDEEM_PERCENT` | 50% | *(P1)* Points pay at most half an order. |
@@ -428,7 +429,7 @@ From the course brief, made measurable.
 
 ### Performance
 
-- API response **p95 < 500 ms** on seed data, measured at the gateway for every P0 route.
+- API response **p95 < 500 ms** on seed data, measured at the gateway for every P0 route. Measured with `pnpm perf` (architecture §8): every route p95 ≤ 60 ms on the seed data at the end of the backend phase.
 - Menu first render **< 1 s** on a mid-range phone on 4G.
 
 ### Security
@@ -528,7 +529,7 @@ Delivery · table service and QR-at-table ordering · multiple stores · cash pa
 
 | Risk | Impact | Mitigation |
 | :---- | :---- | :---- |
-| **Stripe and VND.** Stripe does not onboard Vietnamese merchants; a test-mode account from a supported country can still charge in VND, which is zero-decimal. Stripe also has a minimum charge per currency. | Live payments are not possible for a real Vietnamese shop; a tiny order could be refused. | This is a course project: **test mode only**, stated in the README. `MIN_PAYABLE_VND` keeps every charge above the minimum — verify Stripe's VND minimum when wiring payments. The fake provider keeps the demo independent of Stripe. |
+| **Stripe and VND.** Stripe does not onboard Vietnamese merchants; a test-mode account from a supported country can still charge in VND, which is zero-decimal. Stripe also has a minimum charge per currency. | Live payments are not possible for a real Vietnamese shop; a tiny order could be refused. | This is a course project: **test mode only**, stated in the README. `MIN_PAYABLE_VND` (15,000₫) keeps every charge above Stripe's VND minimum (about 12,900₫, measured in test mode); if the exchange rate ever moves past that margin, raising the constant is the one change. The fake provider keeps the demo independent of Stripe. |
 | **Sign in with Apple** needs a paid Apple Developer account and a verified domain. | *Continue with Apple* may not be demonstrable. | Google is P0; Apple is P1 and ships only if the team has an account. The Firebase Auth emulator covers both in development. |
 | **Microservices for a small product.** Five backend processes, a broker and a gateway are more moving parts than the features need. | Time goes into plumbing instead of features. | The course and the team want the architecture; the **product** stays minimal (§11.4). The walking skeleton proves every piece of plumbing in week one, before any feature depends on it. |
 | **Distributed consistency.** Stock lives in catalog, orders in ordering, money in payment — no transaction spans them. | A lost event leaves stock reserved or an order unpaid. | Transactional outbox, idempotent consumers, a deadline on every unpaid order, an orphan sweep on reservations, and automatic refund of late payments ([ADR 0006](./decisions/0006-events-leave-through-a-transactional-outbox.md)). |

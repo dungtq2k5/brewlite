@@ -41,11 +41,15 @@ function check(files: string[]): Violation[] {
     if (/\/domain\//.test(file)) {
       const content = readRepoFile(file);
       for (const [i, line] of content.split('\n').entries()) {
+        // domain/*.ts is pure rules — no I/O, no Prisma import in any form (`import
+        // type` included: a function needing Prisma's types to do real work is not a
+        // pure rule), no @nestjs/ import (conventions §2.1).
         if (/from ['"]@nestjs\//.test(line) || /generated\/prisma/.test(line)) {
           violations.push({
             file,
             line: i + 1,
-            message: 'domain/*.ts imports @nestjs/ or generated/prisma (conventions §2.1)',
+            message:
+              'domain/*.ts imports @nestjs/ or generated/prisma, in any form (conventions §2.1)',
           });
         }
       }
@@ -100,6 +104,34 @@ describe('module-files', () => {
     expect(violations).toContainEqual(
       expect.objectContaining({
         file: 'services/catalog/src/modules/menu/domain/__lint-tmp.ts',
+        line: 1,
+      }),
+    );
+  });
+
+  it('refuses a type-only generated/prisma import in domain/*.ts too (conventions §2.1)', () => {
+    plant(
+      'services/catalog/src/modules/menu/domain/__lint-tmp-type-only.ts',
+      "import type { Prisma } from '../../../../generated/prisma/client.js';\nexport type X = Prisma.ProductSelect;\n",
+    );
+    const violations = check(['services/catalog/src/modules/menu/domain/__lint-tmp-type-only.ts']);
+    expect(violations).toContainEqual(
+      expect.objectContaining({
+        file: 'services/catalog/src/modules/menu/domain/__lint-tmp-type-only.ts',
+        line: 1,
+      }),
+    );
+  });
+
+  it('refuses a runtime generated/prisma import in domain/*.ts', () => {
+    plant(
+      'services/catalog/src/modules/menu/domain/__lint-tmp-runtime.ts',
+      "import { PrismaClient } from '../../../../generated/prisma/client.js';\nexport const x = new PrismaClient();\n",
+    );
+    const violations = check(['services/catalog/src/modules/menu/domain/__lint-tmp-runtime.ts']);
+    expect(violations).toContainEqual(
+      expect.objectContaining({
+        file: 'services/catalog/src/modules/menu/domain/__lint-tmp-runtime.ts',
         line: 1,
       }),
     );

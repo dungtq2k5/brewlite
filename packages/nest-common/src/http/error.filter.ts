@@ -5,10 +5,12 @@ import {
   Catch,
   Logger,
   NotFoundException,
+  PayloadTooLargeException,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { ZodValidationException } from 'nestjs-zod';
 import { ERRORS, GrpcStatus, type ErrorCode } from '@brewlite/contracts';
+import { ApiError } from '../errors/api-error.js';
 import {
   isGrpcServiceError,
   readErrorCode,
@@ -59,6 +61,14 @@ export class ErrorFilter implements ExceptionFilter {
     exception: unknown,
     requestId: string,
   ): { status: number; code: ErrorCode; details?: unknown } {
+    if (exception instanceof ApiError) {
+      const definition = ERRORS[exception.code];
+      if (this.isProduction && exception.code === 'PERMISSION_DENIED') {
+        return { status: definition.http, code: exception.code };
+      }
+      return { status: definition.http, code: exception.code, details: exception.details };
+    }
+
     if (exception instanceof ZodValidationException) {
       const zodError = exception.getZodError() as { issues: ZodIssueLike[] };
       const issues = zodError.issues.map((issue) => ({
@@ -70,6 +80,10 @@ export class ErrorFilter implements ExceptionFilter {
 
     if (this.isBodyParserFailure(exception)) {
       return { status: 400, code: 'MALFORMED_REQUEST' };
+    }
+
+    if (this.isMulterFileTooLargeError(exception)) {
+      return { status: 422, code: 'IMAGE_INVALID', details: { reason: 'SIZE' } };
     }
 
     if (exception instanceof NotFoundException) {
@@ -110,6 +124,16 @@ export class ErrorFilter implements ExceptionFilter {
 
     this.logger.error({ requestId, err: exception }, 'Unhandled exception');
     return { status: 500, code: 'INTERNAL' };
+  }
+
+  /**
+   * The one place multer errors are recognised. `FileInterceptor` already
+   * translates multer's `LIMIT_FILE_SIZE` into a `PayloadTooLargeException` before it
+   * ever reaches a filter (`multer.utils.js`'s `transformException`) — there is no raw
+   * `MulterError` to catch here.
+   */
+  private isMulterFileTooLargeError(exception: unknown): boolean {
+    return exception instanceof PayloadTooLargeException;
   }
 
   /**

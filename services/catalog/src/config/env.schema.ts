@@ -8,6 +8,20 @@ export const envSchema = z.object({
   DATABASE_URL_SHADOW: z.string().url().optional(),
   GRPC_URL: z.string(),
   OPS_PORT: z.coerce.number().int().positive(),
+  REDIS_URL: z.string().url(),
+  REDIS_URL_TEST: z.string().url().optional(),
+  NATS_URL: z.string(),
+  NATS_URL_TEST: z.string().optional(),
+  ORDERING_GRPC_URL: z.string(),
+  FIREBASE_PROJECT_ID: z.string().min(1),
+  FIREBASE_STORAGE_BUCKET: z.string().min(1),
+  FIREBASE_STORAGE_EMULATOR_HOST: z.string().min(1).optional(),
+  STORAGE_PUBLIC_BASE_URL: z.string().url(),
+  // `.env.example` ships it empty (the emulators need no key) — empty means unset.
+  GOOGLE_APPLICATION_CREDENTIALS: z
+    .string()
+    .optional()
+    .transform((v) => v || undefined),
 });
 
 export type Env = z.infer<typeof envSchema>;

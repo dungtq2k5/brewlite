@@ -79,7 +79,7 @@ Every route declares exactly one:
 
 `limit` / `pageSize` default 20, max 100. `sort` is `field` or `-field` from a per-route allowlist; anything else is `400`. The cursor is opaque — clients never parse it.
 
-Bounded lists with no pagination — the menu (`MAX_MENU_PRODUCTS`, 200), categories (`MAX_MENU_CATEGORIES`, 50), the staff board (100) — say so in their row.
+Bounded lists with no pagination — the menu (`MAX_MENU_PRODUCTS`, 200), categories (`MAX_MENU_CATEGORIES`, 50), the staff board (100), `GET /admin/categories` (`MAX_MENU_CATEGORIES`) and `GET /admin/toppings` (`MAX_ADMIN_TOPPINGS`, 100) — say so in their row. `GET /admin/products` is the one admin list large enough to page.
 
 ### 0.5 Identifiers
 
@@ -101,7 +101,7 @@ Every amount is an integer number of đồng, in a field ending `Vnd` — `total
 
 ### 0.8 Rate limits
 
-`@nestjs/throttler` in the gateway with Redis storage. Every route has one class; the numbers are `RATE_LIMITS` in `packages/contracts`.
+The gateway's own `RateLimitGuard` (conventions §6.3): fixed window, `INCR` + `PEXPIRE NX` per key `gw:rl:<class>:<kind>:<value>` on ioredis, fail-open on a Redis outage. Every route has one class, set with `@RateLimit(class | 'NONE')`; the numbers are `RATE_LIMITS` in `packages/contracts`.
 
 | Class | Key | Limit | Routes |
 | :---- | :---- | :---- | :---- |
@@ -144,8 +144,8 @@ Session = {
 | Method | Path | Description | Auth |
 | :---- | :---- | :---- | :---- |
 | POST | `/auth/register` | `{ email, password, fullName, preferredLocale? }` → `201 Session`. Creates I-1 as `CUSTOMER` and a session; `preferredLocale` is the locale the guest was browsing in (`en` when absent). Password 8–72 **bytes**. `409 EMAIL_TAKEN`. | PUBLIC · `AUTH` |
-| POST | `/auth/login` | `{ email, password }` → `200 Session`. Unknown email, wrong password and an account with no password are **the same** `401 INVALID_CREDENTIALS`, with the same timing. An expired lock is lifted first (rdm-spec §2.9); then `403 ACCOUNT_LOCKED` (`details.lockedUntil`, `null` when indefinite — never the reason) or `403 ACCOUNT_DEACTIVATED`. | PUBLIC · `AUTH` |
-| POST | `/auth/firebase` | `{ idToken }` — a Firebase ID token from a Google or Apple sign-in → `200 Session` (`201` when the account was created). Verified with `firebase-admin`; the provider must be `google.com` or `apple.com` and the email verified, else `401 FIREBASE_TOKEN_INVALID` (`details.reason: INVALID \| PROVIDER \| EMAIL_UNVERIFIED`). Finds the user by `firebase_uid`, then by email — **linking to an existing password account clears its password and deletes its sessions** ([ADR 0013](./decisions/0013-identity-issues-brewlite-tokens-and-firebase-only-proves-sign-ins.md)) — else creates a `CUSTOMER`. `403 ACCOUNT_LOCKED` or `403 ACCOUNT_DEACTIVATED`, as for login — a deactivated account's email never becomes a second account. | PUBLIC · `AUTH` |
+| POST | `/auth/login` | `{ email, password }` → `200 Session`. Unknown email, wrong password and an account with no password are **the same** `401 INVALID_CREDENTIALS`, with the same timing. **The password is verified first** — only once it matches is an expired lock lifted (rdm-spec §2.9) and `403 ACCOUNT_LOCKED` (`details.lockedUntil`, `null` when indefinite — never the reason) or `403 ACCOUNT_DEACTIVATED` revealed; checking the lock before the password would tell anyone who types an email whether the account exists and is locked. | PUBLIC · `AUTH` |
+| POST | `/auth/firebase` | `{ idToken }` — a Firebase ID token from a Google or Apple sign-in → `200 Session` (`201` when the account was created). Verified with `firebase-admin`; the provider must be `google.com` or `apple.com` and the email verified, else `401 FIREBASE_TOKEN_INVALID` (`details.reason: INVALID \| PROVIDER \| EMAIL_UNVERIFIED`). Finds the user by `firebase_uid`, then by email — **linking to an existing password account clears its password and deletes its sessions** ([ADR 0013](./decisions/0013-identity-issues-brewlite-tokens-and-firebase-only-proves-sign-ins.md)) — else creates a `CUSTOMER`. An account already linked to a **different** Firebase uid is **re-linked** to the new one: the verified email is the proof ADR 0013 accepts, and refusing would lock the person out of their own account. Two tabs signing in for the first time race the insert — the loser's create hits the `firebase_uid` or `email` unique index and **retries once**, which then finds the winner. `403 ACCOUNT_LOCKED` or `403 ACCOUNT_DEACTIVATED`, as for login — a deactivated account's email never becomes a second account. | PUBLIC · `AUTH` |
 | POST | `/auth/refresh` | `{ refreshToken }` → `200 { accessToken, accessTokenExpiresAt }`. Unknown, expired, or the user locked or deactivated → `401 UNAUTHENTICATED` (the web server then clears the cookies — the visitor is a guest again). The refresh token is not rotated. | PUBLIC · `SESSION` |
 | POST | `/auth/logout` | `{ refreshToken }` → `204`. Deletes the session; an unknown token is still `204`. | PUBLIC · `SESSION` |
 
@@ -158,7 +158,7 @@ Me = { id; email; fullName; role: 'CUSTOMER' | 'STAFF' | 'ADMIN'; permissions: s
 
 | Method | Path | Description | Auth |
 | :---- | :---- | :---- | :---- |
-| GET | `/users/me` | `Me`. `permissions` is `ROLE_PERMISSIONS[role]` — the web app uses it to show or hide staff and admin links. | USER |
+| GET | `/users/me` | `Me`. `permissions` is `ROLE_PERMISSIONS[role]` — the web app uses it to show or hide staff and admin links. A deactivated account holding a still-valid access token gets `401 UNAUTHENTICATED`, not `404` — the account is gone for them, and `401` is what makes the web server clear the cookies. | USER |
 | PATCH | `/users/me` | `{ fullName?, preferredLocale? }` → `Me`. Nothing else is self-service. | USER |
 | PATCH | `/users/me/password` *(P1)* | `{ currentPassword?, newPassword }` → `204`. `currentPassword` required when the account has one (`403 CURRENT_PASSWORD_INCORRECT`); a Google-only account may set a first password. Deletes every *other* session. | USER · `AUTH` |
 
@@ -171,7 +171,7 @@ AdminUser = Me & { isLocked: boolean; lockedUntil: string | null; lockReason: st
 
 | Method | Path | Description | Auth |
 | :---- | :---- | :---- | :---- |
-| GET | `/admin/users` | `?q=` (email or name) `&role=&locked=&deleted=` — `deleted` defaults to `false`, `true` lists only deactivated accounts. Page style, sort `createdAt`, `email`. `AdminUser[]`. | perm:`user.manage` |
+| GET | `/admin/users` | `?q=` (email or name) `&role=&locked=&deleted=` — `deleted` defaults to `false`, `true` lists only deactivated accounts. Page style, sort `createdAt`, `email`, default **`-createdAt`**. `AdminUser[]`. | perm:`user.manage` |
 | GET | `/admin/users/:id` | `AdminUser`, deactivated or not. | perm:`user.manage` |
 | PATCH | `/admin/users/:id/role` | `{ role }` → `AdminUser`. Deletes all their sessions, so the new role applies at their next sign-in (and their current access token lapses within 15 min). | perm:`user.manage` |
 | POST | `/admin/users/:id/lock` | `{ reason, lockedUntil? }` → `AdminUser`. `reason` ≤ `LOCK_REASON_MAX_LENGTH`; `lockedUntil` in the future, at most `MAX_LOCK_DURATION_DAYS` away, absent = until unlocked. Re-locking a locked account replaces its reason and end. Deletes all sessions. | perm:`user.manage` |
@@ -179,7 +179,7 @@ AdminUser = Me & { isLocked: boolean; lockedUntil: string | null; lockReason: st
 | DELETE | `/admin/users/:id` | **Deactivate** (soft delete) → `204`. Stamps `deleted_at` and `deleted_by_id`, deletes all sessions. | perm:`user.manage` |
 | POST | `/admin/users/:id/restore` | → `AdminUser`. Clears `deleted_at` and `deleted_by_id`; a lock, if any, stays. | perm:`user.manage` |
 
-Role change, lock and deactivate are refused `403 SELF_ACTION_FORBIDDEN` on yourself, and `409 LAST_ADMIN` when they would leave no admin that is neither locked nor deactivated. An already-deactivated account answers `409 INVALID_STATE` to lock, role change and delete; a live one answers it to restore.
+Every write checks, in this order: (1) the target exists, deactivated included, else `404 RESOURCE_NOT_FOUND`; (2) role change, lock and deactivate are refused `403 SELF_ACTION_FORBIDDEN` on yourself — unlock and restore have no self-check; (3) state — an already-deactivated account answers `409 INVALID_STATE` (`details.status: 'DEACTIVATED'`) to lock, role change and deactivate, a live one answers it (`details.status: 'ACTIVE'`) to restore; (4) the last-admin rule — role change (losing `ADMIN`), lock and deactivate on an `ADMIN` refuse `409 LAST_ADMIN` when they would leave no **effective** admin, an admin that is neither locked nor deactivated — an expired, not-yet-lifted lock counts as unlocked, since it lifts at the next sign-in.
 
 There is no "create staff" route: a barista registers like anyone else, and an admin changes their role.
 
@@ -225,12 +225,12 @@ ProductDetail  = ProductSummary & {
 
 | Method | Path | Description | Auth |
 | :---- | :---- | :---- | :---- |
-| GET | `/admin/categories` | All live categories, including inactive; `?deleted=true` lists only deleted ones. | perm:`menu.manage` |
+| GET | `/admin/categories` | All live categories, including inactive; `?deleted=true` lists only deleted ones. Bounded (`MAX_MENU_CATEGORIES`), not paged. | perm:`menu.manage` |
 | POST | `/admin/categories` | `{ name: LocalizedText, sortOrder?, isActive? }` — both languages required. `409 CATEGORY_NAME_TAKEN` (`details.locale`). | perm:`menu.manage` |
 | PATCH | `/admin/categories/:id` | `{ name?: LocalizedText, sortOrder?, isActive? }` — a name is replaced as a whole pair, never one language. | perm:`menu.manage` |
 | DELETE | `/admin/categories/:id` | Soft delete → `204`. `409 CATEGORY_IN_USE` while any live product belongs to it. | perm:`menu.manage` |
 | POST | `/admin/categories/:id/restore` | `204`. `409 CATEGORY_NAME_TAKEN` if a live category took the name meanwhile. | perm:`menu.manage` |
-| GET | `/admin/products` | `?q=&categoryId=&deleted=`, page style (`deleted` defaults to `false`). Full rows including stock and `imageUrl`. | perm:`menu.manage` |
+| GET | `/admin/products` | `?q=&categoryId=&deleted=`, page style (`deleted` defaults to `false`). Sort allowlist `sortOrder \| nameEn \| createdAt \| basePriceVnd`, default `sortOrder`. Full rows including stock and `imageUrl`. | perm:`menu.manage` |
 | GET | `/admin/products/:id` | Full row + sizes + allowed topping ids. | perm:`menu.manage` |
 | POST | `/admin/products` | `{ categoryId, name: LocalizedText, description?: LocalizedText, basePriceVnd, sizes: [{ size, priceDeltaVnd }], toppingIds: [], stockQty?, sortOrder? }` — at least one size. `409 PRODUCT_NAME_TAKEN` (`details.locale`); `422 RESOURCE_REFERENCE_INVALID` for an unknown category or topping. | perm:`menu.manage` |
 | PATCH | `/admin/products/:id` | `{ categoryId?, name?: LocalizedText, description?: LocalizedText \| null, basePriceVnd?, sortOrder? }` — pairs replaced whole; `description: null` clears both. **Stock is not editable here** — it has its own versioned route (§2.2). A price change never touches existing orders (rdm-spec §1.4). | perm:`menu.manage` |
@@ -239,14 +239,16 @@ ProductDetail  = ProductSummary & {
 | PUT | `/admin/products/:id/image` | `multipart/form-data`, field `file`, ≤ 2 MB, JPEG / PNG / WebP by **magic bytes**, else `422 IMAGE_INVALID`. → `{ imageUrl }`. Replaces and deletes the previous image. | perm:`menu.manage` |
 | DELETE | `/admin/products/:id/image` | `204`. | perm:`menu.manage` |
 | DELETE | `/admin/products/:id` | Soft delete → `204`. Removes it from the menu; existing orders and held reservations are unaffected. | perm:`menu.manage` |
-| POST | `/admin/products/:id/restore` | `204`. `409 PRODUCT_NAME_TAKEN` if a live product took the name meanwhile; `409 INVALID_STATE` if its category is deleted (restore the category first). | perm:`menu.manage` |
-| GET | `/admin/toppings` | All live, `?deleted=true` for deleted ones. | perm:`menu.manage` |
+| POST | `/admin/products/:id/restore` | `204`. `409 PRODUCT_NAME_TAKEN` if a live product took the name meanwhile; `409 INVALID_STATE` (`details.status: 'CATEGORY_DELETED'`) if its category is deleted (restore the category first). | perm:`menu.manage` |
+| GET | `/admin/toppings` | All live, `?deleted=true` for deleted ones. Bounded (`MAX_ADMIN_TOPPINGS`, 100), not paged. | perm:`menu.manage` |
 | POST | `/admin/toppings` | `{ name: LocalizedText, priceVnd }`. `409 TOPPING_NAME_TAKEN` (`details.locale`). | perm:`menu.manage` |
 | PATCH | `/admin/toppings/:id` | `{ name?: LocalizedText, priceVnd?, isAvailable? }`. | perm:`menu.manage` |
 | DELETE | `/admin/toppings/:id` | Soft delete → `204`. | perm:`menu.manage` |
 | POST | `/admin/toppings/:id/restore` | `204`. `409 TOPPING_NAME_TAKEN` on a name clash. | perm:`menu.manage` |
 
-Every write here invalidates the menu cache after it commits.
+Every write here invalidates the menu cache after it commits — a failed invalidation never fails the write.
+
+A write to a deleted category, product or topping (any `PATCH`/`PUT`, plus `SetImage`/`ClearImage`) is refused `409 INVALID_STATE` (`details.status: 'DELETED'`); restoring one that is not deleted is refused the same way (`details.status: 'ACTIVE'`).
 
 ---
 
@@ -282,7 +284,7 @@ Order = Quote & {
 
 | Method | Path | Description | Auth |
 | :---- | :---- | :---- | :---- |
-| POST | `/orders/quote` | `{ items: CartLine[], promoCode?, pointsToRedeem? }` → `Quote`. Prices through catalog and validates the code; **writes nothing and reserves nothing**. Refusals, in this order: `422 PRODUCT_UNAVAILABLE` (`details.productIds`), `422 OPTION_INVALID` (`details.lineIndex`, `details.reason: SIZE \| TOPPING \| TOO_MANY_TOPPINGS`), `409 OUT_OF_STOCK` (read-only check, `details.products`), `422 PROMO_CODE_INVALID` (`details.reason`, rdm-spec O-4), `422 POINTS_INSUFFICIENT` *(P1)*, `422 ORDER_TOTAL_TOO_LOW`. The web app marks the named lines unavailable. | USER · `ORDER_WRITE` |
+| POST | `/orders/quote` | `{ items: CartLine[], promoCode?, pointsToRedeem? }` → `Quote`. Prices through catalog and validates the code; **writes nothing and reserves nothing**. Refusals, in this order: `422 PRODUCT_UNAVAILABLE` (`details.productIds`), `422 OPTION_INVALID` (`details.lineIndex`, `details.reason: SIZE \| TOPPING \| TOO_MANY_TOPPINGS`), `409 OUT_OF_STOCK` (read-only check, `details.products`), `422 PROMO_CODE_INVALID` (`details.reason`, rdm-spec O-4), `422 POINTS_INSUFFICIENT` *(P1)*, `422 ORDER_TOTAL_TOO_LOW` (judged on the **subtotal** — a valid code's discount is capped at `subtotal − MIN_PAYABLE_VND`, so it never causes this), `422 ORDER_TOTAL_TOO_HIGH` (`details.maximumVnd`, on the total after the discount). The web app marks the named lines unavailable. | USER · `ORDER_WRITE` |
 | POST | `/orders` ⟳ | `{ items, promoCode?, pointsToRedeem?, note? }` → `201 Order` (`PENDING`). The same refusals as the quote, where `OUT_OF_STOCK` now comes from the actual reservation, plus `409 STOCK_CONTENDED` when the optimistic lock kept losing (retry with the same key). The sequence is §6.1. | USER · `ORDER_WRITE` |
 | GET | `/orders/me` | Cursor style, newest first, `?status=` optional. Each item is the `Order` without `history`. | USER |
 | GET | `/orders/:id` | `Order`. Someone else's → `404`. | USER |
@@ -295,7 +297,7 @@ Order = Quote & {
 | :---- | :---- | :---- | :---- |
 | GET | `/staff/orders` | Orders in `PAID`, `PREPARING`, `READY`, oldest first, `?status=` to narrow; bounded to 100. Each is the `Order` without `history`. | perm:`order.board.read` |
 | POST | `/staff/orders/:id/status` | `{ to: 'PREPARING' \| 'READY' \| 'COMPLETED' }` → `Order`. Checked by `assertTransition` and a conditional update — a move not in product-overview §6.4, or an order another tap already moved, is `409 INVALID_STATE` (`details.status` = the current status). | perm:`order.status.update` |
-| POST | `/staff/orders/:id/cancel` | `{ note }` (required, ≤ 200) → `Order`. `PAID` → `CANCELLED` (reason `STAFF`): releases stock, reverses points, returns the promo use, sets `refundStatus: PENDING`; payment refunds (§8). Any other status is `409 INVALID_STATE`. | perm:`order.cancel.paid` |
+| POST | `/staff/orders/:id/cancel` | `{ note }` (required, ≤ 200) → `Order`. `PAID` → `CANCELLED` (reason `STAFF`): releases stock, reverses points, returns the promo use, sets `refundStatus: PENDING`; payment refunds (§8). The transition is narrowed to `PAID` — a `PENDING` order is the customer's or the expiry's to cancel, a `PREPARING` one cannot be cancelled — so any other status is `409 INVALID_STATE` with the current status. The note is written to `cancel_note` and to the history row. | perm:`order.cancel.paid` |
 | GET | `/staff/orders/events` | **SSE** stream of every order's status changes (§5). | perm:`order.board.read` |
 
 ### 3.4 Admin — orders and reports
@@ -316,8 +318,8 @@ Promotion = { id; code; description: string | null; discountType: 'PERCENT' | 'F
 
 | Method | Path | Description | Auth |
 | :---- | :---- | :---- | :---- |
-| GET | `/admin/promotions` | `?active=&deleted=&q=`, page style. | perm:`promotion.manage` |
-| POST | `/admin/promotions` | Everything but `id`, `usedCount`, `createdAt`. Code normalised to upper case. `409 PROMO_CODE_TAKEN`. | perm:`promotion.manage` |
+| GET | `/admin/promotions` | `?active=&deleted=&q=`, page style — `active` is the `is_active` column, `q` a code prefix (upper-cased). Sort `createdAt`, `code`, `endsAt`, default `-createdAt`. | perm:`promotion.manage` |
+| POST | `/admin/promotions` | Everything but `id`, `usedCount`, `createdAt`. Code normalised to upper case. `perUserLimit` defaults to `1`; `null` is unlimited. `maxUses: null` is unlimited, `0` a code that can no longer be used. `409 PROMO_CODE_TAKEN` — deleted codes included, since a code is never reused. | perm:`promotion.manage` |
 | GET | `/admin/promotions/:id` | `Promotion`. | perm:`promotion.manage` |
 | PATCH | `/admin/promotions/:id` | `{ description?, endsAt?, maxUses?, perUserLimit?, isActive? }`. `maxUses` below `usedCount` is `422 PROMO_MAX_USES_BELOW_USED`. The discount itself never changes (rdm-spec O-4). | perm:`promotion.manage` |
 | DELETE | `/admin/promotions/:id` | Soft delete → `204`. The code stops working at once (`PROMO_CODE_INVALID`, `NOT_FOUND`); orders that used it are unaffected. | perm:`promotion.manage` |
@@ -370,7 +372,9 @@ data: {"orderId":"…","orderNo":1042,"status":"PREPARING","at":"2026-09-24T08:1
 
 - Fed by the gateway's ephemeral consumer of `ordering.order.status_changed` (§8). A `: ping` comment every 25 s keeps proxies from closing an idle stream.
 - **An event is a nudge, not the record.** On every connect and reconnect the page re-reads the order (or the board) over HTTP; a frame lost during a reconnect costs nothing but latency.
-- A customer stream ends after the order reaches `COMPLETED` or `CANCELLED`.
+- A customer stream ends after the order reaches `COMPLETED` or `CANCELLED`; an order **already** finished at connect answers `204 No Content`, which `EventSource` treats as final — ending a `200` instead would make the browser reconnect every few seconds for as long as the tab is open.
+- Ownership is checked once, at connect: someone else's order is a `404` JSON error before any stream starts.
+- The routes write their responses themselves — Nest's `@Sse()` cannot write a comment line, answer `204`, or end after a chosen frame — and are excluded from OpenAPI. Open streams are ended in `beforeApplicationShutdown`; left open, they block `app.close()` indefinitely.
 
 ---
 
@@ -383,9 +387,10 @@ web ──POST /orders + Idempotency-Key──▶ gateway ──PlaceOrder──
 ordering:
   1. (user, key) exists?  same request_hash → return it (200) · different → 422 IDEMPOTENCY_KEY_REUSED
   2. orderId = newId()
-  3. catalog.PriceItems(lines)                  → priced lines, or PRODUCT_UNAVAILABLE / OPTION_INVALID
-  4. validate promo (read-only), compute totals → PROMO_CODE_INVALID / ORDER_TOTAL_TOO_LOW
-  5. catalog.ReserveStock(orderId, lines)       → HELD reservations, or OUT_OF_STOCK / STOCK_CONTENDED
+  3. catalog.PriceItems(lines)                  → priced lines, or PRODUCT_UNAVAILABLE / OPTION_INVALID / OUT_OF_STOCK (read-only check)
+  4. validate promo (read-only), compute totals → PROMO_CODE_INVALID / ORDER_TOTAL_TOO_LOW / ORDER_TOTAL_TOO_HIGH
+  5. catalog.ReserveStock(orderId, lines)       → HELD reservations, or OUT_OF_STOCK (every short product named) / STOCK_CONTENDED / PRODUCT_UNAVAILABLE
+       a timed-out ReserveStock may still have committed → ReleaseStock(orderId) even on this refusal path
   6. transaction: lock + re-validate promotion, used_count + 1, insert O-1 PENDING, O-2, O-3
        on any failure from here (including P2002 on the idempotency key):
          catalog.ReleaseStock(orderId)          (best effort — the orphan sweep is the backstop)
@@ -397,7 +402,7 @@ ordering:
 
 ```text
 web ──POST /payments {orderId} + Idempotency-Key──▶ gateway ──CreatePayment──▶ payment
-payment:
+payment, in one transaction whose first statement is pg_advisory_xact_lock(hashtextextended(orderId, 0)):
   1. (user, key) exists? → return it (re-reading the session's client secret from Stripe)
   2. open PENDING payment for this order? → return it (200)
   3. paymentId = newId(); ordering.BeginPayment(orderId, userId, paymentId)
@@ -407,7 +412,7 @@ payment:
   4. insert P-1 PENDING (amount = totalVnd)
   5. STRIPE: checkout.sessions.create(idempotencyKey = the request's key) → store session id → clientSecret
      FAKE:   nothing — the page shows the simulate buttons
-  6. 201 Payment
+  6. commit → 201 Payment
 
 Stripe ──webhook──▶ gateway ──raw body──▶ payment
   verify signature · insert P-3 (duplicate → 200, stop)
@@ -417,6 +422,9 @@ ordering consumer:
   order CANCELLED               → outbox ordering.payment.rejected → payment refunds (ORDER_NOT_PAYABLE)
   already PAID or later         → nothing (a redelivery)
 ```
+
+- **The advisory lock serialises every `CreatePayment` for one order.** Two tabs with different keys would otherwise both pass step 2 and both call `BeginPayment` — the second overwriting `current_payment_id`, then losing on `payments_one_pending_per_order` — leaving the order pointing at a payment that does not exist. The lock is held across the `BeginPayment` call (its 2 s deadline, a 10 s transaction timeout): it covers one order, never a table. A `BeginPayment` that timed out but committed leaves `current_payment_id` on an id that was never inserted; the customer's retry overwrites it, so nothing needs cleaning up.
+- **The succeeded consumer checks, in order:** the order exists, and `amountVnd` equals its `totalVnd` — either failing is a bug, dead-lettered, never a partial payment; already `PAID` or later → nothing; `CANCELLED` → `ordering.payment.rejected`; otherwise `PAID`, with `current_payment_id` set to **this** payment (a later staff cancel names it for the refund) and loyalty credited in the same transaction. **Paid past the deadline is still paid** — only `orders-expire` cancelling first turns a succeeded payment into a rejected one.
 
 ### 6.3 Cancel a paid order — staff
 
@@ -429,6 +437,8 @@ payment consumer: insert P-2 (UNIQUE payment_id) → Stripe refund (idempotency 
                   → refund.updated webhook → P-2 SUCCEEDED + outbox payment.refund.succeeded
 ordering consumer: refund_status → REFUNDED
 ```
+
+`refund(paymentId, reason)` serves both refund sources — this staff cancel (`STAFF_CANCELLED`) and `ordering.payment.rejected` (`ORDER_NOT_PAYABLE`): the payment must be `SUCCEEDED`, else the message is dead-lettered (so is a paid cancel that names no payment); P-2 is inserted `PENDING` for the full amount and **committed before Stripe is called** — a unique violation returns the existing row, and a row already `SUCCEEDED` or `FAILED` is a redelivery; the provider is called with the row's id as idempotency key; its answer is applied at once when final (card refunds usually are), or by `refund.updated` when `PENDING`. A rejected payment's refund leaves that order's `refund_status` at `NONE` — the order was never paid in ordering's eyes.
 
 ---
 
@@ -452,7 +462,7 @@ Every code is one entry in `ERRORS` in `packages/contracts`: HTTP status, gRPC s
 | `CURRENT_PASSWORD_INCORRECT` | 403 | — | identity *(P1)* |
 | `ROUTE_NOT_FOUND` | 404 | — | gateway; payment (`fake-confirm` when disabled) |
 | `RESOURCE_NOT_FOUND` | 404 | `resource: USER \| CATEGORY \| PRODUCT \| TOPPING \| ORDER \| PROMOTION \| PAYMENT` | any service |
-| `INVALID_STATE` | 409 | `status` — the current status | ordering, payment |
+| `INVALID_STATE` | 409 | `status` — the current status | ordering, payment, catalog (`DELETED` \| `ACTIVE` \| `CATEGORY_DELETED`) |
 | `EMAIL_TAKEN` | 409 | — | identity |
 | `LAST_ADMIN` | 409 | — | identity |
 | `CATEGORY_NAME_TAKEN`, `PRODUCT_NAME_TAKEN`, `TOPPING_NAME_TAKEN` | 409 | `locale: en \| vi` — which name clashed | catalog |
@@ -469,6 +479,7 @@ Every code is one entry in `ERRORS` in `packages/contracts`: HTTP status, gRPC s
 | `PROMO_MAX_USES_BELOW_USED` | 422 | `usedCount` | ordering |
 | `POINTS_INSUFFICIENT` | 422 | `balance` | ordering *(P1)* |
 | `ORDER_TOTAL_TOO_LOW` | 422 | `minimumVnd` | ordering |
+| `ORDER_TOTAL_TOO_HIGH` | 422 | `maximumVnd` | ordering |
 | `IMAGE_INVALID` | 422 | `reason: TYPE \| SIZE` | gateway, catalog |
 | `RESOURCE_REFERENCE_INVALID` | 422 | `field` | catalog |
 | `RATE_LIMITED` | 429 | `retryAfterSeconds` | gateway |
@@ -487,7 +498,7 @@ Streams: `ORDERING` (`ordering.>`), `PAYMENT` (`payment.>`), 7 days, 2-minute du
 
 | Subject | Publisher | Payload (besides `eventId`, `occurredAt`) | Consumers → effect |
 | :---- | :---- | :---- | :---- |
-| `ordering.order.status_changed` | ordering | `orderId, orderNo, userId, from, to, actorType, paymentId?, cancelReason?` — one event per transition | catalog → `to: PAID` confirms reservations, `to: CANCELLED` releases them · payment → `from: PAID, to: CANCELLED` refunds `paymentId` (`STAFF_CANCELLED`) · gateway → SSE frame (ephemeral) |
+| `ordering.order.status_changed` | ordering | `orderId, orderNo, userId, from, to, actorType, paymentId?, cancelReason?` — one event per transition. **Order creation itself emits nothing** (`from: null`) — nothing consumes it, since a customer's own page reads the order it just made; the first published event of an order's life is its first transition (e.g. `PENDING → PAID`). **`paymentId` is set only on `PAID → CANCELLED`**: the order's `current_payment_id`, the payment that paid it — no other cancel has a payment to refund | catalog → `to: PAID` confirms reservations, `to: CANCELLED` releases them · payment → `from: PAID, to: CANCELLED` refunds `paymentId` (`STAFF_CANCELLED`) · gateway → SSE frame (ephemeral) |
 | `ordering.payment.rejected` | ordering | `orderId, paymentId, orderStatus` — a payment succeeded for an order that was no longer payable | payment → refund (`ORDER_NOT_PAYABLE`) |
 | `payment.payment.succeeded` | payment | `paymentId, orderId, userId, amountVnd, method` | ordering → `PAID` (§6.2), or `ordering.payment.rejected` |
 | `payment.payment.failed` | payment | `paymentId, orderId, reason: ASYNC_FAILED \| EXPIRED \| SIMULATED` | ordering → `PAYMENT_FAILED`, only if the order is `PENDING` and `current_payment_id = paymentId` |
@@ -521,11 +532,13 @@ gRPC packages are `brewlite.<service>`; protos in `packages/contracts/proto/brew
 | RPC | Caller | Why synchronous | If it fails |
 | :---- | :---- | :---- | :---- |
 | `catalog.MenuService.PriceItems(lines)` | ordering (quote, place) | an order cannot exist without authoritative prices | refuse the request (`503`) |
-| `catalog.StockService.ReserveStock(orderId, lines)` | ordering (place) | the customer must know now whether it is in stock | refuse the order (`503`), then `ReleaseStock` in case the reservation did commit |
+| `catalog.StockService.ReserveStock(orderId, lines)` | ordering (place) | the customer must know now whether it is in stock | `OUT_OF_STOCK` names every short product, not just the first; a deleted/inactive product is `PRODUCT_UNAVAILABLE` instead. A `503` (or any deadline-exceeded refusal) is followed by `ReleaseStock` in case the reservation did commit |
 | `catalog.StockService.ReleaseStock(orderId)` | ordering (compensation only) | undo a reservation whose order was never written | log; the orphan sweep releases it later |
-| `ordering.OrderService.BeginPayment(orderId, userId, paymentId)` | payment | the amount and the payability must be current | refuse the payment (`503`); no payment row is written |
+| `ordering.OrderService.BeginPayment(orderId, userId, paymentId)` | payment | the amount and the payability must be current. The deadline check and the `expires_at` raise are **one conditional write** whose `WHERE` repeats `status IN (PENDING, PAYMENT_FAILED) AND expires_at > now` — the same condition `orders-expire` uses, so whichever commits first wins and the other is told `ORDER_NOT_PAYABLE`. `expires_at` only moves forward | refuse the payment (`503`); no payment row is written |
 | `ordering.OrderService.GetOrderStatus(orderId)` | catalog (orphan sweep) | the sweep must not guess | skip the row; the next run retries |
 | `payment.PaymentService.ListPaymentsForOrder(orderId)` | gateway (composition, §3.4) | — | `payments: null`, `meta.degraded` |
+
+`PriceItems` also runs a read-only `OUT_OF_STOCK` check (summed per counted product across the caller's lines) so the quote can refuse early — the reservation in `ReserveStock` stays the authority, since stock can change between the two calls. It returns every field O-2 snapshots — both product and topping names, base price, size delta, unit price — so ordering never reads catalog again to build an order line (rdm-spec §1.4).
 
 Every call has a **2 s deadline** and goes through `BaseGrpcClient` (development-conventions §5.2).
 
@@ -558,9 +571,18 @@ Every service serves these — backend services on `OPS_PORT`, the gateway on it
 | Method | Path | Description | Auth |
 | :---- | :---- | :---- | :---- |
 | GET | `/health` | Liveness: the process is up. | PUBLIC |
-| GET | `/health/ready` | Readiness: **this service's own** dependencies — its database, Redis, NATS. Never a gRPC peer. The gateway checks Redis and NATS. | PUBLIC |
+| GET | `/health/ready` | Readiness: **this service's own** dependencies — its database, Redis, NATS. Never a gRPC peer. Only a dependency the service cannot serve without — catalog's menu reads survive Redis being down (architecture §2.6), so Redis joins catalog's readiness only once a background job needs it. The gateway declares **NATS** — its event streams need it — but not Redis: its `RateLimitGuard` fails open on a Redis outage (architecture §2.6, §5). A NATS outage fails only the streams; every other route keeps serving, and the gateway boots without the broker and reconnects when it returns. | PUBLIC |
 | GET | `/version` | `{ service, version, gitSha, builtAt }`. | PUBLIC |
 | GET | `/docs`, `/docs-json` | Swagger UI and the OpenAPI document. Gateway only; `SWAGGER_ENABLED=false` in production. | PUBLIC |
+
+**Readiness by service** — the NATS check reads the connection's own status, not a request per probe; the Redis check is a `PING` on the jobs connection, bounded to 500 ms:
+
+| Service | Readiness | Why |
+| :---- | :---- | :---- |
+| ordering | database, NATS, Redis | the relay publishes; `orders-expire`/`outbox-prune` need Redis |
+| catalog | database, NATS, Redis | the order-status consumer reads NATS; the orphan sweep needs Redis |
+| identity | database, Redis | `sessions-prune` needs Redis |
+| gateway | nothing yet | NATS joins once SSE (07) adds a consumer here |
 
 ---
 
@@ -572,6 +594,8 @@ Every service serves these — backend services on `OPS_PORT`, the gateway on it
 | **B — frontend** | consumes Phase A through the generated client; no new routes |
 | **C — handover** | no new routes; the Compose `apps` profile runs everything, the README, the J1 demo |
 | **P1** | `PATCH /users/me/password` · §3.4 admin orders and reports · `pointsToRedeem` on quote and order · `ListPaymentsForOrder` |
+
+**Phase A is done.** Audited at the end of the phase: every §1–§4 route is built and documented (58 operations), each with this plan's marker and rate-limit class; every `ERRORS` code is raised except the two P1 ones. A guard keeps this plan and `openapi.json` in sync from here on.
 
 ---
 

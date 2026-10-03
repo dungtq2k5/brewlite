@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package brewlite.common;
+
+message PageRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string sort = 3;
+}
+
+message PageMeta {
+  int32 page = 1;
+  int32 page_size = 2;
+  int32 total = 3;
+}

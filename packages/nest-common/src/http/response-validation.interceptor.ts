@@ -8,6 +8,7 @@ import { Reflector } from '@nestjs/core';
 import { isZodDto, type ZodDto } from 'nestjs-zod/dto';
 import { map, type Observable } from 'rxjs';
 import { z, type ZodType } from 'zod';
+import { Paged } from './paged.js';
 
 const ZOD_SERIALIZER_DTO_OPTIONS = 'ZOD_SERIALIZER_DTO_OPTIONS';
 
@@ -16,7 +17,8 @@ const ZOD_SERIALIZER_DTO_OPTIONS = 'ZOD_SERIALIZER_DTO_OPTIONS';
  * (attached by `@ZodSerializerDto`) in development and test, and strips it to the
  * schema in production so a mapper cannot leak a column (conventions §6.2). Runs
  * BEFORE the envelope wraps the value — registered second in `main.ts` so it runs
- * first on the way out.
+ * first on the way out. A `Paged` value is validated on its `items`, not itself —
+ * `meta` is trusted (it never holds column data).
  */
 @Injectable()
 export class ResponseValidationInterceptor implements NestInterceptor {
@@ -37,12 +39,19 @@ export class ResponseValidationInterceptor implements NestInterceptor {
 
     return next.handle().pipe(
       map((value) => {
-        if (this.isProduction) {
-          const result = schema.safeParse(value);
-          return result.success ? result.data : value;
+        if (value instanceof Paged) {
+          return value.withItems(this.validate(schema, value.items) as unknown[]);
         }
-        return schema.parse(value);
+        return this.validate(schema, value);
       }),
     );
+  }
+
+  private validate(schema: ZodType, value: unknown): unknown {
+    if (this.isProduction) {
+      const result = schema.safeParse(value);
+      return result.success ? result.data : value;
+    }
+    return schema.parse(value);
   }
 }

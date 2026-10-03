@@ -13,6 +13,13 @@ export const baseConfig = tseslint.config(
   ...tseslint.configs.recommended,
   prettier,
   {
+    // Plain JS/MJS scripts run under Node; TS files get no-undef disabled by typescript-eslint.
+    files: ['**/*.{js,mjs,cjs}'],
+    languageOptions: {
+      globals: { console: 'readonly', process: 'readonly', Buffer: 'readonly', URL: 'readonly' },
+    },
+  },
+  {
     // Type-aware parsing is scoped to real TS source — root/package config scripts
     // (*.mjs, *.mts, *.cjs) are never part of a tsconfig `include` and don't need it.
     files: ['**/*.ts', '**/*.tsx'],
@@ -43,7 +50,9 @@ export const baseConfig = tseslint.config(
       '**/prisma.service.ts',
       '**/prisma/seed/**',
       '**/*.mapper.ts',
+      '**/domain/*.ts',
       '**/test/setup/**',
+      '**/lock-category.ts',
     ],
     rules: {
       'no-restricted-imports': [
@@ -72,6 +81,41 @@ export const baseConfig = tseslint.config(
               allowTypeImports: true,
               message:
                 'A mapper imports Prisma types only, never the runtime client (conventions §2.1).',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ['**/lock-category.ts'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['**/generated/prisma*'],
+              allowTypeImports: true,
+              message:
+                'A shared row-lock helper imports Prisma types only, never the runtime client (conventions §2.1).',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ['**/domain/*.ts'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['**/generated/prisma*'],
+              message:
+                'domain/*.ts is pure rules — no Prisma import in any form, import type included (conventions §2.1).',
             },
           ],
         },
@@ -138,11 +182,20 @@ export const baseConfig = tseslint.config(
           '**/env.schema.ts',
           '**/main.ts',
           '**/prisma.config.ts',
+          '**/prisma/seed/**',
           '**/vitest.config.mts',
           '**/test/setup/**',
+          '**/test/support/**',
+          '**/test/e2e/support/**',
           '**/scripts/**',
           // Deliberately redirects a client to an unreachable port for one e2e case.
           '**/catalog-unavailable.e2e.spec.ts',
+          // Set JWT_PUBLIC_KEY / NODE_ENV before dynamically importing AppModule, so the
+          // test proves a real key pair and a real production/non-production build.
+          '**/auth-guard.e2e.spec.ts',
+          '**/auth-guard-production.e2e.spec.ts',
+          '**/route-markers.e2e.spec.ts',
+          '**/rate-limit-redis-down.e2e.spec.ts',
         ],
         rules: {
           'no-restricted-syntax': [

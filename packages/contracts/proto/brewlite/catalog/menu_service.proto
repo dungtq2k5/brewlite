@@ -4,9 +4,11 @@ package brewlite.catalog;
 
 import "brewlite/common/localized_text.proto";
 
-// This service will grow ListProducts, GetProduct and PriceItems as the catalog service does.
 service MenuService {
   rpc ListCategories(ListCategoriesRequest) returns (ListCategoriesResponse);
+  rpc ListProducts(ListProductsRequest) returns (ListProductsResponse);
+  rpc GetProduct(GetProductRequest) returns (GetProductResponse);
+  rpc PriceItems(PriceItemsRequest) returns (PriceItemsResponse);
 }
 
 message ListCategoriesRequest {}
@@ -18,4 +20,46 @@ message ListCategoriesResponse {
 message Category {
   string id = 1;
   brewlite.common.LocalizedText name = 2;
+}
+
+message ListProductsRequest { optional string category_id = 1; }
+message ListProductsResponse { repeated ProductSummary products = 1; }
+
+message ProductSummary {
+  string id = 1;
+  string category_id = 2;
+  brewlite.common.LocalizedText name = 3;
+  optional string image_url = 4;
+  int32 from_price_vnd = 5;
+  bool is_sold_out = 6;
+}
+
+message GetProductRequest { string id = 1; }
+message GetProductResponse { ProductDetail product = 1; }
+
+message ProductDetail {
+  ProductSummary summary = 1;
+  optional brewlite.common.LocalizedText description = 2;
+  int32 base_price_vnd = 3;
+  repeated SizeOption sizes = 4;
+  repeated ToppingOption toppings = 5;
+  int32 max_toppings = 6;
+}
+message SizeOption { string size = 1; int32 price_delta_vnd = 2; }
+message ToppingOption { string id = 1; brewlite.common.LocalizedText name = 2; int32 price_vnd = 3; }
+
+message PriceItemsRequest { repeated CartLine lines = 1; }
+message CartLine { string product_id = 1; string size = 2; repeated string topping_ids = 3; int32 qty = 4; }
+
+message PriceItemsResponse { repeated PricedLine lines = 1; int64 subtotal_vnd = 2; }
+message PricedLine {
+  string product_id = 1;
+  brewlite.common.LocalizedText product_name = 2;
+  string size = 3;
+  int32 base_price_vnd = 4;
+  int32 size_delta_vnd = 5;
+  repeated ToppingOption toppings = 6;
+  int32 unit_price_vnd = 7;
+  int32 qty = 8;
+  int32 line_total_vnd = 9;
 }

@@ -1,3 +1,4 @@
 name: brewlite
 include:
-  - infra/docker/compose.yaml
+  - path: infra/docker/compose.yaml
+    env_file: infra/docker/compose.env

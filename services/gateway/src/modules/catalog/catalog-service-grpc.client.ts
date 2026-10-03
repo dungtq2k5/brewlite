@@ -3,8 +3,12 @@ import { ConfigService } from '@nestjs/config';
 import { BaseGrpcClient } from '@brewlite/nest-common';
 import { CATALOG_PROTO_FILES, PROTO_ROOT } from '@brewlite/contracts/proto-paths.js';
 import type {
+  GetProductRequest,
+  GetProductResponse,
   ListCategoriesRequest,
   ListCategoriesResponse,
+  ListProductsRequest,
+  ListProductsResponse,
 } from '@brewlite/contracts/generated/brewlite/catalog/menu_service.js';
 import type { Env } from '../../config/env.schema.js';
 
@@ -25,5 +29,13 @@ export class CatalogServiceGrpcClient extends BaseGrpcClient {
     requestId?: string,
   ): Promise<ListCategoriesResponse> {
     return this.call('listCategories', request, { requestId });
+  }
+
+  listProducts(request: ListProductsRequest, requestId?: string): Promise<ListProductsResponse> {
+    return this.call('listProducts', request, { requestId });
+  }
+
+  getProduct(request: GetProductRequest, requestId?: string): Promise<GetProductResponse> {
+    return this.call('getProduct', request, { requestId });
   }
 }

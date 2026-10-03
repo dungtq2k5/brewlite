@@ -1,0 +1,15 @@
+rules_version = '2';
+
+// Product images are public reads; every write goes through the Firebase console or
+// the admin SDK, never a client (architecture §3.4).
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /products/{allPaths=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

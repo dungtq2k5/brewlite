@@ -14,7 +14,8 @@ export const MAX_LINES_PER_ORDER = 20;
 export const MAX_QTY_PER_LINE = 10;
 export const MAX_TOPPINGS_PER_LINE = 3;
 export const ORDER_NOTE_MAX_LENGTH = 200;
-export const MIN_PAYABLE_VND = 10_000;
+export const MIN_PAYABLE_VND = 15_000;
+export const MAX_ORDER_TOTAL_VND = 5_000_000;
 export const LOYALTY_EARN_STEP_VND = 10_000;
 export const LOYALTY_POINT_VALUE_VND = 1_000;
 export const LOYALTY_MAX_REDEEM_PERCENT = 50;
@@ -32,6 +33,7 @@ export const STOCK_RESERVE_MAX_RETRIES = 5;
 // api-endpoints-plan §0.4
 export const MAX_MENU_PRODUCTS = 200;
 export const MAX_MENU_CATEGORIES = 50;
+export const MAX_ADMIN_TOPPINGS = 100;
 export const STAFF_BOARD_MAX_ORDERS = 100;
 export const DEFAULT_PAGE_SIZE = 20;
 export const MAX_PAGE_SIZE = 100;
@@ -61,3 +63,7 @@ export const PROMO_CODE_MAX_LENGTH = 32;
 
 // O-4 description
 export const PROMO_DESCRIPTION_MAX_LENGTH = 200;
+
+// architecture §5 — shared by the access-token signer and every verifier
+export const JWT_ISSUER = 'brewlite-identity';
+export const JWT_AUDIENCE = 'brewlite-gateway';

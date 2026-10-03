@@ -1,6 +1,7 @@
 import * as grpc from '@grpc/grpc-js';
 import * as protoLoader from '@grpc/proto-loader';
 import { PROTO_LOADER_OPTIONS } from './proto-loader-options.js';
+import type { Caller } from './caller.js';
 
 export interface GrpcClientOptions {
   /** Dot-separated, e.g. `brewlite.catalog.MenuService`. */
@@ -45,11 +46,15 @@ export abstract class BaseGrpcClient {
   protected call<Req, Res>(
     method: string,
     request: Req,
-    opts?: { deadlineMs?: number; requestId?: string },
+    opts?: { deadlineMs?: number; requestId?: string; caller?: Caller },
   ): Promise<Res> {
     return new Promise((resolve, reject) => {
       const metadata = new grpc.Metadata();
       if (opts?.requestId) metadata.set('x-request-id', opts.requestId);
+      if (opts?.caller?.kind === 'USER') {
+        metadata.set('x-user-id', opts.caller.userId);
+        metadata.set('x-user-role', opts.caller.role);
+      }
       const deadline = new Date(Date.now() + (opts?.deadlineMs ?? DEFAULT_DEADLINE_MS));
 
       const callable = (

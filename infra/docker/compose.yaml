@@ -3,8 +3,10 @@ services:
     image: postgres:18-alpine
     container_name: brewlite-postgres
     environment:
-      POSTGRES_USER: brewlite
-      POSTGRES_PASSWORD: brewlite
+      # The local-development credential lives in `compose.env` (read through the root
+      # compose.yaml's `include.env_file`); every service's DATABASE_URL below reads the same pair.
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: brewlite
     ports:
       - '127.0.0.1:25432:5432'
@@ -12,7 +14,7 @@ services:
       - postgres-data:/var/lib/postgresql
       - ./postgres-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U brewlite']
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER"']
       interval: 2s
       timeout: 3s
       retries: 30
@@ -57,6 +59,31 @@ services:
       timeout: 3s
       retries: 30
 
+  # `docker compose --profile tools run --rm nats-box nats -s nats://nats:4222 stream info ORDERING`
+  # — a one-shot container for inspecting streams without installing the NATS CLI locally.
+  nats-box:
+    profiles: ['tools']
+    image: natsio/nats-box:latest
+    container_name: brewlite-nats-box
+
+  firebase:
+    build:
+      context: firebase
+      dockerfile: Dockerfile
+    container_name: brewlite-firebase
+    # Same port number inside and out — the Storage emulator writes its own host and
+    # port into URLs it returns (architecture §1.2).
+    ports:
+      - '127.0.0.1:29000:29000'
+      - '127.0.0.1:29099:29099'
+      - '127.0.0.1:29199:29199'
+      - '127.0.0.1:29400:29400'
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:29400/emulators']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
   catalog:
     profiles: ['apps']
     build:
@@ -68,17 +95,151 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+      firebase:
+        condition: service_healthy
     environment:
       NODE_ENV: production
       LOG_LEVEL: info
-      DATABASE_URL: postgresql://brewlite:brewlite@postgres:5432/brewlite_catalog
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/brewlite_catalog
       GRPC_URL: 0.0.0.0:25052
       OPS_PORT: '23102'
+      REDIS_URL: redis://redis:6379/0
+      NATS_URL: nats://nats:4222
+      ORDERING_GRPC_URL: ordering:25053
+      FIREBASE_PROJECT_ID: demo-brewlite
+      FIREBASE_STORAGE_BUCKET: demo-brewlite.appspot.com
+      FIREBASE_STORAGE_EMULATOR_HOST: firebase:29199
+      # The browser, not catalog, fetches the image — it reaches the emulator through
+      # the host port, so this stays a localhost URL even inside the `apps` profile
+      # (architecture §3.4).
+      STORAGE_PUBLIC_BASE_URL: http://localhost:29199
     ports:
       - '127.0.0.1:23102:23102'
       - '127.0.0.1:25052:25052'
     healthcheck:
       test: ['CMD-SHELL', 'wget -qO- http://localhost:23102/health/ready']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  ordering:
+    profiles: ['apps']
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.service
+      args:
+        SERVICE: ordering
+    container_name: brewlite-ordering
+    depends_on:
+      postgres:
+        condition: service_healthy
+      catalog:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      LOG_LEVEL: info
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/brewlite_ordering
+      GRPC_URL: 0.0.0.0:25053
+      OPS_PORT: '23103'
+      CATALOG_GRPC_URL: catalog:25052
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - '127.0.0.1:23103:23103'
+      - '127.0.0.1:25053:25053'
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:23103/health/ready']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  payment:
+    profiles: ['apps']
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.service
+      args:
+        SERVICE: payment
+    container_name: brewlite-payment
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ordering:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - path: ../../services/payment/.env
+        required: false
+    environment:
+      # The `apps` profile is a local demo — payment runs `development` here so it can use
+      # the fake provider, same reasoning as identity's Auth emulator below.
+      # `NODE_ENV=production` would refuse to boot with `PAYMENT_PROVIDER=fake` (architecture §6).
+      # `PAYMENT_PROVIDER` and the Stripe variables come from `env_file`, never from this file:
+      # `fake` by default, `stripe` once the developer's own test keys are in `.env`.
+      NODE_ENV: development
+      LOG_LEVEL: info
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/brewlite_payment
+      GRPC_URL: 0.0.0.0:25054
+      OPS_PORT: '23104'
+      ORDERING_GRPC_URL: ordering:25053
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - '127.0.0.1:23104:23104'
+      - '127.0.0.1:25054:25054'
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:23104/health/ready']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  identity:
+    profiles: ['apps']
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.service
+      args:
+        SERVICE: identity
+    container_name: brewlite-identity
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      firebase:
+        condition: service_healthy
+    env_file:
+      - path: ../../services/identity/.env
+        required: false
+    environment:
+      # The `apps` profile is a local demo, not a deployment — identity alone runs
+      # `development` here so it can use the Auth emulator; every other service in this
+      # profile still runs `production`. `NODE_ENV=production` would refuse to boot with
+      # `FIREBASE_AUTH_EMULATOR_HOST` set (architecture §5).
+      NODE_ENV: development
+      LOG_LEVEL: info
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/brewlite_identity
+      GRPC_URL: 0.0.0.0:25051
+      OPS_PORT: '23101'
+      REDIS_URL: redis://redis:6379/0
+      FIREBASE_PROJECT_ID: demo-brewlite
+      FIREBASE_AUTH_EMULATOR_HOST: firebase:29099
+    ports:
+      - '127.0.0.1:23101:23101'
+      - '127.0.0.1:25051:25051'
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:23101/health/ready']
       interval: 2s
       timeout: 3s
       retries: 30
@@ -94,6 +255,19 @@ services:
     depends_on:
       catalog:
         condition: service_healthy
+      identity:
+        condition: service_healthy
+      ordering:
+        condition: service_healthy
+      payment:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - path: ../../services/gateway/.env
+        required: false
     environment:
       NODE_ENV: production
       LOG_LEVEL: info
@@ -102,6 +276,11 @@ services:
       SWAGGER_ENABLED: 'true'
       TRUST_PROXY_HOPS: '1'
       CATALOG_GRPC_URL: catalog:25052
+      IDENTITY_GRPC_URL: identity:25051
+      ORDERING_GRPC_URL: ordering:25053
+      PAYMENT_GRPC_URL: payment:25054
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379/0
     ports:
       - '127.0.0.1:23100:23100'
     healthcheck:

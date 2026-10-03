@@ -6,12 +6,13 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { map, type Observable } from 'rxjs';
+import { Paged } from './paged.js';
 import { SKIP_ENVELOPE_KEY } from './skip-envelope.decorator.js';
 
 /**
- * Wraps a handler's raw return value as `{ data }`. Registered FIRST in `main.ts` so it
- * runs LAST on the way out — after `ResponseValidationInterceptor` has already checked
- * the raw value.
+ * Wraps a handler's raw return value as `{ data }` — or, for a `Paged` value,
+ * `{ data: items, meta }`. Registered FIRST in `main.ts` so it runs LAST on the way out
+ * — after `ResponseValidationInterceptor` has already checked the raw value.
  */
 @Injectable()
 export class ResponseEnvelopeInterceptor implements NestInterceptor {
@@ -23,6 +24,10 @@ export class ResponseEnvelopeInterceptor implements NestInterceptor {
       context.getClass(),
     ]);
     if (skip) return next.handle();
-    return next.handle().pipe(map((data) => ({ data })));
+    return next
+      .handle()
+      .pipe(
+        map((data) => (data instanceof Paged ? { data: data.items, meta: data.meta } : { data })),
+      );
   }
 }
