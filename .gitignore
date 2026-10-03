@@ -10,3 +10,13 @@ services/*/generated/
 .env.sonar
 .mcp.json
 .sonar-config.json
+.next/
+
+.next/
+.turbo/
+node_modules/
+
+.next/
+.turbo/
+node_modules/
+*.bak
