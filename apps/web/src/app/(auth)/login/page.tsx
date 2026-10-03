@@ -1,7 +1,6 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect, use } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { loginWithGooglePopup } from '@/lib/firebase';
 
@@ -9,14 +8,18 @@ interface LoginPageProps {
   searchParams?: Promise<{ next?: string }>;
 }
 
+interface TokenData {
+  accessToken?: string;
+  refreshToken?: string;
+}
+
 export default function LoginPage({ searchParams }: LoginPageProps) {
-  const router = useRouter();
   const resolvedSearchParams = searchParams ? use(searchParams) : undefined;
   const nextUrl = resolvedSearchParams?.next || '/orders';
 
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [fullName, setFullName] = useState('Huỳnh Võ');
-  const [email, setEmail] = useState('huynh@brewlite.test');
+  const [email, setEmail] = useState('huynh.dev@brewlite.test');
   const [password, setPassword] = useState('Password123@');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -69,9 +72,9 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
     }
   };
 
-  const saveTokenAndRedirect = async (tokenData: any) => {
-    const accessToken = typeof tokenData === 'string' ? tokenData : tokenData?.accessToken;
-    const refreshToken = typeof tokenData === 'object' ? tokenData?.refreshToken : null;
+  const saveTokenAndRedirect = async (tokenData: string | TokenData) => {
+    const accessToken = typeof tokenData === 'string' ? tokenData : tokenData.accessToken;
+    const refreshToken = typeof tokenData === 'object' ? tokenData.refreshToken : undefined;
 
     if (accessToken) {
       localStorage.setItem('brewlite_access_token', accessToken);
@@ -109,7 +112,7 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
           };
 
     try {
-      let res = await fetch('http://127.0.0.1:23100' + endpoint, {
+      let res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -149,7 +152,7 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
 
     try {
       const idToken = await loginWithGooglePopup();
-      let res = await fetch('http://127.0.0.1:23100/api/v1/auth/firebase', {
+      let res = await fetch('/api/v1/auth/firebase', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idToken }),
@@ -170,14 +173,15 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
         const msg = json.error?.code || json.error?.message || json.code || json.message;
         setErrorMsg(formatErrorMessage(msg));
       }
-    } catch (err: any) {
-      if (err.code === 'auth/popup-closed-by-user') {
+    } catch (err) {
+      const e = err as { code?: string; message?: string };
+      if (e.code === 'auth/popup-closed-by-user') {
         setErrorMsg(
           isVi ? 'Bạn đã đóng cửa sổ đăng nhập Google.' : 'Google sign-in popup was closed.',
         );
       } else {
         setErrorMsg(
-          err.message ||
+          e.message ||
             (isVi ? 'Lỗi khi mở cửa sổ đăng nhập Google.' : 'Error opening Google sign-in window.'),
         );
       }
@@ -301,7 +305,7 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="huynh@brewlite.test"
+            placeholder="huynh.dev@brewlite.test"
             className="w-full px-4 py-2.5 rounded-xl border border-[#D5C7B7] bg-white text-xs font-medium text-[#2B1E16] focus:outline-none focus:border-[#4E3427]"
           />
         </div>
