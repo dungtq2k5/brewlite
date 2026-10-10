@@ -1,0 +1,16 @@
+﻿@import "tailwindcss";
+@plugin "daisyui";
+
+@plugin "daisyui/theme" {
+  name: "brewlite";
+  default: true;
+  --color-primary: #4E3427;
+  --color-primary-content: #FAF6F0;
+  --color-secondary: #C88D58;
+  --color-base-100: #FFFFFF;
+  --color-base-200: #F6F1EA;
+  --color-base-300: #E2D7C8;
+  --color-base-content: #332219;
+  --radius-box: 1rem;
+  --radius-btn: 0.75rem;
+}
