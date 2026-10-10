@@ -10,3 +10,4 @@ services/*/generated/
 .env.sonar
 .mcp.json
 .sonar-config.json
+/staff/
