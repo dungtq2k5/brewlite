@@ -4,6 +4,8 @@ import {
   StockServiceControllerMethods,
   type ListStaffProductsRequest,
   type ListStaffProductsResponse,
+  type ListStaffToppingsRequest,
+  type ListStaffToppingsResponse,
   type ReleaseStockRequest,
   type ReleaseStockResponse,
   type ReserveStockRequest,
@@ -26,6 +28,10 @@ export class StockGrpcController implements StockServiceController {
 
   listStaffProducts(request: ListStaffProductsRequest): Promise<ListStaffProductsResponse> {
     return this.stock.listStaffProducts(request);
+  }
+
+  listStaffToppings(request: ListStaffToppingsRequest): Promise<ListStaffToppingsResponse> {
+    return this.stock.listStaffToppings(request);
   }
 
   setProductAvailability(

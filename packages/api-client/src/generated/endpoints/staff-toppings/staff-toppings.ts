@@ -6,11 +6,35 @@
  */
 import type {
   SetAvailabilityDto,
+  StaffToppingsControllerList200,
   StaffToppingsControllerSetAvailability200,
   StaffToppingsControllerSetAvailability404,
 } from '../../model';
 
 import { apiFetch } from '../../../mutator.js';
+
+export type staffToppingsControllerListResponse200 = {
+  data: StaffToppingsControllerList200;
+  status: 200;
+};
+
+export type staffToppingsControllerListResponseSuccess = staffToppingsControllerListResponse200 & {
+  headers: Headers;
+};
+export type staffToppingsControllerListResponse = staffToppingsControllerListResponseSuccess;
+
+export const getStaffToppingsControllerListUrl = () => {
+  return `/staff/toppings`;
+};
+
+export const staffToppingsControllerList = async (
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<staffToppingsControllerListResponse> => {
+  return apiFetch<staffToppingsControllerListResponse>(getStaffToppingsControllerListUrl(), {
+    ...options,
+    method: 'GET',
+  });
+};
 
 export type staffToppingsControllerSetAvailabilityResponse200 = {
   data: StaffToppingsControllerSetAvailability200;
