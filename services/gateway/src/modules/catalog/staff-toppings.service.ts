@@ -8,6 +8,11 @@ import type { SetAvailabilityDto } from './dto/set-availability.dto.js';
 export class StaffToppingsService {
   constructor(private readonly stock: CatalogStockGrpcClient) {}
 
+  async list(requestId?: string): Promise<StaffToppingResponseDto[]> {
+    const response = await this.stock.listStaffToppings({}, requestId);
+    return response.toppings.map(toStaffToppingResponseDto);
+  }
+
   async setAvailability(
     id: string,
     dto: SetAvailabilityDto,
