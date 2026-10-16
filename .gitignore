@@ -20,5 +20,5 @@ node_modules/
 .turbo/
 node_modules/
 *.bak
-
+.pnpm-store/
 /staff/
