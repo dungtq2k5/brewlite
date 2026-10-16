@@ -88,7 +88,7 @@ Every page's header carries the **language switch** (EN / VI), the cart badge, a
 | Route | Screen |
 | :---- | :---- |
 | `/staff` | **Order board** — three live columns: *Paid* → *Preparing* → *Ready*; one tap moves an order forward; cancel-with-refund on a paid order |
-| `/staff/products` | Sold-out toggle and stock count per product |
+| `/staff/products` | Sold-out toggle and stock count per product; availability toggle per topping |
 
 ### 3.3 Admin pages (A4)
 

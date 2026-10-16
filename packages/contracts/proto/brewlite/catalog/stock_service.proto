@@ -6,6 +6,7 @@ import "brewlite/common/localized_text.proto";
 
 service StockService {
   rpc ListStaffProducts(ListStaffProductsRequest) returns (ListStaffProductsResponse);
+  rpc ListStaffToppings(ListStaffToppingsRequest) returns (ListStaffToppingsResponse);
   rpc SetProductAvailability(SetProductAvailabilityRequest) returns (SetProductAvailabilityResponse);
   rpc SetStockQty(SetStockQtyRequest) returns (SetStockQtyResponse);
   rpc SetToppingAvailability(SetToppingAvailabilityRequest) returns (SetToppingAvailabilityResponse);
@@ -24,6 +25,8 @@ message StaffProduct {
 
 message ListStaffProductsRequest {}
 message ListStaffProductsResponse { repeated StaffProduct products = 1; }
+message ListStaffToppingsRequest {}
+message ListStaffToppingsResponse { repeated StaffTopping toppings = 1; }
 
 message SetProductAvailabilityRequest {
   string id = 1;

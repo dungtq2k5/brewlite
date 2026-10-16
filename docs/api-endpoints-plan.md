@@ -79,7 +79,7 @@ Every route declares exactly one:
 
 `limit` / `pageSize` default 20, max 100. `sort` is `field` or `-field` from a per-route allowlist; anything else is `400`. The cursor is opaque — clients never parse it.
 
-Bounded lists with no pagination — the menu (`MAX_MENU_PRODUCTS`, 200), categories (`MAX_MENU_CATEGORIES`, 50), the staff board (100), `GET /admin/categories` (`MAX_MENU_CATEGORIES`) and `GET /admin/toppings` (`MAX_ADMIN_TOPPINGS`, 100) — say so in their row. `GET /admin/products` is the one admin list large enough to page.
+Bounded lists with no pagination — the menu (`MAX_MENU_PRODUCTS`, 200), categories (`MAX_MENU_CATEGORIES`, 50), the staff board (100), `GET /admin/categories` (`MAX_MENU_CATEGORIES`), and `GET /admin/toppings` and `GET /staff/toppings` (`MAX_ADMIN_TOPPINGS`, 100) — say so in their row. `GET /admin/products` is the one admin list large enough to page.
 
 ### 0.5 Identifiers
 
@@ -219,7 +219,8 @@ ProductDetail  = ProductSummary & {
 | GET | `/staff/products` | Every live product with `{ id, name: LocalizedText, categoryId, isAvailable, stockQty, version }`, bounded. | perm:`stock.update` |
 | PATCH | `/staff/products/:id/availability` | `{ isAvailable }` → the row. Invalidates the menu cache. | perm:`stock.update` |
 | PATCH | `/staff/products/:id/stock` | `{ stockQty: number \| null, expectedVersion }` → the row. `null` stops counting. Under the same optimistic lock as reservations: a stale `expectedVersion` is `409 STOCK_VERSION_CONFLICT` (`details.currentVersion`, `details.currentStockQty`) — the page reloads and staff re-enters. | perm:`stock.update` |
-| PATCH | `/staff/toppings/:id/availability` | `{ isAvailable }`. | perm:`stock.update` |
+| GET | `/staff/toppings` | Every live topping, available or not, as `StaffTopping = { id, name: LocalizedText, priceVnd, isAvailable }`, by English name, bounded (`MAX_ADMIN_TOPPINGS`). | perm:`stock.update` |
+| PATCH | `/staff/toppings/:id/availability` | `{ isAvailable }` → `StaffTopping`. Invalidates the menu cache. | perm:`stock.update` |
 
 ### 2.3 Admin — menu management
 

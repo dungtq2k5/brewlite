@@ -6,6 +6,28 @@
  */
 import * as zod from 'zod';
 
+export const staffToppingsControllerListResponseDataItemPriceVndMin = -9007199254740991;
+export const staffToppingsControllerListResponseDataItemPriceVndMax = 9007199254740991;
+
+export const StaffToppingsControllerListResponse = zod.object({
+  data: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        name: zod.object({
+          en: zod.string(),
+          vi: zod.string(),
+        }),
+        priceVnd: zod
+          .int()
+          .min(staffToppingsControllerListResponseDataItemPriceVndMin)
+          .max(staffToppingsControllerListResponseDataItemPriceVndMax),
+        isAvailable: zod.boolean(),
+      }),
+    )
+    .optional(),
+});
+
 export const StaffToppingsControllerSetAvailabilityParams = zod.object({
   id: zod.string(),
 });

@@ -1,4 +1,4 @@
-import { Body, Controller, Param, Patch, Req } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Req } from '@nestjs/common';
 import type { Request } from 'express';
 import { ApiEnvelope, ApiErrors, RequirePermission } from '@brewlite/nest-common';
 import { StaffToppingsService } from './staff-toppings.service.js';
@@ -10,6 +10,12 @@ import { ProductIdParamDto } from './dto/product-id-param.dto.js';
 @RequirePermission('stock.update')
 export class StaffToppingsController {
   constructor(private readonly staffToppings: StaffToppingsService) {}
+
+  @Get()
+  @ApiEnvelope(StaffToppingResponseDto, { list: true })
+  list(@Req() req: Request): Promise<StaffToppingResponseDto[]> {
+    return this.staffToppings.list(req.id as string | undefined);
+  }
 
   @Patch(':id/availability')
   @ApiEnvelope(StaffToppingResponseDto)

@@ -8,6 +8,7 @@ import { CatalogStockGrpcClient } from '../../src/modules/catalog/catalog-stock-
 
 const stockClientStub = {
   listStaffProducts: vi.fn(),
+  listStaffToppings: vi.fn(),
   setProductAvailability: vi.fn(),
   setStockQty: vi.fn(),
   setToppingAvailability: vi.fn(),
@@ -42,6 +43,7 @@ describe('gateway e2e — /staff routes', () => {
 
   afterEach(() => {
     stockClientStub.listStaffProducts.mockReset();
+    stockClientStub.listStaffToppings.mockReset();
     stockClientStub.setProductAvailability.mockReset();
     stockClientStub.setStockQty.mockReset();
     stockClientStub.setToppingAvailability.mockReset();
@@ -66,6 +68,34 @@ describe('gateway e2e — /staff routes', () => {
       .set('Authorization', `Bearer ${e2e.tokenFor('STAFF')}`);
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);
+  });
+
+  it('GET /staff/toppings — 200 with the list, an unavailable topping included', async () => {
+    stockClientStub.listStaffToppings.mockResolvedValue({
+      toppings: [
+        { id: newId(), name: { en: 'Boba', vi: 'Trân châu' }, priceVnd: 8_000, isAvailable: false },
+      ],
+    });
+    const res = await request(app.getHttpServer())
+      .get('/api/v1/staff/toppings')
+      .set('Authorization', `Bearer ${e2e.tokenFor('STAFF')}`);
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual([
+      expect.objectContaining({
+        name: { en: 'Boba', vi: 'Trân châu' },
+        priceVnd: 8_000,
+        isAvailable: false,
+      }),
+    ]);
+  });
+
+  it('GET /staff/toppings — a CUSTOMER is refused with 403', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/api/v1/staff/toppings')
+      .set('Authorization', `Bearer ${e2e.tokenFor('CUSTOMER')}`);
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe('PERMISSION_DENIED');
+    expect(stockClientStub.listStaffToppings).not.toHaveBeenCalled();
   });
 
   it('PATCH /staff/products/:id/availability — 200', async () => {

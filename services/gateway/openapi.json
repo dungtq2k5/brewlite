@@ -1652,6 +1652,37 @@
         "tags": ["StaffProducts"]
       }
     },
+    "/staff/toppings": {
+      "get": {
+        "operationId": "StaffToppingsController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/StaffToppingResponseDto"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": ["StaffToppings"]
+      }
+    },
     "/staff/toppings/{id}/availability": {
       "patch": {
         "operationId": "StaffToppingsController_setAvailability",

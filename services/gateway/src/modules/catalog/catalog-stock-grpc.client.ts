@@ -5,6 +5,8 @@ import { CATALOG_PROTO_FILES, PROTO_ROOT } from '@brewlite/contracts/proto-paths
 import type {
   ListStaffProductsRequest,
   ListStaffProductsResponse,
+  ListStaffToppingsRequest,
+  ListStaffToppingsResponse,
   SetProductAvailabilityRequest,
   SetProductAvailabilityResponse,
   SetStockQtyRequest,
@@ -30,6 +32,13 @@ export class CatalogStockGrpcClient extends BaseGrpcClient {
     requestId?: string,
   ): Promise<ListStaffProductsResponse> {
     return this.call('listStaffProducts', request, { requestId });
+  }
+
+  listStaffToppings(
+    request: ListStaffToppingsRequest,
+    requestId?: string,
+  ): Promise<ListStaffToppingsResponse> {
+    return this.call('listStaffToppings', request, { requestId });
   }
 
   setProductAvailability(

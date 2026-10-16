@@ -380,6 +380,7 @@ export * from './staffProductsControllerSetStockQty409.js';
 export * from './staffProductsControllerSetStockQty409Error.js';
 export * from './staffToppingResponseDto.js';
 export * from './staffToppingResponseDtoName.js';
+export * from './staffToppingsControllerList200.js';
 export * from './staffToppingsControllerSetAvailability200.js';
 export * from './staffToppingsControllerSetAvailability404.js';
 export * from './staffToppingsControllerSetAvailability404Error.js';

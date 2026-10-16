@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import {
   compareStrings,
+  MAX_ADMIN_TOPPINGS,
   MAX_MENU_PRODUCTS,
   ReservationStatus,
   STOCK_RESERVE_MAX_RETRIES,
@@ -9,6 +10,8 @@ import { live, rpcError } from '@brewlite/nest-common';
 import type {
   ListStaffProductsRequest,
   ListStaffProductsResponse,
+  ListStaffToppingsRequest,
+  ListStaffToppingsResponse,
   ReleaseStockRequest,
   ReleaseStockResponse,
   ReserveStockRequest,
@@ -57,6 +60,20 @@ export class StockService {
       select: STAFF_PRODUCT_SELECT,
     });
     return { products: rows.map(toProtoStaffProduct) };
+  }
+
+  /**
+   * Every live topping, available or not — a topping switched off must stay findable so it
+   * can be switched back on (the public menu lists only the available ones).
+   */
+  async listStaffToppings(_request: ListStaffToppingsRequest): Promise<ListStaffToppingsResponse> {
+    const rows = await this.prisma.topping.findMany({
+      where: { ...live },
+      orderBy: [{ nameEn: 'asc' }, { id: 'asc' }],
+      take: MAX_ADMIN_TOPPINGS,
+      select: STAFF_TOPPING_SELECT,
+    });
+    return { toppings: rows.map(toProtoStaffTopping) };
   }
 
   /** Never bumps `version` — `version` guards `stock_qty` only. */
