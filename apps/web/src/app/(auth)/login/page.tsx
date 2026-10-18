@@ -11,6 +11,16 @@ interface LoginPageProps {
 interface TokenData {
   accessToken?: string;
   refreshToken?: string;
+  user?: {
+    id: string;
+    email: string;
+    fullName: string;
+    role: string;
+    permissions?: string[];
+    hasPassword?: boolean;
+    preferredLocale?: string;
+    createdAt?: string;
+  };
 }
 
 export default function LoginPage({ searchParams }: LoginPageProps) {
@@ -27,6 +37,7 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
 
   useEffect(() => {
     const savedLang = localStorage.getItem('brewlite_lang');
+
     if (savedLang === 'en' || savedLang === 'vi') {
       setCurrentLang(savedLang);
     } else {
@@ -74,25 +85,83 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
 
   const saveTokenAndRedirect = async (tokenData: string | TokenData) => {
     const accessToken = typeof tokenData === 'string' ? tokenData : tokenData.accessToken;
-    const refreshToken = typeof tokenData === 'object' ? tokenData.refreshToken : undefined;
 
-    if (accessToken) {
-      localStorage.setItem('brewlite_access_token', accessToken);
-      localStorage.setItem('token', accessToken);
+    const refreshToken = typeof tokenData === 'string' ? undefined : tokenData.refreshToken;
 
-      document.cookie = 'bl_at=' + accessToken + '; path=/; max-age=604800; SameSite=Lax';
-      if (refreshToken) {
-        document.cookie = 'bl_rt=' + refreshToken + '; path=/; max-age=2592000; SameSite=Lax';
-      }
+    const role = typeof tokenData === 'string' ? undefined : tokenData.user?.role?.toUpperCase();
 
-      await fetch('/api/auth/set-session', {
+    if (!accessToken) {
+      setErrorMsg(
+        isVi ? 'Máy chủ không trả về access token.' : 'Server did not return an access token.',
+      );
+      return;
+    }
+
+    localStorage.setItem('brewlite_access_token', accessToken);
+    localStorage.setItem('token', accessToken);
+
+    document.cookie =
+      'bl_at=' + encodeURIComponent(accessToken) + '; path=/; max-age=604800; SameSite=Lax';
+
+    if (refreshToken) {
+      document.cookie =
+        'bl_rt=' + encodeURIComponent(refreshToken) + '; path=/; max-age=2592000; SameSite=Lax';
+    }
+
+    try {
+      const sessionRes = await fetch('/api/auth/set-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ accessToken, refreshToken }),
-      }).catch(() => null);
+      });
+
+      if (!sessionRes.ok) {
+        setErrorMsg(
+          isVi
+            ? 'Không thể khởi tạo phiên đăng nhập. Vui lòng thử lại.'
+            : 'Could not initialize your session. Please try again.',
+        );
+        return;
+      }
+    } catch {
+      setErrorMsg(
+        isVi
+          ? 'Không thể kết nối đến máy chủ xác thực.'
+          : 'Could not connect to the authentication server.',
+      );
+      return;
     }
 
-    window.location.href = nextUrl;
+    const isStaff = role === 'STAFF';
+
+    const defaultPath = isStaff ? '/staff' : '/orders';
+
+    const isSafeInternalPath =
+      nextUrl.startsWith('/') && !nextUrl.startsWith('//') && !nextUrl.includes('\\');
+
+    const requestedPath = isSafeInternalPath ? nextUrl : defaultPath;
+
+    const isStaffPath = requestedPath === '/staff' || requestedPath.startsWith('/staff/');
+
+    if (!isStaff && isStaffPath) {
+      window.location.href = '/orders';
+      return;
+    }
+    const isCustomerPath =
+      requestedPath === '/orders' ||
+      requestedPath.startsWith('/orders/') ||
+      requestedPath === '/account' ||
+      requestedPath.startsWith('/account/') ||
+      requestedPath === '/cart' ||
+      requestedPath.startsWith('/cart/');
+
+    let redirectPath = requestedPath;
+
+    if (isStaff && isCustomerPath) {
+      redirectPath = '/staff';
+    }
+
+    window.location.href = redirectPath;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -101,6 +170,7 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
     setErrorMsg('');
 
     const endpoint = mode === 'login' ? '/api/v1/auth/login' : '/api/v1/auth/register';
+
     const payload =
       mode === 'login'
         ? { email, password }
@@ -120,6 +190,7 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
 
       if (!res) {
         const proxyUrl = mode === 'login' ? '/api/auth/login' : '/api/auth/register';
+
         res = await fetch(proxyUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -133,6 +204,7 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
         await saveTokenAndRedirect(json.data || json);
       } else {
         const rawCode = json.error?.code || json.error?.message || json.code || json.message;
+
         setErrorMsg(formatErrorMessage(rawCode));
       }
     } catch {
@@ -152,6 +224,7 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
 
     try {
       const idToken = await loginWithGooglePopup();
+
       let res = await fetch('/api/v1/auth/firebase', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -167,14 +240,17 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
       }
 
       const json = await res.json();
+
       if (res.ok) {
         await saveTokenAndRedirect(json.data || json);
       } else {
         const msg = json.error?.code || json.error?.message || json.code || json.message;
+
         setErrorMsg(formatErrorMessage(msg));
       }
     } catch (err) {
       const e = err as { code?: string; message?: string };
+
       if (e.code === 'auth/popup-closed-by-user') {
         setErrorMsg(
           isVi ? 'Bạn đã đóng cửa sổ đăng nhập Google.' : 'Google sign-in popup was closed.',
@@ -192,13 +268,16 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
 
   return (
     <div className="max-w-md mx-auto py-6 px-4 space-y-5 pb-28 relative min-h-screen">
-      {/* Nút chuyển đổi ngôn ngữ ở góc trên */}
       <div className="flex justify-end pt-2">
         <div className="bg-[#4E3427] text-white text-[11px] font-bold px-3 py-1 rounded-full flex items-center gap-1.5 shadow-xs select-none">
           <button
             type="button"
             onClick={() => switchLanguage('vi')}
-            className={`transition ${currentLang === 'vi' ? 'opacity-100 font-black underline' : 'opacity-60 hover:opacity-100 cursor-pointer'}`}
+            className={`transition ${
+              currentLang === 'vi'
+                ? 'opacity-100 font-black underline'
+                : 'opacity-60 hover:opacity-100 cursor-pointer'
+            }`}
           >
             VI
           </button>
@@ -206,14 +285,17 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
           <button
             type="button"
             onClick={() => switchLanguage('en')}
-            className={`transition ${currentLang === 'en' ? 'opacity-100 font-black underline' : 'opacity-60 hover:opacity-100 cursor-pointer'}`}
+            className={`transition ${
+              currentLang === 'en'
+                ? 'opacity-100 font-black underline'
+                : 'opacity-60 hover:opacity-100 cursor-pointer'
+            }`}
           >
             EN
           </button>
         </div>
       </div>
 
-      {/* Logo bấm về trang chủ */}
       <div className="text-center space-y-2">
         <Link href="/" className="inline-flex flex-col items-center group cursor-pointer">
           <div className="w-12 h-12 rounded-full bg-[#4E3427] group-hover:bg-[#3D281E] flex items-center justify-center text-white mb-1 shadow-xs transition">
@@ -225,6 +307,7 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
             BrewLite
           </span>
         </Link>
+
         <h1 className="text-xl font-black text-[#2B1E16]">
           {mode === 'login'
             ? isVi
@@ -234,6 +317,7 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
               ? 'Đăng ký tài khoản'
               : 'Create Account'}
         </h1>
+
         <p className="text-xs text-[#8C7E74]">
           {isVi
             ? 'Đăng nhập để theo dõi đơn hàng và tích lũy điểm'
@@ -256,6 +340,7 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
         >
           {isVi ? 'Đăng nhập' : 'Sign In'}
         </button>
+
         <button
           type="button"
           onClick={() => {
@@ -321,6 +406,7 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
               </span>
             )}
           </div>
+
           <input
             type="password"
             required
@@ -352,7 +438,7 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
 
         <div className="relative py-1">
           <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-[#E8DEC8]"></div>
+            <div className="w-full border-t border-[#E8DEC8]" />
           </div>
           <div className="relative flex justify-center text-[10px] uppercase font-bold">
             <span className="bg-[#FDFBF9] px-2 text-[#8C7E74]">{isVi ? 'Hoặc' : 'Or'}</span>
@@ -362,7 +448,8 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
         <button
           type="button"
           onClick={handleGoogleLogin}
-          className="w-full py-2.5 bg-white border border-[#D5C7B7] hover:bg-gray-50 text-[#2B1E16] font-semibold rounded-xl text-xs flex items-center justify-center gap-2 shadow-xs transition"
+          disabled={loading}
+          className="w-full py-2.5 bg-white border border-[#D5C7B7] hover:bg-gray-50 disabled:opacity-50 text-[#2B1E16] font-semibold rounded-xl text-xs flex items-center justify-center gap-2 shadow-xs transition"
         >
           <svg className="w-4 h-4" viewBox="0 0 24 24">
             <path

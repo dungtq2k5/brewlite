@@ -1,20 +1,21 @@
+'use client';
+import { useStaffI18n } from '../i18n';
 import { StaffIcon } from '../StaffIcon';
 import { ORDER_FILTERS } from './order.constants';
 import type { OrderFilter } from './order.types';
-
 type OrderToolbarProps = {
   filter: OrderFilter;
   onFilterChange: (filter: OrderFilter) => void;
   connectionLabel: string;
 };
-
 export function OrderToolbar({ filter, onFilterChange, connectionLabel }: OrderToolbarProps) {
+  const { t } = useStaffI18n();
   return (
     <div className="mt-4 flex min-h-[31px] items-center justify-between gap-[10px] max-[650px]:items-start max-[420px]:flex-col">
       <div
         className="flex min-h-[29px] items-center gap-px rounded-[9px] border border-[#ecd6b7] bg-[#f9f0e2] p-[3px] max-[420px]:w-full max-[420px]:justify-between"
         role="group"
-        aria-label="Lọc đơn hàng"
+        aria-label={t('Lọc đơn hàng')}
       >
         {ORDER_FILTERS.map(({ value, label }) => (
           <button
@@ -28,7 +29,7 @@ export function OrderToolbar({ filter, onFilterChange, connectionLabel }: OrderT
             }`}
             onClick={() => onFilterChange(value)}
           >
-            {label}
+            {t(label)}
           </button>
         ))}
       </div>

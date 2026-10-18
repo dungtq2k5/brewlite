@@ -1,91 +1,88 @@
 'use client';
-
-import { useState } from 'react';
+import { useRef, useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { ORDER_COLUMNS } from './order.constants';
-import { initialOrders } from './order.mock';
-import type { Order, OrderStats } from './order.types';
-
-export function useStaffOrders() {
-  const [orders, setOrders] = useState<Order[]>(() => initialOrders.map((order) => ({ ...order })));
+import { ordersApi } from './orders-api';
+import type { Order, Result } from '@/lib/staff/contracts';
+import type { OrderStats } from './order.types';
+export function useStaffOrders(initial: Result<Order[]>) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
-
+  const [error, setError] = useState('');
+  const locked = useRef(false);
+  const orders = initial.ok ? initial.data : [];
   const stats: OrderStats = {
-    paid: 0,
-    preparing: 0,
-    ready: 0,
-    completed: 0,
-    processing: 0,
+    paid: orders.filter((order) => order.status === 'PAID').length,
+    preparing: orders.filter((order) => order.status === 'PREPARING').length,
+    ready: orders.filter((order) => order.status === 'READY').length,
+    processing: orders.length,
   };
-
-  for (const order of orders) {
-    switch (order.status) {
-      case 'PAID':
-        stats.paid += 1;
-        break;
-      case 'PREPARING':
-        stats.preparing += 1;
-        break;
-      case 'READY':
-        stats.ready += 1;
-        break;
-      case 'COMPLETED':
-        stats.completed += 1;
-        break;
+  function refreshOrders() {
+    if (locked.current || pending) return;
+    setError('');
+    setNotice('');
+    startTransition(() => router.refresh());
+  }
+  async function mutate(id: string, note?: string): Promise<Order> {
+    if (locked.current || pending) throw new Error('requestFailed');
+    const order = orders.find((order) => order.id === id);
+    const column = ORDER_COLUMNS.find((column) => column.status === order?.status);
+    if (!order || !column || (note !== undefined && order.status !== 'PAID'))
+      throw new Error('invalidState');
+    locked.current = true;
+    setBusy(true);
+    setError('');
+    setNotice('');
+    try {
+      const result =
+        note === undefined
+          ? await ordersApi.advance(id, { to: column.nextStatus })
+          : await ordersApi.cancel(id, { note });
+      if (!result.ok) {
+        setError(result.error);
+        throw new Error(result.error);
+      }
+      setNotice('Đã cập nhật đơn hàng.');
+      return result.data;
+    } catch (cause) {
+      if (
+        !(cause instanceof Error) ||
+        ![
+          'requestFailed',
+          'unauthenticated',
+          'forbidden',
+          'invalidState',
+          'invalidInput',
+          'notFound',
+        ].includes(cause.message)
+      ) {
+        setError('requestFailed');
+        throw new Error('requestFailed');
+      }
+      throw cause;
+    } finally {
+      locked.current = false;
+      setBusy(false);
+      startTransition(() => router.refresh());
     }
   }
-
-  stats.processing = stats.paid + stats.preparing + stats.ready;
-
-  function advanceOrder(orderId: string) {
-    setOrders((current) =>
-      current.map((order) => {
-        if (order.id !== orderId) return order;
-
-        const column = ORDER_COLUMNS.find((item) => item.status === order.status);
-
-        if (!column) return order;
-
-        return {
-          ...order,
-          status: column.nextStatus,
-        };
-      }),
-    );
-
-    setNotice('Thay đổi chỉ được lưu trong phiên xem hiện tại.');
+  async function advanceOrder(id: string) {
+    try {
+      await mutate(id);
+    } catch {
+      return;
+    }
   }
-
-  function cancelOrder(orderId: string, reason: string) {
-    const trimmedReason = reason.trim();
-
-    if (!trimmedReason || trimmedReason.length > 200) return;
-
-    setOrders((current) =>
-      current.map((order) =>
-        order.id === orderId && order.status === 'PAID'
-          ? {
-              ...order,
-              status: 'CANCELLED',
-              cancelReason: trimmedReason,
-            }
-          : order,
-      ),
-    );
-
-    setNotice(`Đã cập nhật bản demo cho đơn #${orderId}. Thay đổi chỉ lưu trong phiên hiện tại.`);
-  }
-
-  function refreshOrders() {
-    setOrders(initialOrders.map((order) => ({ ...order })));
-    setNotice('Đã làm mới bảng đơn từ dữ liệu mẫu.');
-  }
-
   return {
     orders,
     stats,
     notice,
+    error: error || (!initial.ok ? initial.error : ''),
+    busy: busy || pending,
     advanceOrder,
-    cancelOrder,
+    cancelOrder: (id: string, reason: string) => mutate(id, reason),
     refreshOrders,
   };
 }

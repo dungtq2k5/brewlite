@@ -1,34 +1,43 @@
 'use client';
-
+import { useStaffI18n } from '../i18n';
 import { useState } from 'react';
 import { DEFAULT_VISIBLE_ORDERS, LOAD_MORE_ORDERS } from './order.constants';
 import { OrderCard } from './OrderCard';
 import type { Order, OrderColumnConfig } from './order.types';
-
 type OrderColumnProps = {
   column: OrderColumnConfig;
+  busy: boolean;
+  canAdvance: boolean;
+  canCancel: boolean;
   orders: Order[];
   onDetails: (orderId: string) => void;
   onAdvance: (orderId: string) => void;
   onCancel: (orderId: string) => void;
 };
-
-export function OrderColumn({ column, orders, onDetails, onAdvance, onCancel }: OrderColumnProps) {
+export function OrderColumn({
+  column,
+  orders,
+  busy,
+  canAdvance,
+  canCancel,
+  onDetails,
+  onAdvance,
+  onCancel,
+}: OrderColumnProps) {
+  const { t } = useStaffI18n();
   const [visibleCount, setVisibleCount] = useState(DEFAULT_VISIBLE_ORDERS);
-
   const visibleOrders = orders.slice(0, visibleCount);
   const hiddenCount = orders.length - visibleOrders.length;
   const nextLoadCount = Math.min(LOAD_MORE_ORDERS, hiddenCount);
   const isExpanded = visibleOrders.length > DEFAULT_VISIBLE_ORDERS;
   const listId = `orders-${column.status}`;
-
   return (
     <section
       className="min-w-0 rounded-xl border border-[#ecd3ad] bg-[#f6e9d4] px-2 py-[9px]"
-      aria-label={column.title}
+      aria-label={t(column.title)}
     >
       <div className="mx-[2px] mb-2 mt-0 flex h-5 items-center justify-between gap-2">
-        <h2 className="m-0 text-[10px] font-bold text-[#734d33]">{column.title}</h2>
+        <h2 className="m-0 text-[10px] font-bold text-[#734d33]">{t(column.title)}</h2>
       </div>
 
       <div
@@ -40,6 +49,9 @@ export function OrderColumn({ column, orders, onDetails, onAdvance, onCancel }: 
             key={order.id}
             order={order}
             column={column}
+            busy={busy}
+            canAdvance={canAdvance}
+            canCancel={canCancel}
             onDetails={onDetails}
             onAdvance={onAdvance}
             onCancel={onCancel}
@@ -48,7 +60,7 @@ export function OrderColumn({ column, orders, onDetails, onAdvance, onCancel }: 
 
         {orders.length === 0 && (
           <p className="mx-1 my-[6px] text-[10px] text-[#8d7864]">
-            Không có đơn trong trạng thái này.
+            {t('Không có đơn trong trạng thái này.')}
           </p>
         )}
       </div>
@@ -59,8 +71,11 @@ export function OrderColumn({ column, orders, onDetails, onAdvance, onCancel }: 
             className="m-0 text-center text-[9px] leading-[14px] text-[#8d7864]"
             aria-live="polite"
           >
-            Hiển thị {visibleOrders.length}/{orders.length} đơn
-            {hiddenCount > 0 && ` · Còn ${hiddenCount} đơn`}
+            {t('Hiển thị {visible}/{total} đơn', {
+              visible: visibleOrders.length,
+              total: orders.length,
+            })}
+            {hiddenCount > 0 && ` · ${t('Còn {count} đơn', { count: hiddenCount })}`}
           </p>
 
           {hiddenCount > 0 && (
@@ -72,7 +87,7 @@ export function OrderColumn({ column, orders, onDetails, onAdvance, onCancel }: 
               }
               aria-controls={listId}
             >
-              Xem thêm {nextLoadCount} đơn
+              {t('Xem thêm {count} đơn', { count: nextLoadCount })}
             </button>
           )}
 
@@ -83,7 +98,7 @@ export function OrderColumn({ column, orders, onDetails, onAdvance, onCancel }: 
               onClick={() => setVisibleCount(DEFAULT_VISIBLE_ORDERS)}
               aria-controls={listId}
             >
-              Thu gọn
+              {t('Thu gọn')}
             </button>
           )}
         </div>
