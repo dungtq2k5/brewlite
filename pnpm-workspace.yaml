@@ -3,23 +3,23 @@ packages:
   - services/*
   - packages/*
 
-strictDepBuilds: true
-
 # Populated after the first install names what it wants to run; each entry is
 # allowed because its build script is required for the package to work.
 onlyBuiltDependencies:
+  - '@bufbuild/buf'
+  - '@firebase/util'
+  - '@prisma/engines'
+  - '@scarf/scarf'
   - '@swc/core'
   - esbuild
-  - prisma
-  - '@prisma/engines'
-  - simple-git-hooks
-  - '@bufbuild/buf'
-  - protobufjs
-  - '@scarf/scarf'
-  - '@firebase/util'
   - msgpackr-extract
+  - prisma
+  - protobufjs
+  - sharp
+  - simple-git-hooks
+
+strictDepBuilds: true
 
 # `ignoredBuiltDependencies` only silences the "would you like to allow this?" warning —
 # strictDepBuilds still fails the install unless the package is also listed above, so
 # @scarf/scarf (a telemetry-ping postinstall, harmless either way) is just allowed too.
-

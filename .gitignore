@@ -12,13 +12,14 @@ services/*/generated/
 .sonar-config.json
 .next/
 
-.next/
-.turbo/
 node_modules/
 
-.next/
-.turbo/
-node_modules/
 *.bak
 .pnpm-store/
+.idea/
 /staff/
+/apps/web/eslint.config.mjs
+/apps/web/README.md
+/apps/web/tsconfig.tsbuildinfo
+/apps/web/vitest.config.mts
+

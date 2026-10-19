@@ -97,6 +97,7 @@ async function readStaffApi<T>(
     );
     throw cause;
   }
+  // check response từ backend.
   try {
     const data = parse(response.data);
     logStaffDiagnostic('info', {

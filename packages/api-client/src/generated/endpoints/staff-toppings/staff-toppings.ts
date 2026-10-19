@@ -48,12 +48,12 @@ export type staffToppingsControllerSetAvailabilityResponse404 = {
 
 export type staffToppingsControllerSetAvailabilityResponseSuccess =
   staffToppingsControllerSetAvailabilityResponse200 & {
-    headers: Headers;
-  };
+  headers: Headers;
+};
 export type staffToppingsControllerSetAvailabilityResponseError =
   staffToppingsControllerSetAvailabilityResponse404 & {
-    headers: Headers;
-  };
+  headers: Headers;
+};
 
 export type staffToppingsControllerSetAvailabilityResponse =
   | staffToppingsControllerSetAvailabilityResponseSuccess
