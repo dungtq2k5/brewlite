@@ -47,7 +47,7 @@
   },
   "lint-staged": {
     "*.{ts,tsx,js,mjs,cjs}": [
-      "eslint --fix --config apps/web/eslint.config.mjs"
+      "eslint --fix"
     ],
     "*.{ts,tsx,js,mjs,cjs,json,md}": [
       "prettier --write"
