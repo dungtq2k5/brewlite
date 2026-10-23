@@ -11,6 +11,7 @@ export default defineConfig({
       'packages/config',
       'packages/contracts',
       'packages/nest-common',
+      'apps/web',
       'services/catalog',
       'services/gateway',
       'services/identity',

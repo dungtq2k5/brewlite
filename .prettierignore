@@ -9,3 +9,9 @@ pnpm-lock.yaml
 cspell.json
 # markdownlint owns markdown (MD060 compact tables); prettier would re-pad them.
 *.md
+.next/
+**/src/styles/theme.css
+playwright-report/
+test-results/
+# The Designer's export, kept byte-for-byte.
+**/src/styles/tokens.json

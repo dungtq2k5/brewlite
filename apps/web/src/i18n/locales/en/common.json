@@ -1,0 +1,87 @@
+{
+  "brand": "BrewLite",
+  "language": {
+    "label": "Language",
+    "en": "EN",
+    "vi": "VI",
+    "name": {
+      "en": "English",
+      "vi": "Tiếng Việt"
+    }
+  },
+  "header": {
+    "home": "BrewLite home",
+    "signIn": "Sign in",
+    "cart": "Cart",
+    "cartCount_one": "Cart, {{count}} item",
+    "cartCount_other": "Cart, {{count}} items",
+    "account": "Open account menu"
+  },
+  "account": {
+    "title": "Account",
+    "orders": "My orders",
+    "settings": "Account",
+    "staffBoard": "Staff board",
+    "admin": "Admin",
+    "signOut": "Sign out",
+    "close": "Close"
+  },
+  "signOut": {
+    "title": "Sign out?",
+    "body": "Your cart on this device will be cleared.",
+    "confirm": "Sign out",
+    "cancel": "Keep shopping"
+  },
+  "form": {
+    "showPassword": "Show password",
+    "hidePassword": "Hide password"
+  },
+  "home": {
+    "title": "Menu",
+    "placeholder": "The menu is on its way."
+  },
+  "staff": {
+    "title": "Orders board",
+    "placeholder": "The staff board arrives in a later update.",
+    "nav": {
+      "label": "Staff navigation",
+      "board": "Board",
+      "stock": "Stock",
+      "shop": "Shop"
+    }
+  },
+  "admin": {
+    "title": "Admin",
+    "placeholder": "The admin pages arrive in a later update.",
+    "badge": "Admin",
+    "pageTitle": "Products",
+    "nav": {
+      "label": "Admin navigation",
+      "menu": "Menu",
+      "categories": "Categories",
+      "products": "Products",
+      "toppings": "Toppings",
+      "sales": "Sales",
+      "promotions": "Promotions",
+      "orders": "Orders",
+      "people": "People",
+      "users": "Users",
+      "counter": "Counter",
+      "staffBoard": "Staff board",
+      "stock": "Stock",
+      "backToShop": "Back to shop"
+    }
+  },
+  "notFound": {
+    "title": "This page isn't on the menu",
+    "action": "Back to menu"
+  },
+  "error": {
+    "title": "Something went wrong on our side",
+    "body": "It's not you. Give it a moment and try again.",
+    "retry": "Try again",
+    "home": "Back to menu",
+    "reference": "Request ID: {{id}}"
+  },
+  "loading": "Loading"
+}

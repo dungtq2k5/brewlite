@@ -162,7 +162,7 @@ Use these words in code, tickets and commit messages.
 ### F3 — Accounts and sign-in (P0)
 
 - Register with email + password; sign in with email + password.
-- *Continue with Google* (P0) and *Continue with Apple* (P1 — needs a paid Apple developer account, §12) through Firebase Authentication, exchanged for a BrewLite session ([ADR 0013](./decisions/0013-identity-issues-brewlite-tokens-and-firebase-only-proves-sign-ins.md)).
+- *Continue with Google* (P0) and *Continue with Apple* (**deferred** — it needs a paid Apple Developer account, §12; built behind `NEXT_PUBLIC_APPLE_SIGN_IN_ENABLED`, off) through Firebase Authentication, exchanged for a BrewLite session ([ADR 0013](./decisions/0013-identity-issues-brewlite-tokens-and-firebase-only-proves-sign-ins.md)).
 - Sessions: short access token, long-lived refresh token, sign-out. The session stays alive across the Stripe payment round trip.
 - Guests browse and build a cart; checkout, orders and account pages require sign-in, and sign-in returns the customer to where they were with the cart intact (§6.8).
 - A locked or deactivated account cannot sign in (§6.9).

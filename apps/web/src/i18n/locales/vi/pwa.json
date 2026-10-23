@@ -1,0 +1,19 @@
+{
+  "offline": {
+    "title": "Bạn đang mất kết nối",
+    "body": "Giỏ hàng vẫn được lưu trên thiết bị này. Có mạng lại thì bạn thử lại nhé.",
+    "retry": "Thử lại"
+  },
+  "install": {
+    "title": "Thêm BrewLite vào màn hình chính",
+    "body": "Lần sau, món quen chỉ cách hai chạm.",
+    "accept": "Cài đặt",
+    "dismiss": "Không, cảm ơn"
+  },
+  "installIos": {
+    "title": "Thêm BrewLite vào màn hình chính",
+    "step1": "Chạm nút Chia sẻ trên thanh Safari",
+    "step2": "Chọn “Thêm vào MH chính”",
+    "dismiss": "Đã hiểu"
+  }
+}

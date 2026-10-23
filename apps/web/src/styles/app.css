@@ -1,0 +1,28 @@
+@import 'tailwindcss';
+@plugin "daisyui" {
+  themes: false;
+}
+@import './theme.css';
+@theme {
+  --font-sans: var(--font-be-vietnam-pro), sans-serif;
+}
+
+/* D01 §12.1: DaisyUI's default input border fails 3:1 (WCAG 1.4.11). */
+.input,
+.select,
+.textarea {
+  --input-color: color-mix(in oklab, var(--color-base-content) 50%, transparent);
+}
+
+/* D01 §12.2: a 3 px ring outside the control, :focus-visible only, never removed. */
+:focus-visible {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 2px;
+}
+.input:focus-visible,
+.select:focus-visible,
+.textarea:focus-visible,
+.input:focus-within {
+  border-color: var(--color-primary);
+  border-width: 2px;
+}

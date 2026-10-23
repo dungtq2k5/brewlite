@@ -24,7 +24,7 @@ BrewLite is one **TypeScript monorepo**: a Next.js web app, a NestJS gateway, fo
 - **Language:** **TypeScript**, `strict: true` everywhere, no `any` in merged code.
 - **Runtime:** **Node.js 24 LTS**, pinned at **24.14.0** in `.nvmrc`, `engines`, every Dockerfile and every CI job.
 - **Package manager:** **pnpm 10** with workspaces, version pinned by `packageManager` in the root `package.json` and enabled through `corepack`.
-  - ⚠️ pnpm 10 skips dependency build scripts unless allowed. Set `strictDepBuilds: true` and list what may build (`@swc/core`, `prisma`, `@prisma/engines`, `esbuild`, `protobufjs`, `@bufbuild/buf`, `simple-git-hooks`, `@scarf/scarf`, `@firebase/util`) so a skipped native build fails the install instead of failing at runtime. Both settings live in **`pnpm-workspace.yaml`**. ⚠️ `ignoredBuiltDependencies` only silences the prompt — under `strictDepBuilds` an unlisted package still fails the install, so a package is either allowed or the install fails.
+  - ⚠️ pnpm 10 skips dependency build scripts unless allowed. Set `strictDepBuilds: true` and list what may build (`@swc/core`, `prisma`, `@prisma/engines`, `esbuild`, `protobufjs`, `@bufbuild/buf`, `simple-git-hooks`, `@scarf/scarf`, `@firebase/util`, `unrs-resolver`) so a skipped native build fails the install instead of failing at runtime. Both settings live in **`pnpm-workspace.yaml`**. ⚠️ `ignoredBuiltDependencies` only silences the prompt — under `strictDepBuilds` an unlisted package still fails the install, so a package is either allowed or the install fails.
 - **Monorepo tooling:** **Turborepo 2** — task graph and output caching (`build`, `typecheck`, `test`, `db:generate`). 📌 [ADR 0003](./decisions/0003-one-pnpm-turborepo-monorepo-with-a-fixed-layout.md).
   - ⚠️ Turbo's strict env mode hides variables from tasks: `turbo.json` lists `DATABASE_URL*`, `PRISMA_DB` and `NODE_ENV` in `globalPassThroughEnv`, or Prisma tasks see them unset.
 - **Compiler:** **SWC everywhere** — the Nest CLI's SWC builder with `typeCheck: true` for every Nest service, Next.js's own SWC-based compiler for the web app, `unplugin-swc` inside Vitest. 📌 [ADR 0012](./decisions/0012-swc-compiles-everything-and-nest-packages-are-commonjs.md).
@@ -62,7 +62,7 @@ brewlite/
 │  ├─ api-client/          # Orval-generated fetch client + zod schemas, from the gateway's OpenAPI
 │  └─ config/              # tsconfig, eslint, nest-cli (SWC), vitest presets; markdownlint rule; guard specs
 ├─ infra/
-│  └─ docker/              # compose.yaml, Dockerfile.service, Dockerfile.web, postgres-init/, firebase/
+│  └─ docker/              # compose.yaml, Dockerfile.service, Dockerfile.web, postgres-init/, firebase/, caddy/
 └─ docs/
 ```
 
@@ -76,7 +76,8 @@ brewlite/
 
 | Component | Host port | In-network |
 | :---- | :---- | :---- |
-| `web` (Next.js) | 23000 | `web:23000` |
+| `caddy` — the only way into the web app ([ADR 0033](./decisions/0033-browsers-reach-the-web-app-only-through-caddy-which-sets-the-client-address.md)) | 23000 | `caddy:23000` |
+| `web` (Next.js) | none in the `apps` profile — reached through Caddy; `next dev` on the host uses 23000 | `web:23000` |
 | `gateway` HTTP | 23100 | `gateway:23100` |
 | `identity` / `catalog` / `ordering` / `payment` ops HTTP (`/health*`) | 23101 / 23102 / 23103 / 23104 | same |
 | `identity` / `catalog` / `ordering` / `payment` gRPC | 25051 / 25052 / 25053 / 25054 | same |
@@ -110,6 +111,7 @@ The full event and RPC contracts are in [`api-endpoints-plan.md`](./api-endpoint
 
 - **Framework:** **NestJS 11**. Backend services are **hybrid apps**: a gRPC microservice plus a small HTTP listener on `OPS_PORT` for `/health`, `/health/ready` and `/version`.
 - **Gateway:** the only process reachable from outside the Compose network. It verifies the access token, checks the role's permission, validates the request with zod, applies rate limits, calls one service over gRPC, and maps the answer to a response DTO. **It holds no business rule and no database.**
+- **In front of the web app:** Caddy ([ADR 0033](./decisions/0033-browsers-reach-the-web-app-only-through-caddy-which-sets-the-client-address.md)). It drops a browser's own `X-Forwarded-For` and sets the socket address, so the address the web server forwards to the gateway — the rightmost entry — is one a browser cannot choose. Next.js alone cannot know it.
 - **Clients of the gateway:** the Next.js server, and Stripe's webhook. **Browsers never call the gateway directly** ([ADR 0014](./decisions/0014-the-web-server-is-the-gateways-only-client.md)) — so the gateway needs no CORS configuration and no cookies; it speaks bearer tokens only.
 
 ### 2.2 Synchronous calls — gRPC
@@ -297,11 +299,11 @@ One Redis 8 container, `maxmemory-policy noeviction` (BullMQ requires it). Key p
 
 - **Next.js 16, App Router, React 19**, TypeScript strict. Compiled by Next's SWC toolchain.
 - **Server Components** fetch data through the generated client, **Server Actions** perform mutations, **Route Handlers** proxy the SSE streams. **No TanStack Query, no Zustand.**
-- **Styling:** **Tailwind CSS 4 + DaisyUI 5** — themed components (`btn`, `card`, `badge`, `modal`, `drawer`, `steps`) cover every screen of the wireframe without a component library dependency. One BrewLite theme.
+- **Styling:** **Tailwind CSS 4 + DaisyUI 5** — themed components (`btn`, `card`, `badge`, `modal`, `drawer`, `steps`) cover every screen without a component library dependency. **One BrewLite theme, generated** from `apps/web/src/styles/tokens.json` — the Designer's export, DaisyUI's variable names — into a committed `theme.css` (`pnpm --filter @brewlite/web theme`, drift-checked in CI); never a hand-edited colour. Outside the tokens only two overrides: input borders at `base-content` 50 % and the 3 px `:focus-visible` ring. Type: **Be Vietnam Pro** through `next/font` (its `vietnamese` subset). Icons: **Lucide** (`lucide-react`).
 - **Forms:** plain `<form action={serverAction}>` with `useActionState`; the Orval-generated zod schema validates on the server (and optionally on the client for instant feedback). No form library.
 - **Languages:** the UI speaks **English (default) and Vietnamese** through **i18next** (§4.7); the code and the docs are English.
 - **Routes:** route groups `(customer)`, `staff/`, `admin/`, each with its own layout; see product-overview §3.
-- **Installable PWA** ([ADR 0032](./decisions/0032-the-web-app-is-an-installable-pwa-whose-service-worker-caches-no-data.md)): `app/manifest.ts`, and one hand-written `public/sw.js` that caches **only** content-hashed `/_next/static/*`, icons and fonts, and serves an offline page when a navigation fails. Documents, Server Actions, Route Handlers (the event streams) and cross-origin requests always go to the network.
+- **Installable PWA** ([ADR 0032](./decisions/0032-the-web-app-is-an-installable-pwa-whose-service-worker-caches-no-data.md)): `app/manifest.ts`, and one hand-written `public/sw.js` that caches **only** content-hashed `/_next/static/*`, icons and fonts, and serves an offline page when a navigation fails. Documents, Server Actions, Route Handlers (the event streams) and cross-origin requests always go to the network. The offline page is **force-static** — it cannot read the locale cookie on the server — so its language is settled in the browser, and its language switch writes `bl_locale` client-side (no Server Action can run offline).
 
 ### 4.2 The web server is the BFF
 
@@ -441,7 +443,7 @@ Locally the SDK talks to the **Firebase Auth emulator**, which offers fake Googl
 | **Contract** | `_test` | one real gRPC round trip per RPC |
 | **Gateway e2e** | none — gRPC peers, Redis and the event source stubbed | auth markers, validation, envelope, error mapping, the webhook's raw body |
 | **Gateway integration** | Redis database 14, the test broker | real rate limiting, the SSE source's ordered consumer |
-| **Web e2e** *(P1)* | Compose stack, fake payment provider | J1 with Playwright |
+| **Web e2e** | the running stack, seeded, fake payment provider — through Caddy in CI | **Playwright** (`apps/web/e2e/`), from the first web screen: every web feature's screens and states, by role and accessible name. Run with `pnpm --filter @brewlite/web e2e`, never in `pnpm test`; a CI job after the `apps` images are up. Each spec clears the gateway's `AUTH` rate-limit keys first, so the specs need Docker. The Playwright MCP is for building against the Figma frames, for what a spec cannot hold (the Google emulator popup, the install prompt) and for debugging a spec |
 | **Latency** (`pnpm perf`) | the `apps` stack, seeded, `PAYMENT_PROVIDER=fake` | p95 of every P0 route < 500 ms — autocannon, **by hand, never in CI**. It stays under the rate limits instead of disabling them: a distinct `X-Forwarded-For` per request for IP-keyed classes (the gateway trusts one hop), user-keyed classes paced below their limit |
 
 **The Task 10 proofs** (product-overview F10), each its own integration test, named for what it proves:
@@ -516,6 +518,7 @@ Every Nest service declares its variables in `src/config/env.schema.ts` (zod), l
 | `API_URL` | web (server only) | `http://localhost:23100/api/v1` |
 | `NEXT_PUBLIC_FIREBASE_API_KEY`, `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`, `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | web | Firebase web config — public by design |
 | `NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_URL` | web | `http://localhost:29099` locally; unset for real |
+| `NEXT_PUBLIC_APPLE_SIGN_IN_ENABLED` | web | `false` — *Continue with Apple* is hidden; it stays `false` until the team has a paid Apple Developer account (product-overview §12) |
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | web | `pk_test_…` |
 | `IMAGE_REMOTE_HOSTS` | web (build time) | hosts `next/image` may load from — `localhost:29199` locally |
 

@@ -515,8 +515,8 @@ Every durable consumer is a `JetStreamConsumer` subclass, started from the servi
 
 [ADR 0014](./decisions/0014-the-web-server-is-the-gateways-only-client.md) · [ADR 0015](./decisions/0015-nextjs-server-features-replace-client-data-libraries.md).
 
-- Data is read in **Server Components** and written in **Server Actions**, through the Orval-generated client in `packages/api-client`. **MUST NOT** hand-write a `fetch` to the API — the one exception is the SSE Route Handlers, which stream a body the generated client cannot — and **MUST NOT** import the client into a Client Component — its mutator imports `server-only`, so doing so fails the build.
-- The mutator reads `bl_at` from `cookies()`, sets `Authorization`, `X-Request-Id` and `X-Forwarded-For`, and prefixes `API_URL`.
+- Data is read in **Server Components** and written in **Server Actions**, through the Orval-generated client in `packages/api-client`. **MUST NOT** hand-write a `fetch` to the API — two exceptions: the SSE Route Handlers, which stream a body the generated client cannot, and `proxy.ts`'s session refresh, which runs before the request scope the client reads its headers from — and **MUST NOT** import the client into a Client Component — its mutator imports `server-only`, so doing so fails the build.
+- `configureApiClient`'s headers read `bl_at` from `cookies()` and set `Authorization`, `X-Request-Id` and `X-Forwarded-For` — the **rightmost** incoming entry, which only Caddy can have written ([ADR 0033](./decisions/0033-browsers-reach-the-web-app-only-through-caddy-which-sets-the-client-address.md)) — and the base URL is `API_URL`.
 - Every API read is `cache: 'no-store'`. The web app caches no API data (architecture §2.6).
 - A Server Action returns `{ ok: true, data } | { ok: false, code, details }` — never throws an API error into the UI. The page renders `code` through `t('errors:<CODE>', details)` (§11.6).
 - **Cookies are set only** in `proxy.ts` (refresh) and in the sign-in / sign-out Server Actions — never in a Server Component, where setting one silently does nothing.
@@ -668,7 +668,7 @@ When `NODE_ENV === 'production'`: the error filter returns a generic message for
 | **Contract** | a gRPC server and a real client over the generated code | in-process server, `_test` | `services/<svc>/test/contract/` |
 | **Gateway e2e** | markers, validation, envelope, error mapping, raw webhook body | gRPC peers, the rate limiter's Redis client and the SSE event source stubbed by `createE2eApp` — **no infrastructure**, so it runs in `pnpm test` before anything is started | `services/gateway/test/e2e/` |
 | **Gateway integration** | real rate limiting, the real ordered consumer behind SSE | Redis database 14, the test broker | `services/gateway/test/integration/`, run by `test:integration` |
-| **Web e2e** *(P1)* | J1 end to end | Playwright against Compose, fake payments | `apps/web/e2e/` |
+| **Web e2e** | each web screen's behaviour and states; J1 end to end once checkout exists | Playwright against the running stack, fake payments; selectors by role and accessible name, never CSS classes | `apps/web/e2e/` |
 
 ### 16.2 Rules
 
@@ -701,7 +701,7 @@ A guard spec turns a repo-wide rule into a failing test. Guards live in `package
 | `adr-structure.spec.ts` | every ADR matches `docs/decisions/TEMPLATE.md` and has a row in `docs/README.md` |
 | `archive-references.spec.ts` | no markdown file links into `docs/archive/`; no other tracked file names it or cites an implementation doc |
 | `module-files.spec.ts` | every file under `services/*/src/modules/` has a known role; `domain/` imports no Nest or Prisma; no `*.repository.ts` |
-| `env-contract.spec.ts` | the env schema, `.env.example` and architecture §10 list the same variables |
+| `env-contract.spec.ts` | the env schema, `.env.example` and architecture §10 list the same variables — every service, and `apps/web` |
 | `rdm-contract-sync.spec.ts` | every enumerated column in rdm-spec §3 (a leading backticked `A \| B` span) equals its enum in `packages/contracts`, and every `…_MAX_LENGTH` constant equals its column's `VARCHAR(n)` |
 | `i18n-keys.spec.ts` | once the web app exists: `apps/web/src/i18n/locales/en` and `vi` have the same namespaces and the same keys (plural suffixes normalised), and every code in `ERRORS` has an `errors` key |
 | `api-contract-sync.spec.ts` | api-endpoints-plan §7, §10 and §0.8 agree with `ERRORS` (codes and HTTP status), `PERMISSIONS` / `ROLE_PERMISSIONS` and `RATE_LIMITS`; §8 against the event registry once it exists · and api-endpoints-plan §1–§4's routes (P1 rows skipped) against the committed `openapi.json`, both ways, with a named exclusion list: ops, `/docs`, the SSE streams, the Stripe webhook, `fake-confirm` |

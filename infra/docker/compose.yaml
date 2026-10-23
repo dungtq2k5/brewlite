@@ -289,6 +289,45 @@ services:
       timeout: 3s
       retries: 30
 
+  web:
+    profiles: ['apps']
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.web
+    container_name: brewlite-web
+    depends_on:
+      gateway:
+        condition: service_healthy
+    environment:
+      API_URL: http://gateway:23100/api/v1
+    # `expose`, never `ports`: a published web port would bypass Caddy and reopen the
+    # X-Forwarded-For spoof (ADR 0033).
+    expose:
+      - '23000'
+    healthcheck:
+      # A static page, so the check never touches the gateway.
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:23000/offline']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  caddy:
+    profiles: ['apps']
+    image: caddy:2-alpine
+    container_name: brewlite-caddy
+    depends_on:
+      web:
+        condition: service_healthy
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+    ports:
+      - '127.0.0.1:23000:23000'
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:23000/offline']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
 volumes:
   postgres-data:
   nats-data:

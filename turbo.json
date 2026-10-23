@@ -1,6 +1,6 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "globalPassThroughEnv": ["DATABASE_URL*", "PRISMA_DB", "NODE_ENV"],
+  "globalPassThroughEnv": ["DATABASE_URL*", "PRISMA_DB", "NODE_ENV", "API_URL"],
   "tasks": {
     "db:generate": {
       "outputs": ["generated/**"],
@@ -8,7 +8,8 @@
     },
     "build": {
       "dependsOn": ["^build", "db:generate"],
-      "outputs": ["dist/**"]
+      "env": ["NEXT_PUBLIC_*"],
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
     },
     "typecheck": {
       "dependsOn": ["^build", "db:generate"],
@@ -26,6 +27,10 @@
     "test": {
       "dependsOn": ["db:generate"],
       "outputs": ["coverage/**"]
+    },
+    "e2e": {
+      "dependsOn": ["^build"],
+      "cache": false
     },
     "test:integration": {
       "dependsOn": ["db:generate"],

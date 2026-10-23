@@ -18,8 +18,8 @@ onlyBuiltDependencies:
   - '@scarf/scarf'
   - '@firebase/util'
   - msgpackr-extract
+  - unrs-resolver
 
 # `ignoredBuiltDependencies` only silences the "would you like to allow this?" warning —
 # strictDepBuilds still fails the install unless the package is also listed above, so
 # @scarf/scarf (a telemetry-ping postinstall, harmless either way) is just allowed too.
-

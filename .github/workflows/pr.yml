@@ -25,7 +25,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Copy .env.example to .env for every service
-        run: for s in services/*; do cp "$s/.env.example" "$s/.env"; done
+        run: for s in services/* apps/*; do cp "$s/.env.example" "$s/.env"; done
 
       - run: pnpm keys:dev
 
@@ -54,6 +54,9 @@ jobs:
       - name: Regenerate the API client and fail on drift
         run: pnpm --filter @brewlite/api-client generate && git diff --exit-code
 
+      - name: Regenerate the web theme and fail on drift
+        run: pnpm --filter @brewlite/web theme && git diff --exit-code
+
       - name: Start the infra stack
         run: docker compose up -d --wait
 
@@ -64,3 +67,25 @@ jobs:
 
       - name: Build and boot the service images
         run: docker compose --profile apps up -d --build --wait
+
+      - name: Make a throwaway password for the seeded accounts
+        run: echo "SEED_ACCOUNT_PASSWORD=$(openssl rand -hex 12)Aa1!" >> "$GITHUB_ENV"
+
+      - name: Seed the dev accounts and menu
+        run: |
+          pnpm --filter @brewlite/identity seed:dev
+          pnpm --filter @brewlite/catalog seed:dev
+
+      - run: pnpm --filter @brewlite/web exec playwright install --with-deps chromium
+
+      - name: Web e2e, through Caddy as a browser would
+        run: pnpm --filter @brewlite/web e2e
+        env:
+          E2E_BASE_URL: http://localhost:23000
+
+      - name: Keep the Playwright report when the specs fail
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report

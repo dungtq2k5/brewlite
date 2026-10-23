@@ -14,7 +14,7 @@ interface Violation {
 const REPO_ROOT = join(__dirname, '..', '..', '..');
 
 function envSchemaFiles(files: string[]): string[] {
-  return files.filter((f) => /^services\/[^/]+\/src\/config\/env\.schema\.ts$/.test(f));
+  return files.filter((f) => /^(?:services|apps)\/[^/]+\/src\/config\/env\.schema\.ts$/.test(f));
 }
 
 function parseEnvExample(content: string): Set<string> {
@@ -45,12 +45,12 @@ async function check(files: string[]): Promise<Violation[]> {
   const docKeys = architectureKeys(architectureDoc);
 
   for (const file of envSchemaFiles(files)) {
-    const service = file.split('/')[1]!;
+    const [workspace, service] = file.split('/') as [string, string];
     const absolutePath = join(REPO_ROOT, file);
     const mod = (await import(pathToFileURL(absolutePath).href)) as { envSchema: ZodObject };
     const schemaKeys = new Set(Object.keys(mod.envSchema.shape));
 
-    const exampleFile = `services/${service}/.env.example`;
+    const exampleFile = `${workspace}/${service}/.env.example`;
     let exampleKeys: Set<string>;
     try {
       exampleKeys = parseEnvExample(readRepoFile(exampleFile));
@@ -110,6 +110,7 @@ describe('env-contract', () => {
     const files = envSchemaFiles(gitFiles());
     expect(files.length).toBeGreaterThan(0);
     expect(files).toContain('services/catalog/src/config/env.schema.ts');
+    expect(files).toContain('apps/web/src/config/env.schema.ts');
   });
 
   it('accepts a conforming shape (catalog matches itself)', async () => {

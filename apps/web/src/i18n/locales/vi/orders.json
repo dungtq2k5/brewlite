@@ -1,0 +1,11 @@
+{
+  "status": {
+    "PENDING": "Chờ thanh toán",
+    "PAYMENT_FAILED": "Thanh toán không thành công",
+    "PAID": "Đã thanh toán",
+    "PREPARING": "Đang pha chế",
+    "READY": "Xong rồi — mời nhận món",
+    "COMPLETED": "Đã nhận",
+    "CANCELLED": "Đã hủy"
+  }
+}

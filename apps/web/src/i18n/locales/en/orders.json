@@ -1,0 +1,11 @@
+{
+  "status": {
+    "PENDING": "Awaiting payment",
+    "PAYMENT_FAILED": "Payment failed",
+    "PAID": "Paid",
+    "PREPARING": "Brewing",
+    "READY": "Ready — collect now",
+    "COMPLETED": "Collected",
+    "CANCELLED": "Cancelled"
+  }
+}

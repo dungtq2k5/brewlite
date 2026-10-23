@@ -1,0 +1,86 @@
+{
+  "brand": "BrewLite",
+  "language": {
+    "label": "Ngôn ngữ",
+    "en": "EN",
+    "vi": "VI",
+    "name": {
+      "en": "English",
+      "vi": "Tiếng Việt"
+    }
+  },
+  "header": {
+    "home": "Trang chủ BrewLite",
+    "signIn": "Đăng nhập",
+    "cart": "Giỏ hàng",
+    "cartCount_other": "Giỏ hàng, {{count}} món",
+    "account": "Mở menu tài khoản"
+  },
+  "account": {
+    "title": "Tài khoản",
+    "orders": "Đơn của tôi",
+    "settings": "Tài khoản",
+    "staffBoard": "Bảng nhân viên",
+    "admin": "Quản trị",
+    "signOut": "Đăng xuất",
+    "close": "Đóng"
+  },
+  "signOut": {
+    "title": "Đăng xuất?",
+    "body": "Giỏ hàng trên thiết bị này sẽ bị xóa.",
+    "confirm": "Đăng xuất",
+    "cancel": "Tiếp tục mua"
+  },
+  "form": {
+    "showPassword": "Hiện mật khẩu",
+    "hidePassword": "Ẩn mật khẩu"
+  },
+  "home": {
+    "title": "Thực đơn",
+    "placeholder": "Thực đơn sắp có rồi."
+  },
+  "staff": {
+    "title": "Bảng đơn hàng",
+    "placeholder": "Bảng nhân viên sẽ có ở bản cập nhật sau.",
+    "nav": {
+      "label": "Điều hướng nhân viên",
+      "board": "Bảng",
+      "stock": "Kho",
+      "shop": "Cửa hàng"
+    }
+  },
+  "admin": {
+    "title": "Quản trị",
+    "placeholder": "Các trang quản trị sẽ có ở bản cập nhật sau.",
+    "badge": "Quản trị",
+    "pageTitle": "Sản phẩm",
+    "nav": {
+      "label": "Điều hướng quản trị",
+      "menu": "Thực đơn",
+      "categories": "Danh mục",
+      "products": "Sản phẩm",
+      "toppings": "Topping",
+      "sales": "Bán hàng",
+      "promotions": "Khuyến mãi",
+      "orders": "Đơn hàng",
+      "people": "Mọi người",
+      "users": "Người dùng",
+      "counter": "Quầy",
+      "staffBoard": "Bảng nhân viên",
+      "stock": "Kho",
+      "backToShop": "Về cửa hàng"
+    }
+  },
+  "notFound": {
+    "title": "Trang này không có trong thực đơn",
+    "action": "Về thực đơn"
+  },
+  "error": {
+    "title": "Có lỗi từ phía chúng tôi",
+    "body": "Không phải lỗi của bạn. Bạn thử lại sau giây lát nhé.",
+    "retry": "Thử lại",
+    "home": "Về thực đơn",
+    "reference": "Mã yêu cầu: {{id}}"
+  },
+  "loading": "Đang tải"
+}
