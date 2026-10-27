@@ -1,0 +1,33 @@
+{
+  "name": "@brewlite/web",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 23000",
+    "build": "next build",
+    "start": "next start -p 23000",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@brewlite/api-client": "workspace:*",
+    "@brewlite/contracts": "workspace:*",
+    "i18next": "^26.4.4",
+    "i18next-resources-to-backend": "^1.2.3",
+    "next": "^16.4.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "react-i18next": "^17.0.16",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@brewlite/config": "workspace:*",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "daisyui": "^5.7.50",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^5.9.3"
+  }
+}

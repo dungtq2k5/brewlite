@@ -1,0 +1,40 @@
+@import "tailwindcss";
+@plugin "daisyui";
+
+@plugin "daisyui/theme" {
+  name: "brewlite";
+  default: true;
+  color-scheme: light;
+  --color-base-100: #FCF9F2;
+  --color-base-200: #F5EFE6;
+  --color-base-300: #C9B29B;
+  --color-base-content: #4E311E;
+  --color-primary: #4E311E;
+  --color-primary-content: #FFFFFF;
+  --color-secondary: #8C6A50;
+  --color-secondary-content: #FFFFFF;
+  --color-accent: #1E3329;
+  --color-accent-content: #FFFFFF;
+  --color-neutral: #4E311E;
+  --color-neutral-content: #FFFFFF;
+  --color-info: #2B5B6C;
+  --color-info-content: #FFFFFF;
+  --color-success: #1F5C32;
+  --color-success-content: #FFFFFF;
+  --color-warning: #A85D00;
+  --color-warning-content: #FFFFFF;
+  --color-error: #B83B2A;
+  --color-error-content: #FFFFFF;
+  --radius-selector: 1.5rem;
+  --radius-field: 1.25rem;
+  --radius-box: 1.5rem;
+}
+
+html,
+body {
+  background-color: #F5EFE6;
+  color: #4E311E;
+  overflow-x: hidden;
+  max-width: 100vw;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
