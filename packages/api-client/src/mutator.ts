@@ -16,7 +16,8 @@ export async function apiFetch<T>(url: string, init: RequestInit = {}): Promise<
   const { baseUrl, getRequestHeaders } = apiClientConfig();
 
   const headers = new Headers(init.headers);
-  if (init.body !== undefined && init.body !== null && !headers.has('Content-Type')) {
+  const isFormData = typeof FormData !== 'undefined' && init.body instanceof FormData;
+  if (init.body !== undefined && init.body !== null && !headers.has('Content-Type') && !isFormData) {
     headers.set('Content-Type', 'application/json');
   }
   for (const [name, value] of Object.entries(await getRequestHeaders())) headers.set(name, value);

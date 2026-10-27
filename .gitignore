@@ -1,6 +1,10 @@
 /graphify-out
 node_modules
 .env
+.env.local
+.env*.local
+.next/
+*.tsbuildinfo
 docs/archive/
 cspell.json
 dist/
@@ -10,3 +14,4 @@ services/*/generated/
 .env.sonar
 .mcp.json
 .sonar-config.json
+repomix*.md

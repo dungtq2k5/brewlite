@@ -1,0 +1,21 @@
+{
+    "name": "@brewlite/web",
+    "version": "0.0.0",
+    "private": true,
+    "scripts": {
+        "dev": "next dev -p 23000",
+        "build": "next build",
+        "start": "next start -p 23000",
+        "typecheck": "tsc -p tsconfig.json --noEmit",
+        "lint": "eslint ."
+    },
+    "dependencies": {
+        "@brewlite/api-client": "workspace:*",
+        "@brewlite/contracts": "workspace:*",
+        "zod": "^4.0.0"
+    },
+    "devDependencies": {
+        "@brewlite/config": "workspace:*",
+        "@types/node": "^24.0.0"
+    }
+}
