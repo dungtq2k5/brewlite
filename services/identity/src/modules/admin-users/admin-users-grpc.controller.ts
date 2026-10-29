@@ -6,6 +6,8 @@ import {
   type AdminUserServiceController,
   type ChangeRoleRequest,
   type ChangeRoleResponse,
+  type CreateUserRequest,
+  type CreateUserResponse,
   type DeactivateUserRequest,
   type DeactivateUserResponse,
   type GetUserRequest,
@@ -26,6 +28,10 @@ import { AdminUsersService } from './admin-users.service.js';
 @UseInterceptors(GrpcRequestContextInterceptor)
 export class AdminUsersGrpcController implements AdminUserServiceController {
   constructor(private readonly adminUsers: AdminUsersService) {}
+
+  createUser(request: CreateUserRequest, metadata?: Metadata): Promise<CreateUserResponse> {
+    return this.adminUsers.createUser(request, callerFrom(metadata));
+  }
 
   listUsers(request: ListUsersRequest): Promise<ListUsersResponse> {
     return this.adminUsers.listUsers(request);

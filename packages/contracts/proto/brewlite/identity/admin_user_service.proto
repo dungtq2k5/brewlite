@@ -7,6 +7,7 @@ import "brewlite/common/paging.proto";
 // The actor is the caller from gRPC metadata (`requireUser`), never a request field —
 // the gateway's `x-user-id` is the only source of truth for who is acting.
 service AdminUserService {
+  rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);
   rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
   rpc GetUser(GetUserRequest) returns (GetUserResponse);
   rpc ChangeRole(ChangeRoleRequest) returns (ChangeRoleResponse);
@@ -31,6 +32,15 @@ message AdminUser {
   optional string deleted_by_id = 12;
   optional string last_login_at = 13;
 }
+
+message CreateUserRequest {
+  string email = 1;
+  string password = 2;
+  string full_name = 3;
+  string role = 4;
+  optional string preferred_locale = 5;
+}
+message CreateUserResponse { AdminUser user = 1; }
 
 message ListUsersRequest {
   brewlite.common.PageRequest page = 1;

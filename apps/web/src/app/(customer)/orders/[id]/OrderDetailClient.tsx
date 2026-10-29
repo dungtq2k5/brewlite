@@ -147,6 +147,9 @@ export default function OrderDetailClient({ order, payment, locale, cardholder }
   const [refreshing, startRefresh] = useTransition();
   const [paymentBusy, setPaymentBusy] = useState<'SUCCEEDED' | 'FAILED' | 'CREATE' | null>(null);
   const [paymentError, setPaymentError] = useState('');
+  // The live order status flips to PAID before the card result finishes its beat.
+  // Keeping the panel mounted lets the customer actually see the confirmation.
+  const [paymentSucceeded, setPaymentSucceeded] = useState(false);
   const [cancelArmed, setCancelArmed] = useState(false);
   const [cancelBusy, setCancelBusy] = useState(false);
   const [cancelError, setCancelError] = useState('');
@@ -247,6 +250,7 @@ export default function OrderDetailClient({ order, payment, locale, cardholder }
 
     try {
       await confirmFakePayment(payment.id, outcome);
+      setPaymentSucceeded(outcome === 'SUCCEEDED');
       return true;
     } catch (error) {
       const described = describeUnknownError(error, locale);
@@ -491,7 +495,7 @@ export default function OrderDetailClient({ order, payment, locale, cardholder }
           </div>
         )}
 
-        {awaitingPayment && (
+        {(awaitingPayment || paymentSucceeded) && (
           <section className="panel" style={{ marginTop: 'var(--space-lg)' }}>
             <div className="panel-head">
               <h2>{isVi ? 'Thanh toán' : 'Payment'}</h2>
@@ -506,7 +510,7 @@ export default function OrderDetailClient({ order, payment, locale, cardholder }
                 </Notice>
               )}
 
-              {canFakeConfirm && payment ? (
+              {(canFakeConfirm || paymentSucceeded) && payment ? (
                 <FakeCardCheckout
                   amountVnd={order.totalVnd}
                   expiresAt={payment.expiresAt ?? order.expiresAt}
@@ -514,7 +518,12 @@ export default function OrderDetailClient({ order, payment, locale, cardholder }
                   cardholder={cardholder}
                   busy={paymentBusy !== null || refreshing}
                   onConfirm={confirmPayment}
-                  onRefresh={() => startRefresh(() => router.refresh())}
+                  onRefresh={() =>
+                    startRefresh(() => {
+                      setPaymentSucceeded(false);
+                      router.refresh();
+                    })
+                  }
                 />
               ) : canCreatePayment ? (
                 <>

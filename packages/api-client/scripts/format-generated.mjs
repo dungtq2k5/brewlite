@@ -2,9 +2,10 @@
 // (`resolveConfig()` — `filepath` alone would silently use Prettier's built-in defaults).
 import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { format, resolveConfig } from 'prettier';
 
-const root = new URL('../src/generated', import.meta.url).pathname;
+const root = fileURLToPath(new URL('../src/generated', import.meta.url));
 
 function* files(dir) {
   for (const name of readdirSync(dir)) {

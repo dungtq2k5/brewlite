@@ -7,6 +7,8 @@ export default [
       '.next/**',
       '.turbo/**',
       'node_modules/**',
+      'playwright-report/**',
+      'test-results/**',
       'public/sw.js',
       'next-env.d.ts',
       'tsconfig.tsbuildinfo',

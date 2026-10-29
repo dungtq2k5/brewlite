@@ -1,33 +1,43 @@
 import { adminUsersControllerList, type AdminUserResponseDto } from '@brewlite/api-client';
-import { EmptyState } from '@/components/vellum/EmptyState';
-import { Notice } from '@/components/vellum/Notice';
 import { PageHead } from '@/components/vellum/PageHead';
-import { Pagination } from '@/components/vellum/Pagination';
-import { Panel } from '@/components/vellum/Panel';
-import { Tag } from '@/components/vellum/Tag';
-import { formatDay, formatMoment, nullableText, roleLabel, roleTone } from '@/lib/admin-format';
+import { Notice } from '@/components/vellum/Notice';
 import { readPage } from '@/lib/api-server';
 import { ADMIN_PAGE_SIZE, parsePageParam } from '@/lib/pagination';
+import { requireAdmin } from '@/lib/session';
+import UsersClient from './UsersClient';
 
-function UserStatus({ user }: { user: AdminUserResponseDto }) {
-  if (nullableText(user.deletedAt)) return <Tag tone="error">Đã xóa</Tag>;
-  if (user.isLocked) return <Tag tone="warning">Đang khóa</Tag>;
-  return <Tag tone="success">Hoạt động</Tag>;
+function first(value: string | string[] | undefined): string {
+  if (Array.isArray(value)) return value[0] ?? '';
+  return value ?? '';
 }
 
 export default async function AdminUsersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string | string[] }>;
+  searchParams: Promise<{
+    page?: string | string[];
+    q?: string | string[];
+    deleted?: string | string[];
+  }>;
 }) {
-  let pageNumber = parsePageParam((await searchParams).page);
+  const [params, currentUser] = await Promise.all([searchParams, requireAdmin('/admin/users')]);
+  let pageNumber = parsePageParam(params.page);
+  const query = first(params.q).trim().slice(0, 100);
+  const deletedOnly = first(params.deleted) === '1';
+
   let rows: AdminUserResponseDto[] = [];
   let total: number | null = null;
   let failed = false;
 
   try {
     const load = (page: number) =>
-      adminUsersControllerList({ page, pageSize: ADMIN_PAGE_SIZE, sort: '-createdAt' });
+      adminUsersControllerList({
+        page,
+        pageSize: ADMIN_PAGE_SIZE,
+        sort: '-createdAt',
+        ...(query && { q: query }),
+        ...(deletedOnly && { deleted: 'true' }),
+      });
 
     let response = await load(pageNumber);
     let page = readPage<AdminUserResponseDto>(response.data);
@@ -43,75 +53,31 @@ export default async function AdminUsersPage({
     failed = true;
   }
 
-  return (
-    <>
-      <PageHead
-        title="Người dùng"
-        meta={failed ? 'Không đọc được dữ liệu' : `${total ?? rows.length} tài khoản`}
-        lede="Danh sách tài khoản và vai trò hiện tại. Đổi vai trò, khóa và xóa tài khoản chưa hỗ trợ trên giao diện."
-      />
-
-      {failed ? (
+  if (failed) {
+    return (
+      <>
+        <PageHead title="Người dùng" meta="Không đọc được dữ liệu" />
         <Notice tone="error">
           <strong>Không tải được người dùng.</strong> Kiểm tra kết nối mạng rồi tải lại trang.
         </Notice>
-      ) : (
-        <Panel>
-          {rows.length === 0 ? (
-            <div className="panel-body">
-              <EmptyState title="Chưa có người dùng">
-                Hệ thống chưa trả về tài khoản nào. Tài khoản mới sẽ xuất hiện ở đây.
-              </EmptyState>
-            </div>
-          ) : (
-            <div className="table-wrap">
-              <table className="table table--stack table--ledger">
-                <thead>
-                  <tr>
-                    <th>Người dùng</th>
-                    <th>Vai trò</th>
-                    <th>Trạng thái</th>
-                    <th>Đăng nhập cuối</th>
-                    <th>Ngày tạo</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((user) => {
-                    const lastLogin = nullableText(user.lastLoginAt);
-                    return (
-                      <tr key={user.id}>
-                        <td data-label="Người dùng">
-                          <span className="cell-title">{user.fullName}</span>
-                          <span className="cell-meta">{user.email}</span>
-                        </td>
-                        <td data-label="Vai trò">
-                          <Tag tone={roleTone(user.role)}>{roleLabel(user.role)}</Tag>
-                        </td>
-                        <td data-label="Trạng thái">
-                          <UserStatus user={user} />
-                        </td>
-                        <td data-label="Đăng nhập cuối">
-                          {lastLogin ? formatMoment(lastLogin) : 'Chưa có'}
-                        </td>
-                        <td data-label="Ngày tạo">{formatDay(user.createdAt)}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-          {(total ?? rows.length) > 0 && (
-            <Pagination
-              basePath="/admin/users"
-              page={pageNumber}
-              pageSize={ADMIN_PAGE_SIZE}
-              total={total ?? rows.length}
-              label="tài khoản"
-            />
-          )}
-        </Panel>
-      )}
-    </>
+      </>
+    );
+  }
+
+  const queryString = new URLSearchParams({
+    ...(query && { q: query }),
+    ...(deletedOnly && { deleted: '1' }),
+  }).toString();
+
+  return (
+    <UsersClient
+      rows={rows}
+      total={total}
+      pageNumber={pageNumber}
+      currentUserId={currentUser.id}
+      deletedOnly={deletedOnly}
+      query={query}
+      queryString={queryString}
+    />
   );
 }

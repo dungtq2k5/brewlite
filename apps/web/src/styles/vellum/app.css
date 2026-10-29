@@ -521,6 +521,7 @@ a:hover { text-decoration: none; }
 /* Modal and drawer */
 .modal-layer { position: fixed; inset: 0; z-index: var(--z-modal); display: grid; place-items: center; padding: var(--space-lg); background: color-mix(in oklab, var(--color-ink) 68%, transparent); }
 .modal { width: min(100%, 520px); max-height: calc(100vh - var(--space-2xl)); overflow: auto; padding: var(--space-lg); border: var(--rule-hair) solid var(--color-ink); border-top: var(--rule-double) double var(--color-ink); border-radius: var(--radius-card); background: var(--color-paper); }
+.modal--wide { width: min(100%, 780px); }
 .modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-md); padding-bottom: var(--space-sm); border-bottom: var(--rule-hair) solid var(--color-ink); }
 .modal-head h2 { font-family: var(--font-body); font-size: var(--text-xl); font-weight: 600; }
 .modal-body { display: grid; gap: var(--space-md); padding: var(--space-md) 0; }

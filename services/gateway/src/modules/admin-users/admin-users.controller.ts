@@ -22,6 +22,7 @@ import { Ctx, type UserContext } from '../../auth/request-context.js';
 import { AdminUsersService } from './admin-users.service.js';
 import { AdminUserResponseDto } from './dto/admin-user-response.dto.js';
 import { ChangeRoleDto } from './dto/change-role.dto.js';
+import { CreateUserDto } from './dto/create-user.dto.js';
 import { ListUsersQueryDto } from './dto/list-users-query.dto.js';
 import { LockUserDto } from './dto/lock-user.dto.js';
 import { UserIdParamDto } from './dto/user-id-param.dto.js';
@@ -40,6 +41,17 @@ export class AdminUsersController {
     @Req() req: Request,
   ): Promise<Paged<AdminUserResponseDto>> {
     return this.adminUsers.listUsers(ctx, query, req.id as string | undefined);
+  }
+
+  @Post()
+  @ApiEnvelope(AdminUserResponseDto, { status: 201 })
+  @ApiErrors('EMAIL_TAKEN', 'VALIDATION_FAILED')
+  create(
+    @Body() dto: CreateUserDto,
+    @Ctx() ctx: UserContext,
+    @Req() req: Request,
+  ): Promise<AdminUserResponseDto> {
+    return this.adminUsers.createUser(ctx, dto, req.id as string | undefined);
   }
 
   @Get(':id')

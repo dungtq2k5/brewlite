@@ -23,6 +23,8 @@ import type {
 import type {
   ChangeRoleRequest,
   ChangeRoleResponse,
+  CreateUserRequest,
+  CreateUserResponse,
   DeactivateUserRequest,
   DeactivateUserResponse,
   GetUserRequest,
@@ -102,6 +104,12 @@ class AdminUserGrpcClient extends BaseGrpcClient {
     });
   }
 
+  createUser(
+    request: CreateUserRequest,
+    opts: { requestId?: string; caller: Caller },
+  ): Promise<CreateUserResponse> {
+    return this.call('createUser', request, opts);
+  }
   listUsers(
     request: ListUsersRequest,
     opts: { requestId?: string; caller: Caller },
@@ -187,6 +195,13 @@ export class IdentityServiceGrpcClient {
     requestId?: string,
   ): Promise<UpdateMeResponse> {
     return this.users.updateMe(request, { requestId, caller });
+  }
+  createUser(
+    caller: Caller,
+    request: CreateUserRequest,
+    requestId?: string,
+  ): Promise<CreateUserResponse> {
+    return this.adminUsers.createUser(request, { requestId, caller });
   }
   listUsers(
     caller: Caller,

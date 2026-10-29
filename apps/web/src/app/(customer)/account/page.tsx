@@ -4,6 +4,7 @@ import LogoutButton from '@/components/LogoutButton';
 import { getLocale } from '@/i18n/locale.server';
 import { unwrap } from '@/lib/api-server';
 import { requireUser } from '@/lib/session';
+import ProfileForm from './ProfileForm';
 
 export default async function AccountPage() {
   const [user, locale] = await Promise.all([requireUser('/account'), getLocale()]);
@@ -76,6 +77,24 @@ export default async function AccountPage() {
             </div>
           </div>
         </section>
+
+        <ProfileForm
+          initialFullName={user.fullName}
+          initialLocale={user.preferredLocale}
+          labels={{
+            title: isVi ? 'Thông tin cá nhân' : 'Personal details',
+            lede: isVi
+              ? 'Tên hiển thị trên đơn hàng và ngôn ngữ mặc định của tài khoản.'
+              : 'The name shown on your orders and the account default language.',
+            fullName: isVi ? 'Họ tên' : 'Full name',
+            locale: isVi ? 'Ngôn ngữ' : 'Language',
+            vi: 'Tiếng Việt',
+            en: 'English',
+            save: isVi ? 'Lưu thay đổi' : 'Save changes',
+            saving: isVi ? 'Đang lưu…' : 'Saving…',
+            saved: isVi ? 'Đã cập nhật thông tin.' : 'Your details were updated.',
+          }}
+        />
 
         <section className="panel">
           <div className="panel-head">

@@ -1,15 +1,24 @@
 import { Injectable } from '@nestjs/common';
 import {
   LOCK_REASON_MAX_LENGTH,
+  Locale,
   MAX_LOCK_DURATION_DAYS,
   parseEnum,
   Role,
+  zPassword,
   zText,
 } from '@brewlite/contracts';
-import { requireUser, rpcError, type Caller } from '@brewlite/nest-common';
+import {
+  isUniqueConstraintViolation,
+  requireUser,
+  rpcError,
+  type Caller,
+} from '@brewlite/nest-common';
 import type {
   ChangeRoleRequest,
   ChangeRoleResponse,
+  CreateUserRequest,
+  CreateUserResponse,
   DeactivateUserRequest,
   DeactivateUserResponse,
   GetUserRequest,
@@ -25,6 +34,7 @@ import type {
 } from '@brewlite/contracts/generated/brewlite/identity/admin_user_service.js';
 import type { Prisma } from '../../../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { UsersService } from '../users/users.service.js';
 import { ADMIN_USER_SELECT, toProtoAdminUser, type AdminUserRow } from './admin-user.mapper.js';
 import { isEffectiveAdmin } from './domain/effective-admin.js';
 
@@ -44,7 +54,46 @@ function toOrderBy(sort: string): Prisma.UserOrderByWithRelationInput[] {
 
 @Injectable()
 export class AdminUsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly users: UsersService,
+  ) {}
+
+  /** An admin-provisioned account: the password is set here, never emailed or logged. */
+  async createUser(request: CreateUserRequest, caller: Caller): Promise<CreateUserResponse> {
+    requireUser(caller);
+
+    const password = zPassword.safeParse(request.password);
+    if (!password.success) {
+      throw rpcError('VALIDATION_FAILED', {
+        issues: [{ path: '/password', code: 'invalid_string' }],
+      });
+    }
+
+    const role = parseEnum(Role, request.role);
+    const preferredLocale =
+      request.preferredLocale !== undefined
+        ? parseEnum(Locale, request.preferredLocale)
+        : undefined;
+
+    let id: string;
+    try {
+      const created = await this.users.createWithPassword({
+        email: request.email,
+        password: password.data,
+        fullName: request.fullName,
+        role,
+        preferredLocale,
+      });
+      id = created.id;
+    } catch (error) {
+      if (isUniqueConstraintViolation(error, 'email')) throw rpcError('EMAIL_TAKEN');
+      throw error;
+    }
+
+    const row = await this.findByIdIncludingDeleted(id);
+    return { user: toProtoAdminUser(row) };
+  }
 
   async listUsers(request: ListUsersRequest): Promise<ListUsersResponse> {
     const page = request.page?.page ?? 1;

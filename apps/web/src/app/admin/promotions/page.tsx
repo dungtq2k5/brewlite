@@ -1,34 +1,47 @@
 import { promotionsControllerList, type PromotionResponseDto } from '@brewlite/api-client';
-import { EmptyState } from '@/components/vellum/EmptyState';
 import { Notice } from '@/components/vellum/Notice';
 import { PageHead } from '@/components/vellum/PageHead';
-import { Pagination } from '@/components/vellum/Pagination';
-import { Panel } from '@/components/vellum/Panel';
-import { Tag } from '@/components/vellum/Tag';
-import { formatVnd } from '@/i18n/format';
-import {
-  discountLabel,
-  formatDay,
-  nullableNumber,
-  nullableText,
-  promotionState,
-} from '@/lib/admin-format';
 import { readPage } from '@/lib/api-server';
 import { ADMIN_PAGE_SIZE, parsePageParam } from '@/lib/pagination';
+import PromotionsClient from './PromotionsClient';
+
+function first(value: string | string[] | undefined): string {
+  if (Array.isArray(value)) return value[0] ?? '';
+  return value ?? '';
+}
 
 export default async function AdminPromotionsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string | string[] }>;
+  searchParams: Promise<{
+    page?: string | string[];
+    q?: string | string[];
+    active?: string | string[];
+    deleted?: string | string[];
+  }>;
 }) {
-  let pageNumber = parsePageParam((await searchParams).page);
+  const params = await searchParams;
+  let pageNumber = parsePageParam(params.page);
+  const query = first(params.q).trim().slice(0, 32);
+  const activeRaw = first(params.active);
+  const activeFilter: 'true' | 'false' | '' =
+    activeRaw === 'true' || activeRaw === 'false' ? activeRaw : '';
+  const deletedOnly = first(params.deleted) === '1';
+
   let rows: PromotionResponseDto[] = [];
   let total: number | null = null;
   let failed = false;
 
   try {
     const load = (page: number) =>
-      promotionsControllerList({ page, pageSize: ADMIN_PAGE_SIZE, sort: '-createdAt' });
+      promotionsControllerList({
+        page,
+        pageSize: ADMIN_PAGE_SIZE,
+        sort: '-createdAt',
+        ...(query && { q: query }),
+        ...(activeFilter && { active: activeFilter }),
+        ...(deletedOnly && { deleted: 'true' }),
+      });
 
     let response = await load(pageNumber);
     let page = readPage<PromotionResponseDto>(response.data);
@@ -44,94 +57,32 @@ export default async function AdminPromotionsPage({
     failed = true;
   }
 
-  return (
-    <>
-      <PageHead
-        title="Khuyến mãi"
-        meta={failed ? 'Không đọc được dữ liệu' : `${total ?? rows.length} mã`}
-        lede="Mã, mức giảm và đơn tối thiểu đọc từ hệ thống khuyến mãi. Tạo và sửa mã chưa hỗ trợ trên giao diện."
-      />
-
-      {failed ? (
+  if (failed) {
+    return (
+      <>
+        <PageHead title="Khuyến mãi" meta="Không đọc được dữ liệu" />
         <Notice tone="error">
           <strong>Không tải được khuyến mãi.</strong> Kiểm tra kết nối mạng rồi tải lại trang.
         </Notice>
-      ) : (
-        <Panel>
-          {rows.length === 0 ? (
-            <div className="panel-body">
-              <EmptyState title="Chưa có khuyến mãi">
-                Hệ thống chưa trả về mã nào. Mã mới sẽ xuất hiện ở đây.
-              </EmptyState>
-            </div>
-          ) : (
-            <div className="table-wrap">
-              <table className="table table--stack table--ledger">
-                <thead>
-                  <tr>
-                    <th>Mã</th>
-                    <th>Mô tả</th>
-                    <th>Mức giảm</th>
-                    <th>Thời gian</th>
-                    <th>Đã dùng</th>
-                    <th>Trạng thái</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((promotion) => {
-                    const state = promotionState(promotion);
-                    const maxUses = nullableNumber(promotion.maxUses);
-                    const perUserLimit = nullableNumber(promotion.perUserLimit);
-                    return (
-                      <tr key={promotion.id}>
-                        <td data-label="Mã">
-                          <span className="cell-title">
-                            <code>{promotion.code}</code>
-                          </span>
-                        </td>
-                        <td data-label="Mô tả">{nullableText(promotion.description) ?? '—'}</td>
-                        <td data-label="Mức giảm">
-                          {discountLabel(
-                            promotion.discountType,
-                            promotion.discountValue,
-                            promotion.maxDiscountVnd,
-                          )}
-                          <span className="cell-meta">
-                            đơn từ {formatVnd(promotion.minSubtotalVnd, 'vi')}
-                          </span>
-                        </td>
-                        <td data-label="Thời gian">
-                          {formatDay(promotion.startsAt)} – {formatDay(promotion.endsAt)}
-                        </td>
-                        <td data-label="Đã dùng">
-                          {promotion.usedCount}
-                          <span className="cell-meta">
-                            tối đa {maxUses ?? 'Không giới hạn'}
-                            {perUserLimit === null ? '' : `, ${perUserLimit}/khách`}
-                          </span>
-                        </td>
-                        <td data-label="Trạng thái">
-                          <Tag tone={state.tone}>{state.label}</Tag>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-          {(total ?? rows.length) > 0 && (
-            <Pagination
-              basePath="/admin/promotions"
-              page={pageNumber}
-              pageSize={ADMIN_PAGE_SIZE}
-              total={total ?? rows.length}
-              label="mã"
-              note="mới nhất trước"
-            />
-          )}
-        </Panel>
-      )}
-    </>
+      </>
+    );
+  }
+
+  const queryString = new URLSearchParams({
+    ...(query && { q: query }),
+    ...(activeFilter && { active: activeFilter }),
+    ...(deletedOnly && { deleted: '1' }),
+  }).toString();
+
+  return (
+    <PromotionsClient
+      rows={rows}
+      total={total}
+      pageNumber={pageNumber}
+      deletedOnly={deletedOnly}
+      query={query}
+      activeFilter={activeFilter}
+      queryString={queryString}
+    />
   );
 }

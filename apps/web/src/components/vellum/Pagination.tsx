@@ -1,7 +1,11 @@
 import Link from 'next/link';
 
-function pageHref(basePath: string, page: number): string {
-  return page <= 1 ? basePath : `${basePath}?page=${page}`;
+function pageHref(basePath: string, page: number, query?: string): string {
+  const params = new URLSearchParams(query);
+  if (page <= 1) params.delete('page');
+  else params.set('page', String(page));
+  const search = params.toString();
+  return search ? `${basePath}?${search}` : basePath;
 }
 
 /**
@@ -15,6 +19,7 @@ export function Pagination({
   total,
   label = 'mục',
   note,
+  query,
 }: {
   basePath: string;
   page: number;
@@ -22,6 +27,7 @@ export function Pagination({
   total: number;
   label?: string;
   note?: string;
+  query?: string;
 }) {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const current = Math.min(Math.max(1, page), totalPages);
@@ -36,7 +42,7 @@ export function Pagination({
       </span>
       <span className="pagination-actions">
         {current > 1 ? (
-          <Link className="btn btn--sm" href={pageHref(basePath, current - 1)} rel="prev">
+          <Link className="btn btn--sm" href={pageHref(basePath, current - 1, query)} rel="prev">
             Trước
           </Link>
         ) : (
@@ -48,7 +54,7 @@ export function Pagination({
           Trang {current} / {totalPages}
         </span>
         {current < totalPages ? (
-          <Link className="btn btn--sm" href={pageHref(basePath, current + 1)} rel="next">
+          <Link className="btn btn--sm" href={pageHref(basePath, current + 1, query)} rel="next">
             Sau
           </Link>
         ) : (

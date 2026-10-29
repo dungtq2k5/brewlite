@@ -9,6 +9,9 @@ import type {
   AdminUsersControllerChangeRole403,
   AdminUsersControllerChangeRole404,
   AdminUsersControllerChangeRole409,
+  AdminUsersControllerCreate201,
+  AdminUsersControllerCreate400,
+  AdminUsersControllerCreate409,
   AdminUsersControllerDeactivate403,
   AdminUsersControllerDeactivate404,
   AdminUsersControllerDeactivate409,
@@ -28,6 +31,7 @@ import type {
   AdminUsersControllerUnlock200,
   AdminUsersControllerUnlock404,
   ChangeRoleDto,
+  CreateUserDto,
   LockUserDto,
 } from '../../model';
 
@@ -74,6 +78,68 @@ export const adminUsersControllerList = async (
   return apiFetch<adminUsersControllerListResponse>(getAdminUsersControllerListUrl(params), {
     ...options,
     method: 'GET',
+  });
+};
+
+export type adminUsersControllerCreateResponse201 = {
+  data: AdminUsersControllerCreate201;
+  status: 201;
+};
+
+export type adminUsersControllerCreateResponse400 = {
+  data: AdminUsersControllerCreate400;
+  status: 400;
+};
+
+export type adminUsersControllerCreateResponse409 = {
+  data: AdminUsersControllerCreate409;
+  status: 409;
+};
+
+export type adminUsersControllerCreateResponseSuccess = adminUsersControllerCreateResponse201 & {
+  headers: Headers;
+};
+export type adminUsersControllerCreateResponseError = (
+  adminUsersControllerCreateResponse400 | adminUsersControllerCreateResponse409
+) & {
+  headers: Headers;
+};
+
+export type adminUsersControllerCreateResponse =
+  adminUsersControllerCreateResponseSuccess | adminUsersControllerCreateResponseError;
+
+export const getAdminUsersControllerCreateUrl = () => {
+  return `/admin/users`;
+};
+
+export const adminUsersControllerCreate = async (
+  createUserDto: CreateUserDto,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<adminUsersControllerCreateResponse> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit['headers']>,
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string],
+        ),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+  return apiFetch<adminUsersControllerCreateResponse>(getAdminUsersControllerCreateUrl(), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(createUserDto),
   });
 };
 

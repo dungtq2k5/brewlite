@@ -76,6 +76,47 @@ export const AdminUsersControllerListResponse = zod.object({
     .optional(),
 });
 
+export const AdminUsersControllerCreateBody = zod.object({
+  email: zod.string(),
+  password: zod.string(),
+  fullName: zod.string(),
+  role: zod.enum(['CUSTOMER', 'STAFF', 'ADMIN']),
+  preferredLocale: zod.enum(['en', 'vi']).optional(),
+});
+
+export const AdminUsersControllerCreateResponse = zod.object({
+  data: zod
+    .object({
+      id: zod.string(),
+      email: zod.string(),
+      fullName: zod.string(),
+      role: zod.enum(['CUSTOMER', 'STAFF', 'ADMIN']),
+      permissions: zod.array(
+        zod.enum([
+          'menu.manage',
+          'stock.update',
+          'order.board.read',
+          'order.status.update',
+          'order.cancel.paid',
+          'order.read.all',
+          'promotion.manage',
+          'user.manage',
+          'report.read',
+        ]),
+      ),
+      hasPassword: zod.boolean(),
+      preferredLocale: zod.enum(['en', 'vi']),
+      createdAt: zod.string(),
+      isLocked: zod.boolean(),
+      lockedUntil: zod.string().nullable(),
+      lockReason: zod.string().nullable(),
+      deletedAt: zod.string().nullable(),
+      deletedById: zod.string().nullable(),
+      lastLoginAt: zod.string().nullable(),
+    })
+    .optional(),
+});
+
 export const AdminUsersControllerGetParams = zod.object({
   id: zod.string(),
 });

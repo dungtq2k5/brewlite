@@ -28,6 +28,18 @@ export interface AdminUser {
   lastLoginAt?: string | undefined;
 }
 
+export interface CreateUserRequest {
+  email: string;
+  password: string;
+  fullName: string;
+  role: string;
+  preferredLocale?: string | undefined;
+}
+
+export interface CreateUserResponse {
+  user: AdminUser | undefined;
+}
+
 export interface ListUsersRequest {
   page: PageRequest | undefined;
   q?: string | undefined;
@@ -100,6 +112,8 @@ export const BREWLITE_IDENTITY_PACKAGE_NAME = "brewlite.identity";
  */
 
 export interface AdminUserServiceClient {
+  createUser(request: CreateUserRequest, metadata?: Metadata): Observable<CreateUserResponse>;
+
   listUsers(request: ListUsersRequest, metadata?: Metadata): Observable<ListUsersResponse>;
 
   getUser(request: GetUserRequest, metadata?: Metadata): Observable<GetUserResponse>;
@@ -121,6 +135,11 @@ export interface AdminUserServiceClient {
  */
 
 export interface AdminUserServiceController {
+  createUser(
+    request: CreateUserRequest,
+    metadata?: Metadata,
+  ): Promise<CreateUserResponse> | Observable<CreateUserResponse> | CreateUserResponse;
+
   listUsers(
     request: ListUsersRequest,
     metadata?: Metadata,
@@ -160,6 +179,7 @@ export interface AdminUserServiceController {
 export function AdminUserServiceControllerMethods() {
   return function (constructor: Function) {
     const grpcMethods: string[] = [
+      "createUser",
       "listUsers",
       "getUser",
       "changeRole",

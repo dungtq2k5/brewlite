@@ -61,6 +61,13 @@ export default async function OrderDetailPage({ params, searchParams }: OrderDet
     }
   }
 
+  // Keep the address bar on the session actually rendered. A live refresh started
+  // before the client replaced the stale id can otherwise land afterwards and
+  // restore the old query string.
+  if (rawPaymentId && rawPaymentId !== payment?.id) {
+    redirect(payment ? `/orders/${order.id}?payment=${encodeURIComponent(payment.id)}` : nextPath);
+  }
+
   return (
     <OrderDetailClient order={order} payment={payment} locale={locale} cardholder={user.fullName} />
   );

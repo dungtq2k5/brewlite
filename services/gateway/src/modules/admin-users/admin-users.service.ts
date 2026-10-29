@@ -5,6 +5,7 @@ import { IdentityServiceGrpcClient } from '../auth/identity-service-grpc.client.
 import { toAdminUserResponseDto } from './admin-user.mapper.js';
 import type { AdminUserResponseDto } from './dto/admin-user-response.dto.js';
 import type { ChangeRoleDto } from './dto/change-role.dto.js';
+import type { CreateUserDto } from './dto/create-user.dto.js';
 import type { ListUsersQueryDto } from './dto/list-users-query.dto.js';
 import type { LockUserDto } from './dto/lock-user.dto.js';
 
@@ -15,6 +16,25 @@ function toCaller(ctx: UserContext): Caller {
 @Injectable()
 export class AdminUsersService {
   constructor(private readonly identity: IdentityServiceGrpcClient) {}
+
+  async createUser(
+    ctx: UserContext,
+    dto: CreateUserDto,
+    requestId?: string,
+  ): Promise<AdminUserResponseDto> {
+    const response = await this.identity.createUser(
+      toCaller(ctx),
+      {
+        email: dto.email,
+        password: dto.password,
+        fullName: dto.fullName,
+        role: dto.role,
+        preferredLocale: dto.preferredLocale,
+      },
+      requestId,
+    );
+    return toAdminUserResponseDto(response.user!);
+  }
 
   async listUsers(
     ctx: UserContext,
