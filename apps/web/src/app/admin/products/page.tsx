@@ -12,6 +12,7 @@ import { formatVnd, localized } from '@/i18n/format';
 import { nullableText } from '@/lib/admin-format';
 import { readPage } from '@/lib/api-server';
 import { ADMIN_PAGE_SIZE, parsePageParam } from '@/lib/pagination';
+import ProductImageControl from './ProductImageControl';
 
 function ProductStatus({ product }: { product: AdminProductListItemResponseDto }) {
   if (nullableText(product.deletedAt)) return <Tag tone="error">Đã xóa</Tag>;
@@ -52,19 +53,19 @@ export default async function AdminProductsPage({
       <PageHead
         title="Sản phẩm"
         meta={failed ? 'Không đọc được dữ liệu' : `${total ?? rows.length} sản phẩm`}
-        lede="Danh sách đọc từ menu thật trong catalog. P0 chỉ xem; form thêm và sửa sản phẩm chưa được nối."
+        lede="Danh sách đọc từ menu thật trong catalog. Tải ảnh cho từng món tại đây; ảnh hiển thị ngay ở trang món của khách."
       />
 
       {failed ? (
         <Notice tone="error">
-          <strong>Không tải được sản phẩm.</strong> Kiểm tra kết nối tới gateway rồi tải lại trang.
+          <strong>Không tải được sản phẩm.</strong> Kiểm tra kết nối mạng rồi tải lại trang.
         </Notice>
       ) : (
         <Panel>
           {rows.length === 0 ? (
             <div className="panel-body">
               <EmptyState title="Chưa có sản phẩm">
-                Gateway trả danh sách rỗng. Món mới sẽ xuất hiện ở đây.
+                Hệ thống chưa trả về sản phẩm nào. Món mới sẽ xuất hiện ở đây.
               </EmptyState>
             </div>
           ) : (
@@ -73,6 +74,7 @@ export default async function AdminProductsPage({
                 <thead>
                   <tr>
                     <th>Sản phẩm</th>
+                    <th>Ảnh</th>
                     <th>Nhóm</th>
                     <th className="num">Giá gốc</th>
                     <th>Kho</th>
@@ -85,6 +87,13 @@ export default async function AdminProductsPage({
                       <td data-label="Sản phẩm">
                         <span className="cell-title">{localized(product.name, 'vi')}</span>
                         <span className="cell-meta">{product.name.en}</span>
+                      </td>
+                      <td data-label="Ảnh">
+                        <ProductImageControl
+                          productId={product.id}
+                          productName={localized(product.name, 'vi')}
+                          imageUrl={product.imageUrl}
+                        />
                       </td>
                       <td data-label="Nhóm">{localized(product.categoryName, 'vi')}</td>
                       <td data-label="Giá gốc" className="num">

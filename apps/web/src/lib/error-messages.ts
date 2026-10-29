@@ -71,6 +71,10 @@ export function describeError(code: string, details: ApiErrorDetails, locale: 'v
       return isVi
         ? 'Trạng thái đơn hàng đã thay đổi. Vui lòng tải lại trang.'
         : 'The order status changed. Please refresh the page.';
+    case 'IMAGE_INVALID':
+      return isVi
+        ? 'Ảnh không hợp lệ. Chọn JPG, PNG hoặc WebP dung lượng dưới 2 MB.'
+        : 'That image is not valid. Choose a JPG, PNG or WebP under 2 MB.';
     case 'STOCK_CONTENDED':
       return isVi
         ? 'Món vừa được người khác đặt. Vui lòng thử lại.'

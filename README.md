@@ -9,6 +9,13 @@ watch the order move from `PENDING` to `PAID` → `PREPARING` → `READY` → `C
 Server-Sent Events. Payment uses Stripe Checkout when test keys are configured; without keys it
 runs the development `fake` provider, whose card form accepts two Stripe-style test cards.
 
+Staff work from the same build: the board advances orders with one tap, cancels a `PAID` order
+only with a reason, and refreshes itself over SSE. The stock page searches the menu, toggles
+availability, sets stock counts and toppings, and reports a version conflict instead of
+overwriting another device's edit. Admin pages cover users, products, categories, toppings and
+promotions; product photos can be uploaded and removed there, while the other admin tables are
+read-only.
+
 ## Prerequisites
 
 - Node.js **24.14.0** (see `.nvmrc`)
@@ -85,6 +92,33 @@ Any future expiry and any 3-digit security code are accepted. The fake provider 
 real Stripe test-mode flow. Local webhooks need
 `stripe listen --forward-to localhost:23100/api/webhooks/stripe`.
 
+## Staff and admin
+
+Log in with a seeded staff or admin account. After sign-in the app sends `STAFF` to `/staff`,
+`ADMIN` to `/admin` and customers to the menu; an explicit `next` path still wins.
+
+| Surface | URL | Notes |
+| :---- | :---- | :---- |
+| Staff board | <http://localhost:23000/staff> | `PAID → PREPARING → READY → COMPLETED`; cancel needs a reason |
+| Stock & items | <http://localhost:23000/staff/stock> | Availability, stock counts, toppings |
+| Admin | <http://localhost:23000/admin> | Users, products, categories, toppings, promotions |
+
+Every staff action runs through a server action and the gateway; the browser never talks to a
+domain service directly.
+
+## Product images
+
+Seed products ship without photos, so the menu shows a category illustration and says it is not
+a photo of the item. Upload a real JPG, PNG or WebP (≤ 2 MB) per product at
+`/admin/products`; the product page switches to the photo immediately. Removing the image brings
+the illustration back.
+
+Locally, uploads go to the Firebase Storage emulator. Next's image optimizer refuses private IPs,
+so `localhost:29199` URLs are rendered unoptimized in development. A production deployment needs a
+real Firebase Storage bucket and `STORAGE_PUBLIC_BASE_URL`.
+
+Photo credits for the bundled prototype assets are listed at `/credits`.
+
 ## Checks
 
 ```bash
@@ -99,6 +133,23 @@ pnpm build
 Known local pre-existing failures: parts of `packages/config` assume Linux git paths, and the
 gateway `catalog-unavailable.e2e.spec.ts` fixture answers `500` instead of `503`. Everything
 under `apps/web` and the payment/ordering paths used by the storefront is green.
+
+## Before publishing
+
+- **Payment:** set `PAYMENT_PROVIDER=stripe` in the payment service plus `STRIPE_SECRET_KEY`
+  and `STRIPE_WEBHOOK_SECRET`; set `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` for the web app. The
+  `fake` provider refuses to boot with `NODE_ENV=production`. Point the Stripe webhook at
+  `https://<host>/api/webhooks/stripe`.
+- **Storage:** point the catalog at a real Firebase project (`FIREBASE_PROJECT_ID`,
+  `FIREBASE_STORAGE_BUCKET`, `GOOGLE_APPLICATION_CREDENTIALS`) and set
+  `STORAGE_PUBLIC_BASE_URL` to the bucket's public URL. Remove the emulator host.
+- **Data:** run `pnpm db:deploy` against the production databases, then seed only the reference
+  menu (`db:setup` is for local/test). Create real staff and admin accounts with the identity
+  seed or the admin API; demo passwords must not ship.
+- **Runtime:** set `NODE_ENV=production`, serve the web app over HTTPS (cookies become `Secure`),
+  and give every service its own secrets. `.env` files are git-ignored.
+- **Smoke test:** sign in as customer, staff and admin; place one paid order; advance it on the
+  staff board; upload one product photo and confirm it renders on the product page.
 
 ## Repository map
 

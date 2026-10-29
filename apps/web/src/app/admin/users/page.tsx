@@ -48,20 +48,19 @@ export default async function AdminUsersPage({
       <PageHead
         title="Người dùng"
         meta={failed ? 'Không đọc được dữ liệu' : `${total ?? rows.length} tài khoản`}
-        lede="Danh sách đọc từ endpoint admin hiện có. P0 chỉ xem; thao tác đổi vai trò, khóa và xóa mềm chưa được nối."
+        lede="Danh sách tài khoản và vai trò hiện tại. Đổi vai trò, khóa và xóa tài khoản chưa hỗ trợ trên giao diện."
       />
 
       {failed ? (
         <Notice tone="error">
-          <strong>Không tải được người dùng.</strong> Kiểm tra kết nối tới gateway rồi tải lại
-          trang.
+          <strong>Không tải được người dùng.</strong> Kiểm tra kết nối mạng rồi tải lại trang.
         </Notice>
       ) : (
         <Panel>
           {rows.length === 0 ? (
             <div className="panel-body">
               <EmptyState title="Chưa có người dùng">
-                Gateway trả danh sách rỗng. Tài khoản mới sẽ xuất hiện ở đây.
+                Hệ thống chưa trả về tài khoản nào. Tài khoản mới sẽ xuất hiện ở đây.
               </EmptyState>
             </div>
           ) : (
@@ -113,11 +112,6 @@ export default async function AdminUsersPage({
           )}
         </Panel>
       )}
-
-      <p className="fine">
-        Bộ lọc <code>q</code>, <code>role</code>, <code>locked</code>, <code>deleted</code> có trong
-        endpoint nhưng chưa đưa lên giao diện P0.
-      </p>
     </>
   );
 }

@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Tag } from '@/components/vellum/Tag';
 
 const LINKS = [
   { href: '/admin', label: 'Tổng quan' },
@@ -32,16 +31,6 @@ export default function AdminNav() {
           </Link>
         );
       })}
-      <span className="rail-link is-disabled" aria-disabled="true">
-        <span className="rail-num">07</span>
-        <span>Đơn hàng</span>
-        <Tag className="tag--p1">P1</Tag>
-      </span>
-      <span className="rail-link is-disabled" aria-disabled="true">
-        <span className="rail-num">08</span>
-        <span>Báo cáo</span>
-        <Tag className="tag--p1">P1</Tag>
-      </span>
     </nav>
   );
 }

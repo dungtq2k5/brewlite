@@ -1,6 +1,10 @@
 ﻿import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
+  experimental: {
+    // Product photos are capped at 2 MB by the catalog; leave room for the multipart envelope.
+    serverActions: { bodySizeLimit: '3mb' },
+  },
   images: {
     remotePatterns: [
       {

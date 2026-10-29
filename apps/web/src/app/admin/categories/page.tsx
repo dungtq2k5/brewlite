@@ -30,19 +30,19 @@ export default async function AdminCategoriesPage() {
       <PageHead
         title="Danh mục"
         meta={failed ? 'Không đọc được dữ liệu' : `${rows.length} danh mục`}
-        lede="Danh mục đọc từ catalog. P0 chỉ xem; thêm, sửa và xóa mềm chưa được nối."
+        lede="Danh mục đọc từ catalog thật. Trang này chỉ để đối chiếu; thêm, sửa và xóa danh mục chưa hỗ trợ trên giao diện."
       />
 
       {failed ? (
         <Notice tone="error">
-          <strong>Không tải được danh mục.</strong> Kiểm tra kết nối tới gateway rồi tải lại trang.
+          <strong>Không tải được danh mục.</strong> Kiểm tra kết nối mạng rồi tải lại trang.
         </Notice>
       ) : (
         <Panel>
           {rows.length === 0 ? (
             <div className="panel-body">
               <EmptyState title="Chưa có danh mục">
-                Gateway trả danh sách rỗng. Danh mục mới sẽ xuất hiện ở đây.
+                Hệ thống chưa trả về danh mục nào. Danh mục mới sẽ xuất hiện ở đây.
               </EmptyState>
             </div>
           ) : (

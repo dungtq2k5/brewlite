@@ -9,7 +9,7 @@ interface LoginPageProps {
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = await searchParams;
-  const nextPath = safeNextPath(params.next);
+  const nextPath = params.next ? safeNextPath(params.next, '') || undefined : undefined;
   const locale = await getLocale();
   const isVi = locale === 'vi';
 

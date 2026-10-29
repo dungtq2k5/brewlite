@@ -97,7 +97,11 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
         <span aria-current="page">{productName}</span>
       </nav>
 
-      <ProductDetailClient product={product} locale={locale} />
+      <ProductDetailClient
+        product={product}
+        locale={locale}
+        categoryName={category ? category.name.en : null}
+      />
     </>
   );
 }

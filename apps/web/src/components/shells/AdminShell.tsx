@@ -28,9 +28,7 @@ export default function AdminShell({
             <span>Về cửa hàng</span>
           </Link>
           <LogoutButton label="Đăng xuất" className="rail-link" />
-          <p className="rail-note">
-            Dữ liệu vận hành lấy trực tiếp từ gateway. Không có số liệu doanh thu giả.
-          </p>
+          <p className="rail-note">Dữ liệu vận hành hiển thị trực tiếp từ hệ thống.</p>
         </div>
       </aside>
       <main className="admin-main" id="main">

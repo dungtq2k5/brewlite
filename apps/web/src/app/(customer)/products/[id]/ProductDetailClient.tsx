@@ -14,15 +14,17 @@ import type {
   ProductDetailResponseDtoSizesItemSize,
 } from '@brewlite/api-client';
 import { Notice } from '@/components/vellum/Notice';
+import ProductArtwork from '@/components/ProductArtwork';
 import { useCart } from '@/context/CartContext';
 import { formatVnd, localized } from '@/i18n/format';
 
 interface Props {
   product: ProductDetailResponseDto;
   locale: 'vi' | 'en';
+  categoryName?: string | null;
 }
 
-export default function ProductDetailClient({ product, locale }: Props) {
+export default function ProductDetailClient({ product, locale, categoryName }: Props) {
   const router = useRouter();
   const { addItem } = useCart();
   const isVi = locale === 'vi';
@@ -97,7 +99,7 @@ export default function ProductDetailClient({ product, locale }: Props) {
     : `Size ${size}${selectedToppings.length > 0 ? `, ${selectedToppings.length} topping${selectedToppings.length > 1 ? 's' : ''}` : ''}`;
 
   return (
-    <div className={image ? 'product-layout' : 'product-layout product-layout--single'}>
+    <div className="product-layout">
       <div className="product-panel">
         <h1 className="page-title">{name}</h1>
         {altName && altName !== name && <p className="page-meta">{altName}</p>}
@@ -240,7 +242,7 @@ export default function ProductDetailClient({ product, locale }: Props) {
         </p>
       </div>
 
-      {image && (
+      {image ? (
         <div className="product-media">
           <figure className="photo photo--portrait">
             <Image
@@ -250,8 +252,16 @@ export default function ProductDetailClient({ product, locale }: Props) {
               height={1000}
               sizes="(max-width: 60rem) 100vw, 50vw"
               priority
+              unoptimized={
+                image.startsWith('http://localhost:29199') ||
+                image.startsWith('http://127.0.0.1:29199')
+              }
             />
           </figure>
+        </div>
+      ) : (
+        <div className="product-media">
+          <ProductArtwork categoryName={categoryName} locale={locale} />
         </div>
       )}
     </div>

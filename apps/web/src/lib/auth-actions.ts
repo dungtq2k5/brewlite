@@ -15,9 +15,20 @@ import type { AuthSuccess, LoginInput, RegisterInput } from './auth-types';
 import { unwrap } from './api-server';
 import { safeNextPath } from './navigation';
 
+function homePathForRole(role: string): string {
+  switch (role) {
+    case 'STAFF':
+      return '/staff';
+    case 'ADMIN':
+      return '/admin';
+    default:
+      return '/';
+  }
+}
+
 function success(session: SessionResponseDto, next: string | undefined): AuthSuccess {
   return {
-    redirectTo: safeNextPath(next),
+    redirectTo: safeNextPath(next, homePathForRole(session.user.role)),
     user: {
       id: session.user.id,
       email: session.user.email,

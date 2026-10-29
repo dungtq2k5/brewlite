@@ -24,6 +24,7 @@ export default [
       'src/lib/api.ts',
       'src/lib/auth-cookies.ts',
       'src/lib/firebase.ts',
+      'src/lib/gateway-sse.ts',
       'src/middleware.ts',
     ],
     rules: {

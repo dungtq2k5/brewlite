@@ -16,7 +16,7 @@ function detailRecord(details: unknown): ApiErrorDetails {
   return typeof details === 'object' && details !== null ? (details as ApiErrorDetails) : {};
 }
 
-export default function LoginForm({ nextPath, locale }: { nextPath: string; locale: Locale }) {
+export default function LoginForm({ nextPath, locale }: { nextPath?: string; locale: Locale }) {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>('login');
   const [fullName, setFullName] = useState('');

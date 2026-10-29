@@ -49,20 +49,19 @@ export default async function AdminPromotionsPage({
       <PageHead
         title="Khuyến mãi"
         meta={failed ? 'Không đọc được dữ liệu' : `${total ?? rows.length} mã`}
-        lede="Mã, mức giảm và đơn tối thiểu đọc từ endpoint hiện có. P0 chỉ xem; tạo và sửa khuyến mãi chưa được nối."
+        lede="Mã, mức giảm và đơn tối thiểu đọc từ hệ thống khuyến mãi. Tạo và sửa mã chưa hỗ trợ trên giao diện."
       />
 
       {failed ? (
         <Notice tone="error">
-          <strong>Không tải được khuyến mãi.</strong> Kiểm tra kết nối tới gateway rồi tải lại
-          trang.
+          <strong>Không tải được khuyến mãi.</strong> Kiểm tra kết nối mạng rồi tải lại trang.
         </Notice>
       ) : (
         <Panel>
           {rows.length === 0 ? (
             <div className="panel-body">
               <EmptyState title="Chưa có khuyến mãi">
-                Gateway trả danh sách rỗng. Mã mới sẽ xuất hiện ở đây.
+                Hệ thống chưa trả về mã nào. Mã mới sẽ xuất hiện ở đây.
               </EmptyState>
             </div>
           ) : (

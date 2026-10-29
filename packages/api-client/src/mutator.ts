@@ -16,7 +16,9 @@ export async function apiFetch<T>(url: string, init: RequestInit = {}): Promise<
   const { baseUrl, getRequestHeaders } = apiClientConfig();
 
   const headers = new Headers(init.headers);
-  if (init.body !== undefined && init.body !== null && !headers.has('Content-Type')) {
+  // Only JSON bodies need the default header. FormData must keep the multipart boundary
+  // that fetch generates, so it deliberately stays untouched.
+  if (typeof init.body === 'string' && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }
   for (const [name, value] of Object.entries(await getRequestHeaders())) headers.set(name, value);

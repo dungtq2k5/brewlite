@@ -30,19 +30,19 @@ export default async function AdminToppingsPage() {
       <PageHead
         title="Topping"
         meta={failed ? 'Không đọc được dữ liệu' : `${rows.length} topping`}
-        lede="Topping dùng chung cho mọi sản phẩm được gán. P0 chỉ xem; đổi trạng thái và sửa giá chưa được nối."
+        lede="Topping dùng chung cho các món được gán. Bật/tắt nhanh ở Kho & món; đổi tên và giá chưa hỗ trợ trên giao diện."
       />
 
       {failed ? (
         <Notice tone="error">
-          <strong>Không tải được topping.</strong> Kiểm tra kết nối tới gateway rồi tải lại trang.
+          <strong>Không tải được topping.</strong> Kiểm tra kết nối mạng rồi tải lại trang.
         </Notice>
       ) : (
         <Panel>
           {rows.length === 0 ? (
             <div className="panel-body">
               <EmptyState title="Chưa có topping">
-                Gateway trả danh sách rỗng. Topping mới sẽ xuất hiện ở đây.
+                Hệ thống chưa trả về topping nào. Topping mới sẽ xuất hiện ở đây.
               </EmptyState>
             </div>
           ) : (
@@ -75,7 +75,7 @@ export default async function AdminToppingsPage() {
             </div>
           )}
           <p className="pagination">
-            <span>{rows.length} topping, gồm cả mục đã xóa mềm nếu gateway trả về.</span>
+            <span>{rows.length} topping, gồm cả mục đã xóa mềm nếu có.</span>
           </p>
         </Panel>
       )}

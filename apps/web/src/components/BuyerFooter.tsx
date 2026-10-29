@@ -22,6 +22,7 @@ export default async function BuyerFooter() {
           <Link href="/">{isVi ? 'Thực đơn' : 'Menu'}</Link>
           <Link href="/orders">{isVi ? 'Đơn hàng' : 'Orders'}</Link>
           <Link href="/account">{isVi ? 'Tài khoản' : 'Account'}</Link>
+          <Link href="/credits">{isVi ? 'Nguồn ảnh' : 'Image credits'}</Link>
         </nav>
         <p className="credit">
           {isVi

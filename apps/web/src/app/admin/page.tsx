@@ -68,7 +68,7 @@ export default async function AdminOverviewPage() {
     <>
       <PageHead
         title="Tổng quan"
-        meta="Số đếm đọc trực tiếp từ gateway, không có số liệu doanh thu giả."
+        meta="Số đếm đọc trực tiếp từ hệ thống vận hành."
         actions={
           <Link className="btn btn--sm" href="/admin">
             Tải lại
@@ -92,7 +92,7 @@ export default async function AdminOverviewPage() {
 
       <div className="overview-grid">
         <Panel>
-          <PanelHead title="Danh mục vận hành" action={<Tag tone="muted">Đọc từ gateway</Tag>} />
+          <PanelHead title="Danh mục vận hành" action={<Tag tone="muted">Dữ liệu trực tiếp</Tag>} />
           <PanelBody>
             <div className="account-list">
               <div className="account-row" style={{ gridTemplateColumns: 'minmax(0, 1fr) auto' }}>
@@ -117,9 +117,7 @@ export default async function AdminOverviewPage() {
               </div>
             </div>
           </PanelBody>
-          <p className="pagination">
-            Bảng đơn dùng chung dữ liệu Staff. Doanh thu không hiển thị ở P0.
-          </p>
+          <p className="pagination">Bảng đơn dùng chung dữ liệu với màn hình Staff.</p>
         </Panel>
 
         <div className="stack">
@@ -187,14 +185,6 @@ export default async function AdminOverviewPage() {
           </Panel>
         </div>
       </div>
-
-      <section className="p1-note" style={{ marginTop: 'var(--space-md)' }}>
-        <strong>P1: Đơn hàng và Báo cáo</strong>
-        <span>
-          Hai mục này chưa có endpoint riêng trong admin. Chúng xuất hiện ở dạng disabled, không gọi
-          API và không dựng số liệu thay thế.
-        </span>
-      </section>
     </>
   );
 }

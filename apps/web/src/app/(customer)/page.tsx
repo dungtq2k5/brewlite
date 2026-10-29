@@ -72,8 +72,8 @@ export default async function MenuPage({ searchParams }: MenuPageProps) {
         meta={meta}
         lede={
           isVi
-            ? 'Giá hiển thị là giá từ, chưa gồm size và topping.'
-            : 'Prices shown are from-prices; size and toppings are extra.'
+            ? 'Chọn size và topping ở trang món; giá cuối cùng hiện trước khi thêm vào giỏ.'
+            : 'Choose size and toppings on the item page to see the final price before adding it.'
         }
         actions={
           <>
@@ -88,18 +88,6 @@ export default async function MenuPage({ searchParams }: MenuPageProps) {
           </>
         }
       />
-
-      <div className="promo-band fibre">
-        <span className="promo-code">BREW20</span>
-        <p className="promo-copy">
-          {isVi
-            ? 'Giảm 20.000 ₫ cho đơn từ 69.000 ₫. Nhập mã ở bước thanh toán.'
-            : 'Save 20,000 ₫ on orders from 69,000 ₫. Enter the code at checkout.'}
-        </p>
-        <span className="promo-note">
-          {isVi ? 'Đơn tối thiểu 69.000 ₫' : 'Minimum order 69,000 ₫'}
-        </span>
-      </div>
 
       {failed && (
         <Notice tone="warning" role="status" className="menu-notice">
@@ -143,9 +131,11 @@ export default async function MenuPage({ searchParams }: MenuPageProps) {
               />
             </div>
             <figcaption className="photo-credit">
-              {isVi
-                ? 'Ảnh minh hoạ: Shixart1985 (CC BY 2.0), qua Wikimedia Commons. Không phải ảnh món tại quán.'
-                : 'Illustration: Shixart1985 (CC BY 2.0), via Wikimedia Commons. Not a photo of an in-store item.'}
+              <Link className="text-link" href="/credits">
+                {isVi
+                  ? 'Ảnh minh hoạ: Shixart1985 · CC BY 2.0'
+                  : 'Illustration: Shixart1985 · CC BY 2.0'}
+              </Link>
             </figcaption>
           </figure>
 
