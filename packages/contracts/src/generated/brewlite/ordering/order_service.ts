@@ -79,6 +79,8 @@ export interface Order {
   refundStatus: string;
   pointsEarned: number;
   history: OrderHistoryEntry[];
+  /** The payment in progress, or the one that paid the order — `GET /payments/:id` reads it. */
+  currentPaymentId?: string | undefined;
 }
 
 export interface PlaceOrderRequest {

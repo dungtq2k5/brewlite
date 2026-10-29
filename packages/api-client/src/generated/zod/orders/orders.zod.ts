@@ -108,7 +108,7 @@ export const OrdersControllerQuoteResponse = zod.object({
         .int()
         .min(ordersControllerQuoteResponseDataTotalVndMin)
         .max(ordersControllerQuoteResponseDataTotalVndMax),
-      promoCode: zod.array(zod.string()),
+      promoCode: zod.string().nullable(),
       pointsEarnable: zod
         .int()
         .min(ordersControllerQuoteResponseDataPointsEarnableMin)
@@ -234,7 +234,7 @@ export const OrdersControllerPlaceOrderResponse = zod.object({
         .int()
         .min(ordersControllerPlaceOrderResponseDataTotalVndMin)
         .max(ordersControllerPlaceOrderResponseDataTotalVndMax),
-      promoCode: zod.array(zod.string()),
+      promoCode: zod.string().nullable(),
       pointsEarnable: zod
         .int()
         .min(ordersControllerPlaceOrderResponseDataPointsEarnableMin)
@@ -242,17 +242,18 @@ export const OrdersControllerPlaceOrderResponse = zod.object({
       id: zod.string(),
       orderNo: zod.string(),
       status: zod.string(),
-      note: zod.array(zod.string()),
-      expiresAt: zod.array(zod.string()),
-      paidAt: zod.array(zod.string()),
+      note: zod.string().nullable(),
+      expiresAt: zod.string().nullable(),
+      paidAt: zod.string().nullable(),
       createdAt: zod.string(),
-      cancelReason: zod.array(zod.string()),
-      cancelNote: zod.array(zod.string()),
+      cancelReason: zod.string().nullable(),
+      cancelNote: zod.string().nullable(),
       refundStatus: zod.string(),
       pointsEarned: zod
         .int()
         .min(ordersControllerPlaceOrderResponseDataPointsEarnedMin)
         .max(ordersControllerPlaceOrderResponseDataPointsEarnedMax),
+      currentPaymentId: zod.string().nullable(),
       history: zod.array(
         zod.object({
           fromStatus: zod.string().nullable(),
@@ -380,7 +381,7 @@ export const OrdersControllerListMyOrdersResponse = zod.object({
           .int()
           .min(ordersControllerListMyOrdersResponseDataItemTotalVndMin)
           .max(ordersControllerListMyOrdersResponseDataItemTotalVndMax),
-        promoCode: zod.array(zod.string()),
+        promoCode: zod.string().nullable(),
         pointsEarnable: zod
           .int()
           .min(ordersControllerListMyOrdersResponseDataItemPointsEarnableMin)
@@ -388,17 +389,18 @@ export const OrdersControllerListMyOrdersResponse = zod.object({
         id: zod.string(),
         orderNo: zod.string(),
         status: zod.string(),
-        note: zod.array(zod.string()),
-        expiresAt: zod.array(zod.string()),
-        paidAt: zod.array(zod.string()),
+        note: zod.string().nullable(),
+        expiresAt: zod.string().nullable(),
+        paidAt: zod.string().nullable(),
         createdAt: zod.string(),
-        cancelReason: zod.array(zod.string()),
-        cancelNote: zod.array(zod.string()),
+        cancelReason: zod.string().nullable(),
+        cancelNote: zod.string().nullable(),
         refundStatus: zod.string(),
         pointsEarned: zod
           .int()
           .min(ordersControllerListMyOrdersResponseDataItemPointsEarnedMin)
           .max(ordersControllerListMyOrdersResponseDataItemPointsEarnedMax),
+        currentPaymentId: zod.string().nullable(),
         history: zod.array(
           zod.object({
             fromStatus: zod.string().nullable(),
@@ -507,7 +509,7 @@ export const OrdersControllerGetOrderResponse = zod.object({
         .int()
         .min(ordersControllerGetOrderResponseDataTotalVndMin)
         .max(ordersControllerGetOrderResponseDataTotalVndMax),
-      promoCode: zod.array(zod.string()),
+      promoCode: zod.string().nullable(),
       pointsEarnable: zod
         .int()
         .min(ordersControllerGetOrderResponseDataPointsEarnableMin)
@@ -515,17 +517,18 @@ export const OrdersControllerGetOrderResponse = zod.object({
       id: zod.string(),
       orderNo: zod.string(),
       status: zod.string(),
-      note: zod.array(zod.string()),
-      expiresAt: zod.array(zod.string()),
-      paidAt: zod.array(zod.string()),
+      note: zod.string().nullable(),
+      expiresAt: zod.string().nullable(),
+      paidAt: zod.string().nullable(),
       createdAt: zod.string(),
-      cancelReason: zod.array(zod.string()),
-      cancelNote: zod.array(zod.string()),
+      cancelReason: zod.string().nullable(),
+      cancelNote: zod.string().nullable(),
       refundStatus: zod.string(),
       pointsEarned: zod
         .int()
         .min(ordersControllerGetOrderResponseDataPointsEarnedMin)
         .max(ordersControllerGetOrderResponseDataPointsEarnedMax),
+      currentPaymentId: zod.string().nullable(),
       history: zod.array(
         zod.object({
           fromStatus: zod.string().nullable(),
@@ -628,7 +631,7 @@ export const OrdersControllerCancelOrderResponse = zod.object({
         .int()
         .min(ordersControllerCancelOrderResponseDataTotalVndMin)
         .max(ordersControllerCancelOrderResponseDataTotalVndMax),
-      promoCode: zod.array(zod.string()),
+      promoCode: zod.string().nullable(),
       pointsEarnable: zod
         .int()
         .min(ordersControllerCancelOrderResponseDataPointsEarnableMin)
@@ -636,17 +639,18 @@ export const OrdersControllerCancelOrderResponse = zod.object({
       id: zod.string(),
       orderNo: zod.string(),
       status: zod.string(),
-      note: zod.array(zod.string()),
-      expiresAt: zod.array(zod.string()),
-      paidAt: zod.array(zod.string()),
+      note: zod.string().nullable(),
+      expiresAt: zod.string().nullable(),
+      paidAt: zod.string().nullable(),
       createdAt: zod.string(),
-      cancelReason: zod.array(zod.string()),
-      cancelNote: zod.array(zod.string()),
+      cancelReason: zod.string().nullable(),
+      cancelNote: zod.string().nullable(),
       refundStatus: zod.string(),
       pointsEarned: zod
         .int()
         .min(ordersControllerCancelOrderResponseDataPointsEarnedMin)
         .max(ordersControllerCancelOrderResponseDataPointsEarnedMax),
+      currentPaymentId: zod.string().nullable(),
       history: zod.array(
         zod.object({
           fromStatus: zod.string().nullable(),

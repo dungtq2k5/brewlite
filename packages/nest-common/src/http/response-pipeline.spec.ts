@@ -1,6 +1,7 @@
 import { Controller, Get, type CallHandler, type ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { createZodDto, ZodSerializerDto } from 'nestjs-zod';
+import { ZodSerializerDto } from 'nestjs-zod';
+import { createZodDto } from './zod-dto.js';
 import { of } from 'rxjs';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';

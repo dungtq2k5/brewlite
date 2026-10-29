@@ -91,7 +91,7 @@ Every id is a **UUIDv7** ([ADR 0009](./decisions/0009-every-identifier-is-a-uuid
 
 - The web app creates the key **when the customer taps the button** and reuses it for every retry of that tap; a new tap is a new key.
 - Missing key → `400 IDEMPOTENCY_KEY_REQUIRED`.
-- Same key, same body → the original resource, `200` (the first call answered `201`).
+- Same key, same body → the original resource, `200` (the first call answered `201`). **Both statuses are documented** on `POST /orders`, `POST /payments` and `POST /auth/firebase` (new account `201`, returning `200`), so the generated client types the pair.
 - Same key, different body → `422 IDEMPOTENCY_KEY_REUSED`.
 - The guarantee is a unique index in the owning service's database (rdm-spec §1.7), so it holds across concurrent requests, replicas and restarts.
 
@@ -272,6 +272,7 @@ Quote = {
 
 Order = Quote & {
   id; orderNo; status; note: string | null;
+  currentPaymentId: string | null;        // the payment in progress, or the one that paid it — read it with GET /payments/:id
   expiresAt: string | null;               // the payment deadline, only while PENDING / PAYMENT_FAILED
   paidAt: string | null; createdAt;
   cancelReason: 'CUSTOMER' | 'EXPIRED' | 'STAFF' | null; cancelNote: string | null;

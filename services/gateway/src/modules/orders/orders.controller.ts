@@ -49,7 +49,7 @@ export class OrdersController {
   @Post()
   @ApiIdempotencyKey()
   @RateLimit('ORDER_WRITE')
-  @ApiEnvelope(OrderResponseDto)
+  @ApiEnvelope(OrderResponseDto, { status: 201, alsoStatus: [200] })
   @ApiErrors(
     'PRODUCT_UNAVAILABLE',
     'OPTION_INVALID',

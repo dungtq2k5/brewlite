@@ -6,5 +6,6 @@
  */
 
 export interface SetProductImageResponseDto {
-  imageUrl: string[];
+  /** @nullable */
+  imageUrl: string | null;
 }

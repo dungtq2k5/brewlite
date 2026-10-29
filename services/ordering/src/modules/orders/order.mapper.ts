@@ -80,5 +80,6 @@ export function toProtoOrder(
     refundStatus: order.refundStatus,
     pointsEarned: order.pointsEarned,
     history: history.map(toHistoryEntry),
+    currentPaymentId: order.currentPaymentId ?? undefined,
   };
 }

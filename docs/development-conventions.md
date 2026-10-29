@@ -270,8 +270,8 @@ As defined in api-endpoints-plan §0.3. A global interceptor wraps success as `{
 - Query and path values arrive as strings: `z.coerce.number()`, the shared `zBooleanParam` — never `Boolean(value)`, which reads `"false"` as `true`.
 - **Nullable and optional are different.** A response field is `.nullable()` (key always present), never `.optional()`. A request field is `.optional()` only when absence means "leave unchanged". A PATCH schema **MUST NOT** default a field — the default would overwrite the stored value on every unrelated update.
 - Every id from outside is parsed with `zUuidV7`, including `Idempotency-Key`.
-- **Import `nestjs-zod` only through `@brewlite/nest-common`**, which re-exports it. pnpm can install two physical copies across workspace packages, and then `instanceof ZodValidationException` is silently `false` and validation errors become `500`s.
-- User-entered text is NFC-normalised by `normalizeText()` before validation.
+- **Import `nestjs-zod` only through `@brewlite/nest-common`**, which re-exports it. pnpm can install two physical copies across workspace packages, and then `instanceof ZodValidationException` is silently `false` and validation errors become `500`s. Its `createZodDto` also keeps a DTO's top-level `.nullable()` fields nullable in the OpenAPI document — `@nestjs/swagger` reads zod's `type: ["string", "null"]` as *array of string*, so nest-common marks those fields before Nest sees them and restores `[type, "null"]` after. A cursor list's `meta.nextCursor` is `string | null` the same way. A route that answers `201` or `200` declares both: `@ApiEnvelope(Dto, { status: 201, alsoStatus: [200] })`.
+- User-entered text is NFC-normalized by `normalizeText()` before validation.
 
 ### 6.3 Auth markers and guards
 
