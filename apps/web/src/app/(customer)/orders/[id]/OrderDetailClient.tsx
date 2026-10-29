@@ -17,11 +17,13 @@ import type { ApiErrorDetails } from '@/lib/gateway-types';
 import { isLiveOrderStatus, orderStatusUi } from '@/lib/order-status';
 import { startPaymentAction } from '@/lib/payment-actions';
 import { cancelOrderAction } from './actions';
+import FakeCardCheckout from './FakeCardCheckout';
 
 interface Props {
   order: OrderResponseDto;
   payment: PaymentResponseDto | null;
   locale: Locale;
+  cardholder: string;
 }
 
 interface ErrorEnvelope {
@@ -137,7 +139,7 @@ async function confirmFakePayment(
   );
 }
 
-export default function OrderDetailClient({ order, payment, locale }: Props) {
+export default function OrderDetailClient({ order, payment, locale, cardholder }: Props) {
   const router = useRouter();
   const { clearCart } = useCart();
   const isVi = locale === 'vi';
@@ -238,21 +240,22 @@ export default function OrderDetailClient({ order, payment, locale }: Props) {
     }
   };
 
-  const confirmPayment = async (outcome: 'SUCCEEDED' | 'FAILED') => {
-    if (!payment) return;
+  const confirmPayment = async (outcome: 'SUCCEEDED' | 'FAILED'): Promise<boolean> => {
+    if (!payment) return false;
     setPaymentBusy(outcome);
     setPaymentError('');
 
     try {
       await confirmFakePayment(payment.id, outcome);
-      startRefresh(() => router.refresh());
+      return true;
     } catch (error) {
       const described = describeUnknownError(error, locale);
       if (described.code === 'UNAUTHENTICATED') {
         router.replace(loginUrl);
-        return;
+        return false;
       }
       setPaymentError(described.message);
+      return false;
     } finally {
       setPaymentBusy(null);
     }
@@ -503,44 +506,16 @@ export default function OrderDetailClient({ order, payment, locale }: Props) {
                 </Notice>
               )}
 
-              {canFakeConfirm ? (
-                <>
-                  <p className="notice notice--warning">
-                    {isVi
-                      ? 'Cổng thanh toán giả lập chỉ dùng khi phát triển. Hai nút dưới gọi thẳng cổng giả lập để tạo đúng sự kiện như webhook thật.'
-                      : 'The fake payment provider is development-only. The buttons below call it directly to produce the same events as a real webhook.'}
-                  </p>
-                  <div className="order-actions" style={{ marginTop: 0 }}>
-                    <button
-                      className="btn btn--primary"
-                      type="button"
-                      onClick={() => void confirmPayment('SUCCEEDED')}
-                      disabled={paymentBusy !== null || refreshing}
-                    >
-                      {paymentBusy === 'SUCCEEDED'
-                        ? isVi
-                          ? 'Đang xác nhận…'
-                          : 'Confirming…'
-                        : isVi
-                          ? 'Mô phỏng thành công'
-                          : 'Simulate success'}
-                    </button>
-                    <button
-                      className="btn"
-                      type="button"
-                      onClick={() => void confirmPayment('FAILED')}
-                      disabled={paymentBusy !== null || refreshing}
-                    >
-                      {paymentBusy === 'FAILED'
-                        ? isVi
-                          ? 'Đang xác nhận…'
-                          : 'Confirming…'
-                        : isVi
-                          ? 'Mô phỏng thất bại'
-                          : 'Simulate failure'}
-                    </button>
-                  </div>
-                </>
+              {canFakeConfirm && payment ? (
+                <FakeCardCheckout
+                  amountVnd={order.totalVnd}
+                  expiresAt={payment.expiresAt ?? order.expiresAt}
+                  locale={locale}
+                  cardholder={cardholder}
+                  busy={paymentBusy !== null || refreshing}
+                  onConfirm={confirmPayment}
+                  onRefresh={() => startRefresh(() => router.refresh())}
+                />
               ) : canCreatePayment ? (
                 <>
                   <p className="fine" style={{ marginTop: 0 }}>

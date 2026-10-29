@@ -8,7 +8,7 @@ import type {
   StartCheckoutResult,
 } from './payment-provider.interface.js';
 
-/** Nothing to start — the page shows the two simulate buttons; a refund succeeds at once. */
+/** Nothing to start — the page renders a development-only card form; a refund succeeds at once. */
 @Injectable()
 export class FakePaymentProvider implements PaymentProvider {
   readonly kind = PaymentProviderKind.FAKE;

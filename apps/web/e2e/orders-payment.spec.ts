@@ -22,9 +22,12 @@ test.describe('customer order payment', () => {
       (url) => url.pathname === `/orders/${order.id}` && url.searchParams.has('payment'),
       { timeout: 30_000 },
     );
-    await expect(page.getByRole('button', { name: 'Mô phỏng thành công' })).toBeVisible();
+    await expect(page.getByLabel('Số thẻ')).toHaveValue('4242 4242 4242 4242');
 
-    await page.getByRole('button', { name: 'Mô phỏng thành công' }).click();
+    await page.getByRole('button', { name: /^Thanh toán / }).click();
+    await expect(page.getByRole('status').filter({ hasText: 'Thanh toán thành công' })).toBeVisible(
+      { timeout: 30_000 },
+    );
     await expect(page.locator('.order-status')).toHaveText('Đã thanh toán', { timeout: 30_000 });
 
     // The page update and the persisted order must agree.
@@ -44,10 +47,11 @@ test.describe('customer order payment', () => {
     const stalePaymentId = newId();
     await page.goto(`/orders/${order.id}?payment=${stalePaymentId}`);
 
-    // The stale id is ignored and the order's currentPaymentId mounts the fake buttons.
-    await expect(page.getByRole('button', { name: 'Mô phỏng thành công' })).toBeVisible();
+    // The stale id is ignored and the order's currentPaymentId mounts the card form.
+    await expect(page.getByLabel('Số thẻ')).toHaveValue('4242 4242 4242 4242');
 
-    await page.getByRole('button', { name: 'Mô phỏng thất bại' }).click();
+    await page.getByLabel('Số thẻ').fill('4000 0000 0000 0002');
+    await page.getByRole('button', { name: /^Thanh toán / }).click();
     await expect(page.locator('.order-status')).toHaveText('Thanh toán lỗi', { timeout: 30_000 });
     await expect(page.locator('.panel-head .tag')).toHaveText('Thanh toán thất bại');
 
@@ -59,7 +63,7 @@ test.describe('customer order payment', () => {
         url.searchParams.get('payment') !== stalePaymentId,
       { timeout: 30_000 },
     );
-    await page.getByRole('button', { name: 'Mô phỏng thành công' }).click();
+    await page.getByRole('button', { name: /^Thanh toán / }).click();
     await expect(page.locator('.order-status')).toHaveText('Đã thanh toán', { timeout: 30_000 });
     await expect.poll(() => readOrderStatus(page, order.id), { timeout: 30_000 }).toBe('PAID');
   });

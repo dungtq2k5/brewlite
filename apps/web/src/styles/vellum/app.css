@@ -384,6 +384,54 @@ a:hover { text-decoration: none; }
 .receipt-total { display: flex; justify-content: space-between; gap: var(--space-md); margin-top: var(--space-sm); padding-top: var(--space-sm); border-top: var(--rule-hair) solid var(--color-ink); font-size: var(--text-lg); font-weight: 600; }
 .order-actions { display: flex; flex-wrap: wrap; gap: var(--space-xs); margin-top: var(--space-md); }
 
+/* Card checkout — the development fake provider's payment surface */
+.card-checkout { display: grid; gap: var(--space-md); }
+.card-checkout-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-md); padding-bottom: var(--space-sm); border-bottom: var(--rule-hair) solid var(--color-rule); }
+.card-checkout-amount { margin-top: var(--space-3xs); font-family: var(--font-display); font-size: var(--text-figure-sm); font-weight: var(--display-weight); line-height: 1; }
+.payment-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: 'chip brand' 'number number' 'holder expiry';
+  gap: var(--space-sm) var(--space-md);
+  width: 100%;
+  max-width: 360px;
+  min-height: 196px;
+  padding: var(--space-md) var(--space-lg);
+  border-radius: 6px;
+  background: var(--color-shell);
+  color: var(--color-shell-ink);
+  box-shadow: 0 12px 28px color-mix(in oklab, var(--color-ink) 22%, transparent);
+  overflow: hidden;
+}
+.payment-card-chip { grid-area: chip; width: 34px; height: 26px; border: var(--rule-hair) solid color-mix(in oklab, var(--color-shell-ink) 45%, transparent); border-radius: 3px; background: linear-gradient(135deg, var(--color-paper-3), var(--color-paper)); opacity: 0.9; }
+.payment-card-brand { grid-area: brand; justify-self: end; align-self: start; font-family: var(--font-body); font-size: var(--text-sm); font-weight: 700; letter-spacing: 0.08em; }
+.payment-card-number { grid-area: number; align-self: end; font-family: var(--font-mono); font-size: var(--text-lg); letter-spacing: 0.06em; line-height: 1.2; overflow-wrap: anywhere; }
+.payment-card-holder { grid-area: holder; align-self: end; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-xs); letter-spacing: 0.06em; text-transform: uppercase; }
+.payment-card-expiry { grid-area: expiry; align-self: end; font-family: var(--font-mono); font-size: var(--text-sm); }
+.card-brand-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs); color: var(--color-muted); font-size: var(--text-xs); }
+.card-brand-row > span:not(.card-brand-note) { padding: 2px 6px; border: var(--rule-hair) solid var(--color-rule); background: var(--color-paper-2); color: var(--color-ink-2); font-weight: 600; letter-spacing: 0.03em; }
+.card-brand-note { margin-left: auto; }
+.input.input--error { border-color: var(--color-error); }
+.field-hint--error { color: var(--color-error); }
+.card-pay-button { margin-top: var(--space-xs); }
+.card-secure { display: flex; align-items: center; gap: var(--space-2xs); color: var(--color-muted); font-size: var(--text-xs); }
+.card-lock { font-size: var(--text-sm); }
+.card-demo { padding-top: var(--space-sm); border-top: var(--rule-hair) solid var(--color-rule); color: var(--color-muted); font-size: var(--text-xs); }
+.card-demo summary { cursor: pointer; }
+.card-demo dl { display: grid; gap: var(--space-2xs); margin: var(--space-xs) 0 0; }
+.card-demo dl > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-xs); }
+.card-demo dt { font-family: var(--font-mono); color: var(--color-ink-2); }
+.card-demo dd { margin: 0; }
+.card-result { display: grid; justify-items: center; gap: var(--space-xs); padding: var(--space-xl) var(--space-md); border: var(--rule-hair) solid var(--color-rule); background: var(--color-paper-2); text-align: center; }
+.card-result--success { border-color: var(--color-success); background: var(--color-success-soft); }
+.card-result--declined { border-color: var(--color-error); background: var(--color-error-soft); }
+.card-result-mark { display: grid; place-items: center; width: 48px; height: 48px; border: var(--rule-thick) solid currentColor; border-radius: 50%; font-size: var(--text-xl); line-height: 1; }
+.card-result--success .card-result-mark { color: var(--color-success); }
+.card-result--declined .card-result-mark { color: var(--color-error); }
+.card-result-title { font-size: var(--text-lg); font-weight: 600; }
+.card-spinner { width: 36px; height: 36px; border: 3px solid var(--color-rule); border-top-color: var(--color-accent); border-radius: 50%; animation: card-spin 800ms linear infinite; }
+@keyframes card-spin { to { transform: rotate(360deg); } }
+
 /* Orders and account */
 .order-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: var(--space-md); padding: var(--space-md) 0; border-bottom: var(--rule-hair) solid var(--color-rule); }
 .order-row:last-child { border-bottom: 0; }

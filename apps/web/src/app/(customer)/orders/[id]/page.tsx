@@ -19,7 +19,7 @@ interface OrderDetailPageProps {
 export default async function OrderDetailPage({ params, searchParams }: OrderDetailPageProps) {
   const [{ id }, query, locale] = await Promise.all([params, searchParams, getLocale()]);
   const nextPath = `/orders/${id}`;
-  await requireUser(nextPath);
+  const user = await requireUser(nextPath);
 
   let order: OrderResponseDto;
   try {
@@ -61,5 +61,7 @@ export default async function OrderDetailPage({ params, searchParams }: OrderDet
     }
   }
 
-  return <OrderDetailClient order={order} payment={payment} locale={locale} />;
+  return (
+    <OrderDetailClient order={order} payment={payment} locale={locale} cardholder={user.fullName} />
+  );
 }
