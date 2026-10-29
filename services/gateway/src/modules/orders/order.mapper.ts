@@ -65,6 +65,7 @@ export function toOrderResponseDto(proto: OrderProto): OrderResponseDto {
     cancelNote: proto.cancelNote ?? null,
     refundStatus: proto.refundStatus,
     pointsEarned: proto.pointsEarned,
+    currentPaymentId: proto.currentPaymentId ?? null,
     history: proto.history.map(toHistoryEntryDto),
   };
 }

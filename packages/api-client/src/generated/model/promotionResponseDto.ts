@@ -9,7 +9,8 @@ import type { PromotionResponseDtoDiscountType } from './promotionResponseDtoDis
 export interface PromotionResponseDto {
   id: string;
   code: string;
-  description: string[];
+  /** @nullable */
+  description: string | null;
   discountType: PromotionResponseDtoDiscountType;
   discountValue: number;
   maxDiscountVnd: number | null;
@@ -20,9 +21,11 @@ export interface PromotionResponseDto {
   minSubtotalVnd: number;
   startsAt: string;
   endsAt: string;
-  maxUses: number[];
+  /** @nullable */
+  maxUses: number | null;
   usedCount: number;
-  perUserLimit: number[];
+  /** @nullable */
+  perUserLimit: number | null;
   isActive: boolean;
   createdAt: string;
 }

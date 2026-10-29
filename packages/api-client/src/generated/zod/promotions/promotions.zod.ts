@@ -45,7 +45,7 @@ export const PromotionsControllerListResponse = zod.object({
       zod.object({
         id: zod.string(),
         code: zod.string(),
-        description: zod.array(zod.string()),
+        description: zod.string().nullable(),
         discountType: zod.enum(['PERCENT', 'FIXED']),
         discountValue: zod.number(),
         maxDiscountVnd: zod.union([
@@ -61,9 +61,9 @@ export const PromotionsControllerListResponse = zod.object({
           .max(promotionsControllerListResponseDataItemMinSubtotalVndMax),
         startsAt: zod.string(),
         endsAt: zod.string(),
-        maxUses: zod.array(zod.number()),
+        maxUses: zod.number().nullable(),
         usedCount: zod.number(),
-        perUserLimit: zod.array(zod.number()),
+        perUserLimit: zod.number().nullable(),
         isActive: zod.boolean(),
         createdAt: zod.string(),
       }),
@@ -140,7 +140,7 @@ export const PromotionsControllerCreateResponse = zod.object({
     .object({
       id: zod.string(),
       code: zod.string(),
-      description: zod.array(zod.string()),
+      description: zod.string().nullable(),
       discountType: zod.enum(['PERCENT', 'FIXED']),
       discountValue: zod.number(),
       maxDiscountVnd: zod.union([
@@ -156,9 +156,9 @@ export const PromotionsControllerCreateResponse = zod.object({
         .max(promotionsControllerCreateResponseDataMinSubtotalVndMax),
       startsAt: zod.string(),
       endsAt: zod.string(),
-      maxUses: zod.array(zod.number()),
+      maxUses: zod.number().nullable(),
       usedCount: zod.number(),
-      perUserLimit: zod.array(zod.number()),
+      perUserLimit: zod.number().nullable(),
       isActive: zod.boolean(),
       createdAt: zod.string(),
     })
@@ -180,7 +180,7 @@ export const PromotionsControllerGetResponse = zod.object({
     .object({
       id: zod.string(),
       code: zod.string(),
-      description: zod.array(zod.string()),
+      description: zod.string().nullable(),
       discountType: zod.enum(['PERCENT', 'FIXED']),
       discountValue: zod.number(),
       maxDiscountVnd: zod.union([
@@ -196,9 +196,9 @@ export const PromotionsControllerGetResponse = zod.object({
         .max(promotionsControllerGetResponseDataMinSubtotalVndMax),
       startsAt: zod.string(),
       endsAt: zod.string(),
-      maxUses: zod.array(zod.number()),
+      maxUses: zod.number().nullable(),
       usedCount: zod.number(),
-      perUserLimit: zod.array(zod.number()),
+      perUserLimit: zod.number().nullable(),
       isActive: zod.boolean(),
       createdAt: zod.string(),
     })
@@ -249,7 +249,7 @@ export const PromotionsControllerUpdateResponse = zod.object({
     .object({
       id: zod.string(),
       code: zod.string(),
-      description: zod.array(zod.string()),
+      description: zod.string().nullable(),
       discountType: zod.enum(['PERCENT', 'FIXED']),
       discountValue: zod.number(),
       maxDiscountVnd: zod.union([
@@ -265,9 +265,9 @@ export const PromotionsControllerUpdateResponse = zod.object({
         .max(promotionsControllerUpdateResponseDataMinSubtotalVndMax),
       startsAt: zod.string(),
       endsAt: zod.string(),
-      maxUses: zod.array(zod.number()),
+      maxUses: zod.number().nullable(),
       usedCount: zod.number(),
-      perUserLimit: zod.array(zod.number()),
+      perUserLimit: zod.number().nullable(),
       isActive: zod.boolean(),
       createdAt: zod.string(),
     })
@@ -295,7 +295,7 @@ export const PromotionsControllerRestoreResponse = zod.object({
     .object({
       id: zod.string(),
       code: zod.string(),
-      description: zod.array(zod.string()),
+      description: zod.string().nullable(),
       discountType: zod.enum(['PERCENT', 'FIXED']),
       discountValue: zod.number(),
       maxDiscountVnd: zod.union([
@@ -311,9 +311,9 @@ export const PromotionsControllerRestoreResponse = zod.object({
         .max(promotionsControllerRestoreResponseDataMinSubtotalVndMax),
       startsAt: zod.string(),
       endsAt: zod.string(),
-      maxUses: zod.array(zod.number()),
+      maxUses: zod.number().nullable(),
       usedCount: zod.number(),
-      perUserLimit: zod.array(zod.number()),
+      perUserLimit: zod.number().nullable(),
       isActive: zod.boolean(),
       createdAt: zod.string(),
     })

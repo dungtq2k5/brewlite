@@ -27,8 +27,8 @@ export const AdminToppingsControllerListResponse = zod.object({
           .min(adminToppingsControllerListResponseDataItemPriceVndMin)
           .max(adminToppingsControllerListResponseDataItemPriceVndMax),
         isAvailable: zod.boolean(),
-        deletedAt: zod.array(zod.string()),
-        deletedById: zod.array(zod.string()),
+        deletedAt: zod.string().nullable(),
+        deletedById: zod.string().nullable(),
         createdAt: zod.string(),
       }),
     )
@@ -65,8 +65,8 @@ export const AdminToppingsControllerCreateResponse = zod.object({
         .min(adminToppingsControllerCreateResponseDataPriceVndMin)
         .max(adminToppingsControllerCreateResponseDataPriceVndMax),
       isAvailable: zod.boolean(),
-      deletedAt: zod.array(zod.string()),
-      deletedById: zod.array(zod.string()),
+      deletedAt: zod.string().nullable(),
+      deletedById: zod.string().nullable(),
       createdAt: zod.string(),
     })
     .optional(),
@@ -110,8 +110,8 @@ export const AdminToppingsControllerUpdateResponse = zod.object({
         .min(adminToppingsControllerUpdateResponseDataPriceVndMin)
         .max(adminToppingsControllerUpdateResponseDataPriceVndMax),
       isAvailable: zod.boolean(),
-      deletedAt: zod.array(zod.string()),
-      deletedById: zod.array(zod.string()),
+      deletedAt: zod.string().nullable(),
+      deletedById: zod.string().nullable(),
       createdAt: zod.string(),
     })
     .optional(),
@@ -143,8 +143,8 @@ export const AdminToppingsControllerRestoreResponse = zod.object({
         .min(adminToppingsControllerRestoreResponseDataPriceVndMin)
         .max(adminToppingsControllerRestoreResponseDataPriceVndMax),
       isAvailable: zod.boolean(),
-      deletedAt: zod.array(zod.string()),
-      deletedById: zod.array(zod.string()),
+      deletedAt: zod.string().nullable(),
+      deletedById: zod.string().nullable(),
       createdAt: zod.string(),
     })
     .optional(),

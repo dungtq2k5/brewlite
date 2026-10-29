@@ -14,6 +14,7 @@ import type {
   OrdersControllerListMyOrders400,
   OrdersControllerListMyOrdersParams,
   OrdersControllerPlaceOrder200,
+  OrdersControllerPlaceOrder201,
   OrdersControllerPlaceOrder400,
   OrdersControllerPlaceOrder409,
   OrdersControllerPlaceOrder422,
@@ -93,6 +94,11 @@ export type ordersControllerPlaceOrderResponse200 = {
   status: 200;
 };
 
+export type ordersControllerPlaceOrderResponse201 = {
+  data: OrdersControllerPlaceOrder201;
+  status: 201;
+};
+
 export type ordersControllerPlaceOrderResponse400 = {
   data: OrdersControllerPlaceOrder400;
   status: 400;
@@ -108,7 +114,9 @@ export type ordersControllerPlaceOrderResponse422 = {
   status: 422;
 };
 
-export type ordersControllerPlaceOrderResponseSuccess = ordersControllerPlaceOrderResponse200 & {
+export type ordersControllerPlaceOrderResponseSuccess = (
+  ordersControllerPlaceOrderResponse200 | ordersControllerPlaceOrderResponse201
+) & {
   headers: Headers;
 };
 export type ordersControllerPlaceOrderResponseError = (

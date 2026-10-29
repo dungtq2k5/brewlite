@@ -101,6 +101,8 @@ export const orderResponseSchema = quoteResponseSchema.extend({
   cancelNote: z.string().nullable(),
   refundStatus: z.string(),
   pointsEarned: z.number().int(),
+  // The payment in progress, or the one that paid it (`GET /payments/:id`).
+  currentPaymentId: zUuidV7.nullable(),
   history: z.array(orderHistoryEntryResponseSchema),
 });
 export class OrderResponseDto extends createZodDto(orderResponseSchema) {}

@@ -32,9 +32,9 @@ export const PaymentsControllerCreatePaymentResponse = zod.object({
         .int()
         .min(paymentsControllerCreatePaymentResponseDataAmountVndMin)
         .max(paymentsControllerCreatePaymentResponseDataAmountVndMax),
-      method: zod.array(zod.string()),
-      clientSecret: zod.array(zod.string()),
-      expiresAt: zod.array(zod.string()),
+      method: zod.string().nullable(),
+      clientSecret: zod.string().nullable(),
+      expiresAt: zod.string().nullable(),
       createdAt: zod.string(),
     })
     .optional(),
@@ -58,9 +58,9 @@ export const PaymentsControllerGetPaymentResponse = zod.object({
         .int()
         .min(paymentsControllerGetPaymentResponseDataAmountVndMin)
         .max(paymentsControllerGetPaymentResponseDataAmountVndMax),
-      method: zod.array(zod.string()),
-      clientSecret: zod.array(zod.string()),
-      expiresAt: zod.array(zod.string()),
+      method: zod.string().nullable(),
+      clientSecret: zod.string().nullable(),
+      expiresAt: zod.string().nullable(),
       createdAt: zod.string(),
     })
     .optional(),
