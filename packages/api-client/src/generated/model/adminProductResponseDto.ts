@@ -20,7 +20,8 @@ export interface AdminProductResponseDto {
    * @maximum 9007199254740991
    */
   basePriceVnd: number;
-  imageUrl: string[];
+  /** @nullable */
+  imageUrl: string | null;
   isAvailable: boolean;
   stockQty: number | null;
   /**
@@ -36,6 +37,8 @@ export interface AdminProductResponseDto {
   sizes: AdminProductResponseDtoSizesItem[];
   toppingIds: string[];
   createdAt: string;
-  deletedAt: string[];
-  deletedById: string[];
+  /** @nullable */
+  deletedAt: string | null;
+  /** @nullable */
+  deletedById: string | null;
 }

@@ -171,6 +171,20 @@
               }
             }
           },
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SessionResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
           "401": {
             "description": "FIREBASE_TOKEN_INVALID",
             "content": {
@@ -1650,6 +1664,37 @@
           }
         ],
         "tags": ["StaffProducts"]
+      }
+    },
+    "/staff/toppings": {
+      "get": {
+        "operationId": "StaffToppingsController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/StaffToppingResponseDto"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": ["StaffToppings"]
       }
     },
     "/staff/toppings/{id}/availability": {
@@ -3600,6 +3645,20 @@
               }
             }
           },
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/OrderResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
           "400": {
             "description": "IDEMPOTENCY_KEY_REQUIRED",
             "content": {
@@ -3745,8 +3804,7 @@
                       "type": "object",
                       "properties": {
                         "nextCursor": {
-                          "type": "string",
-                          "nullable": true
+                          "type": ["string", "null"]
                         }
                       },
                       "required": ["nextCursor"]
@@ -3966,6 +4024,20 @@
         },
         "responses": {
           "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/PaymentResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "201": {
             "description": "",
             "content": {
               "application/json": {
@@ -5295,34 +5367,19 @@
             "type": "boolean"
           },
           "lockedUntil": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           },
           "lockReason": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           },
           "deletedAt": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           },
           "deletedById": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           },
           "lastLoginAt": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           }
         },
         "required": [
@@ -5411,10 +5468,7 @@
             "required": ["en", "vi"]
           },
           "imageUrl": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           },
           "fromPriceVnd": {
             "type": "integer",
@@ -5449,10 +5503,7 @@
             "required": ["en", "vi"]
           },
           "imageUrl": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           },
           "fromPriceVnd": {
             "type": "integer",
@@ -5687,16 +5738,10 @@
             "type": "boolean"
           },
           "deletedAt": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           },
           "deletedById": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           },
           "createdAt": {
             "type": "string"
@@ -5798,10 +5843,7 @@
             "maximum": 9007199254740991
           },
           "imageUrl": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           },
           "isAvailable": {
             "type": "boolean"
@@ -5832,10 +5874,7 @@
             "type": "string"
           },
           "deletedAt": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           }
         },
         "required": [
@@ -5911,10 +5950,7 @@
             "maximum": 9007199254740991
           },
           "imageUrl": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           },
           "isAvailable": {
             "type": "boolean"
@@ -5969,16 +6005,10 @@
             "type": "string"
           },
           "deletedAt": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           },
           "deletedById": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           }
         },
         "required": [
@@ -6184,10 +6214,7 @@
         "type": "object",
         "properties": {
           "imageUrl": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           }
         },
         "required": ["imageUrl"]
@@ -6219,16 +6246,10 @@
             "type": "boolean"
           },
           "deletedAt": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           },
           "deletedById": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           },
           "createdAt": {
             "type": "string"
@@ -6400,10 +6421,7 @@
             "maximum": 9007199254740991
           },
           "promoCode": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           },
           "pointsEarnable": {
             "type": "integer",
@@ -6566,10 +6584,7 @@
             "maximum": 9007199254740991
           },
           "promoCode": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           },
           "pointsEarnable": {
             "type": "integer",
@@ -6586,37 +6601,22 @@
             "type": "string"
           },
           "note": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           },
           "expiresAt": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           },
           "paidAt": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           },
           "createdAt": {
             "type": "string"
           },
           "cancelReason": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           },
           "cancelNote": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           },
           "refundStatus": {
             "type": "string"
@@ -6625,6 +6625,9 @@
             "type": "integer",
             "minimum": -9007199254740991,
             "maximum": 9007199254740991
+          },
+          "currentPaymentId": {
+            "type": ["string", "null"]
           },
           "history": {
             "type": "array",
@@ -6670,6 +6673,7 @@
           "cancelNote",
           "refundStatus",
           "pointsEarned",
+          "currentPaymentId",
           "history"
         ]
       },
@@ -6740,22 +6744,13 @@
             "maximum": 9007199254740991
           },
           "method": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           },
           "clientSecret": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           },
           "expiresAt": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           },
           "createdAt": {
             "type": "string"
@@ -6793,10 +6788,7 @@
             "type": "string"
           },
           "description": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           },
           "discountType": {
             "type": "string",
@@ -6829,19 +6821,13 @@
             "type": "string"
           },
           "maxUses": {
-            "type": "array",
-            "items": {
-              "type": "number"
-            }
+            "type": ["number", "null"]
           },
           "usedCount": {
             "type": "number"
           },
           "perUserLimit": {
-            "type": "array",
-            "items": {
-              "type": "number"
-            }
+            "type": ["number", "null"]
           },
           "isActive": {
             "type": "boolean"

@@ -1,143 +1,154 @@
-'use client';
+import Link from 'next/link';
+import { loyaltyControllerGetMyLoyalty, type LoyaltyResponseDto } from '@brewlite/api-client';
+import LogoutButton from '@/components/LogoutButton';
+import { getLocale } from '@/i18n/locale.server';
+import { unwrap } from '@/lib/api-server';
+import { requireUser } from '@/lib/session';
 
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+export default async function AccountPage() {
+  const [user, locale] = await Promise.all([requireUser('/account'), getLocale()]);
+  const isVi = locale === 'vi';
 
-const GATEWAY_URL = process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:23100';
-
-export default function AccountPage() {
-  const router = useRouter();
-  const [profile, setProfile] = useState<any>(null);
-  const [loyalty, setLoyalty] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [errorMsg, setErrorMsg] = useState('');
-  const [currentLang, setCurrentLang] = useState('vi');
-
-  useEffect(() => {
-    // Đọc ngôn ngữ từ localStorage giống hệt Header
-    const savedLang = localStorage.getItem('brewlite_lang');
-    if (savedLang === 'en' || savedLang === 'vi') {
-      setCurrentLang(savedLang);
-    }
-
-    const fetchAccountData = async () => {
-      try {
-        const token =
-          typeof window !== 'undefined'
-            ? localStorage.getItem('brewlite_access_token') || localStorage.getItem('token') || ''
-            : '';
-
-        if (!token) {
-          router.push('/login?next=/account');
-          return;
-        }
-
-        const [userRes, loyaltyRes] = await Promise.all([
-          fetch(`${GATEWAY_URL}/api/v1/users/me`, {
-            method: 'GET',
-            headers: { Authorization: 'Bearer ' + token },
-          }),
-          fetch(`${GATEWAY_URL}/api/v1/loyalty/me`, {
-            method: 'GET',
-            headers: { Authorization: 'Bearer ' + token },
-          }),
-        ]);
-
-        if (userRes.status === 401 || loyaltyRes.status === 401) {
-          router.push('/login?next=/account');
-          return;
-        }
-
-        const userJson = await userRes.json().catch(() => null);
-        const loyaltyJson = await loyaltyRes.json().catch(() => null);
-
-        if (userRes.ok && userJson) {
-          setProfile(userJson.data || userJson);
-        }
-
-        if (loyaltyRes.ok && loyaltyJson) {
-          setLoyalty(loyaltyJson.data || loyaltyJson);
-        } else {
-          setLoyalty({ balance: 0, lifetimeEarned: 0, recent: [] });
-        }
-      } catch {
-        setErrorMsg(currentLang === 'vi' ? 'Lỗi kết nối đến máy chủ.' : 'Server connection error.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchAccountData();
-  }, [router, currentLang]);
-
-  const handleLogout = () => {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('brewlite_access_token');
-      localStorage.removeItem('token');
-    }
-    router.push('/login');
-  };
-
-  const isVi = currentLang === 'vi';
+  let loyalty: LoyaltyResponseDto | null = null;
+  try {
+    const response = await loyaltyControllerGetMyLoyalty();
+    loyalty = unwrap<LoyaltyResponseDto>(response.data);
+  } catch {
+    // The profile still renders; the points card says it cannot load instead of inventing 0.
+  }
 
   return (
-    <div className="max-w-md mx-auto py-6 px-4 space-y-6 pb-28 bg-[#FDFBF9] min-h-screen">
-      <div className="border-b border-[#E8DEC8] pb-4">
-        <h1 className="text-xl font-black text-[#2B1E16]">{isVi ? 'Tài khoản' : 'Account'}</h1>
-        <p className="text-xs text-[#8C7E74]">
-          {isVi
-            ? 'Thông tin cá nhân và điểm tích lũy thành viên'
-            : 'Personal information and loyalty points'}
-        </p>
-      </div>
-
-      {errorMsg && (
-        <div className="bg-[#FAF0F0] border border-[#F2C0C0] text-[#C8382B] text-xs font-semibold rounded-2xl p-4">
-          {errorMsg}
+    <div className="stack" style={{ gap: 'var(--space-lg)' }}>
+      <header className="page-head">
+        <div>
+          <h1 className="page-title">{isVi ? 'Tài khoản' : 'Account'}</h1>
+          <p className="page-meta">
+            {isVi
+              ? 'Thông tin cá nhân và điểm tích lũy thành viên.'
+              : 'Personal details and loyalty points.'}
+          </p>
         </div>
-      )}
-
-      {loading ? (
-        <div className="text-center py-16 text-xs text-[#8C7E74]">
-          {isVi ? 'Đang tải thông tin tài khoản...' : 'Loading account information...'}
+        <div className="page-actions">
+          <Link className="btn btn--sm" href="/orders">
+            {isVi ? 'Đơn của tôi' : 'My orders'}
+          </Link>
         </div>
-      ) : (
-        <div className="space-y-4">
-          {/* Thông tin profile */}
-          <div className="bg-white border border-[#E8DEC8] rounded-3xl p-5 flex items-center gap-4 shadow-xs">
-            <div className="w-12 h-12 rounded-full bg-[#F5EFE6] text-[#4E3427] flex items-center justify-center text-lg font-black">
-              {profile?.fullName ? profile.fullName.charAt(0).toUpperCase() : 'U'}
+      </header>
+
+      <div className="stack">
+        <section className="panel">
+          <div className="panel-body" style={{ display: 'flex', gap: 'var(--space-md)' }}>
+            <div
+              aria-hidden="true"
+              style={{
+                display: 'grid',
+                placeItems: 'center',
+                width: 64,
+                height: 64,
+                border: '1px solid var(--color-ink)',
+                fontFamily: 'var(--font-display)',
+                fontSize: 'var(--text-2xl)',
+                flex: 'none',
+              }}
+            >
+              {user.fullName.charAt(0).toUpperCase()}
             </div>
-            <div className="overflow-hidden">
-              <h2 className="text-sm font-bold text-[#2B1E16] truncate">
-                {profile?.fullName || (isVi ? 'Khách hàng' : 'Customer')}
+            <div style={{ minWidth: 0 }}>
+              <h2 style={{ fontFamily: 'var(--font-body)', fontSize: 'var(--text-lg)' }}>
+                {user.fullName}
               </h2>
-              <p className="text-xs text-[#8C7E74] truncate">
-                {profile?.email || 'customer@brewlite.test'}
+              <p className="muted" style={{ overflowWrap: 'anywhere' }}>
+                {user.email}
+              </p>
+              <p className="page-meta" style={{ marginTop: 'var(--space-2xs)' }}>
+                {user.role === 'ADMIN'
+                  ? isVi
+                    ? 'Quản trị'
+                    : 'Admin'
+                  : user.role === 'STAFF'
+                    ? isVi
+                      ? 'Nhân viên quầy'
+                      : 'Counter staff'
+                    : isVi
+                      ? 'Khách hàng'
+                      : 'Customer'}
               </p>
             </div>
           </div>
+        </section>
 
-          {/* Điểm tích lũy */}
-          <div className="bg-[#2B1E16] text-white border border-[#2B1E16] rounded-3xl p-6 text-center space-y-2 shadow-sm">
-            <p className="text-xs uppercase tracking-wider text-[#D5C7B7] font-semibold">
-              {isVi ? 'Điểm tích lũy' : 'Loyalty Points'}
-            </p>
-            <div className="text-4xl font-black">{loyalty?.balance ?? 0}</div>
-            <p className="text-[10px] text-[#A8988B]">
-              {isVi ? 'Tổng điểm đã tích lũy:' : 'Lifetime earned:'} {loyalty?.lifetimeEarned ?? 0}
-            </p>
+        <section className="panel">
+          <div className="panel-head">
+            <h2>{isVi ? 'Điểm tích lũy' : 'Loyalty points'}</h2>
+            <span className="tag tag--muted">
+              {isVi ? 'Từ đơn đã hoàn tất' : 'From completed orders'}
+            </span>
           </div>
+          <div className="panel-body">
+            {loyalty ? (
+              <>
+                <p className="figure" style={{ fontSize: 'var(--text-figure)' }}>
+                  {loyalty.balance}
+                </p>
+                <p className="page-meta">
+                  {isVi ? 'Tổng điểm đã tích lũy' : 'Lifetime earned'}: {loyalty.lifetimeEarned}
+                </p>
+                {loyalty.recent.length > 0 && (
+                  <ul className="account-list" style={{ marginTop: 'var(--space-md)' }}>
+                    {loyalty.recent.slice(0, 5).map((row) => (
+                      <li className="account-row" key={`${row.orderId}-${row.at}`}>
+                        <span>#{row.orderNo}</span>
+                        <span className="num">
+                          {row.points > 0 ? '+' : ''}
+                          {row.points}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </>
+            ) : (
+              <div className="notice notice--warning">
+                {isVi
+                  ? 'Không thể tải điểm tích lũy lúc này. Vui lòng thử lại sau.'
+                  : 'Loyalty points could not be loaded. Please try again later.'}
+              </div>
+            )}
+          </div>
+        </section>
+      </div>
 
-          {/* Nút đăng xuất */}
-          <button
-            onClick={handleLogout}
-            className="w-full py-3.5 bg-white border border-[#E8DEC8] hover:bg-[#FAF0F0] text-[#C8382B] font-bold rounded-2xl text-sm shadow-xs transition"
-          >
-            {isVi ? 'Đăng xuất' : 'Sign Out'}
-          </button>
-        </div>
+      <div style={{ display: 'flex', gap: 'var(--space-sm)', flexWrap: 'wrap' }}>
+        <Link className="btn" href="/">
+          {isVi ? 'Về thực đơn' : 'Back to menu'}
+        </Link>
+        <LogoutButton label={isVi ? 'Đăng xuất' : 'Sign out'} className="btn btn--danger" />
+      </div>
+
+      {user.role !== 'CUSTOMER' && (
+        <aside className="p1-note">
+          <strong>{isVi ? 'Bề mặt vận hành' : 'Operations surfaces'}</strong>
+          <span>
+            {isVi
+              ? 'Tài khoản này cũng mở được bảng đơn Staff và khu quản trị Admin.'
+              : 'This account also opens the Staff board and Admin console.'}
+          </span>
+          <span style={{ display: 'flex', gap: 'var(--space-sm)', flexWrap: 'wrap' }}>
+            <Link className="text-link" href="/staff">
+              Staff
+            </Link>
+            {user.role === 'ADMIN' && (
+              <Link className="text-link" href="/admin">
+                Admin
+              </Link>
+            )}
+          </span>
+        </aside>
       )}
+
+      <p className="page-meta">
+        {isVi ? 'Giá hiển thị bằng đồng Việt Nam.' : 'Prices are shown in Vietnamese dong.'}
+      </p>
     </div>
   );
 }

@@ -15,7 +15,9 @@ export interface AdminToppingResponseDto {
    */
   priceVnd: number;
   isAvailable: boolean;
-  deletedAt: string[];
-  deletedById: string[];
+  /** @nullable */
+  deletedAt: string | null;
+  /** @nullable */
+  deletedById: string | null;
   createdAt: string;
 }

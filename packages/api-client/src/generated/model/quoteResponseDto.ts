@@ -28,7 +28,8 @@ export interface QuoteResponseDto {
    * @maximum 9007199254740991
    */
   totalVnd: number;
-  promoCode: string[];
+  /** @nullable */
+  promoCode: string | null;
   /**
    * @minimum -9007199254740991
    * @maximum 9007199254740991

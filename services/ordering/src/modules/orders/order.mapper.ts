@@ -79,6 +79,7 @@ export function toProtoOrder(
     cancelNote: order.cancelNote ?? undefined,
     refundStatus: order.refundStatus,
     pointsEarned: order.pointsEarned,
+    currentPaymentId: order.currentPaymentId ?? undefined,
     history: history.map(toHistoryEntry),
   };
 }

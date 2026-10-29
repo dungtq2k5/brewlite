@@ -10,7 +10,8 @@ export interface ProductSummaryResponseDto {
   id: string;
   categoryId: string;
   name: ProductSummaryResponseDtoName;
-  imageUrl: string[];
+  /** @nullable */
+  imageUrl: string | null;
   /**
    * @minimum 0
    * @maximum 9007199254740991

@@ -6,6 +6,7 @@
  */
 import type {
   AuthControllerFirebase200,
+  AuthControllerFirebase201,
   AuthControllerFirebase401,
   AuthControllerFirebase403,
   AuthControllerLogin200,
@@ -145,6 +146,11 @@ export type authControllerFirebaseResponse200 = {
   status: 200;
 };
 
+export type authControllerFirebaseResponse201 = {
+  data: AuthControllerFirebase201;
+  status: 201;
+};
+
 export type authControllerFirebaseResponse401 = {
   data: AuthControllerFirebase401;
   status: 401;
@@ -155,7 +161,9 @@ export type authControllerFirebaseResponse403 = {
   status: 403;
 };
 
-export type authControllerFirebaseResponseSuccess = authControllerFirebaseResponse200 & {
+export type authControllerFirebaseResponseSuccess = (
+  authControllerFirebaseResponse200 | authControllerFirebaseResponse201
+) & {
   headers: Headers;
 };
 export type authControllerFirebaseResponseError = (

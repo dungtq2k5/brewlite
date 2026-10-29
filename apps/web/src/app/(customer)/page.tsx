@@ -1,158 +1,288 @@
-import Link from 'next/link';
 import Image from 'next/image';
-import { cookies } from 'next/headers';
-import { localized, formatVnd } from '@/i18n/format';
+import Link from 'next/link';
+import {
+  categoriesControllerList,
+  productsControllerList,
+  type CategoryResponseDto,
+  type ProductSummaryResponseDto,
+} from '@brewlite/api-client';
+import { EmptyState } from '@/components/vellum/EmptyState';
+import { Notice } from '@/components/vellum/Notice';
+import { PageHead } from '@/components/vellum/PageHead';
+import { formatVnd, localized } from '@/i18n/format';
+import { getLocale } from '@/i18n/locale.server';
+import { unwrap } from '@/lib/api-server';
 
 interface MenuPageProps {
-  searchParams: Promise<{ categoryId?: string }>;
+  searchParams: Promise<{ categoryId?: string | string[] }>;
 }
 
-async function fetchFromGateway(path: string) {
-  const gatewayUrl =
-    process.env.NEXT_PUBLIC_GATEWAY_URL || process.env.GATEWAY_URL || 'http://localhost:23100';
-  try {
-    const res = await fetch(`${gatewayUrl}${path}`, { cache: 'no-store' });
-    if (!res.ok) return null;
-    return await res.json();
-  } catch {
-    return null;
-  }
+interface MenuGroup {
+  category: CategoryResponseDto;
+  products: ProductSummaryResponseDto[];
 }
 
 export default async function MenuPage({ searchParams }: MenuPageProps) {
-  const { categoryId } = await searchParams;
-  const cookieStore = await cookies();
-  const locale = (cookieStore.get('bl_locale')?.value ??
-    cookieStore.get('brewlite_lang')?.value ??
-    'vi') as 'en' | 'vi';
+  const [{ categoryId }, locale] = await Promise.all([searchParams, getLocale()]);
   const isVi = locale === 'vi';
+  const selectedId = Array.isArray(categoryId) ? categoryId[0] : categoryId;
 
-  const [catRes, prodRes] = await Promise.all([
-    fetchFromGateway('/api/v1/categories'),
-    fetchFromGateway(categoryId ? `/api/v1/products?categoryId=${categoryId}` : '/api/v1/products'),
+  const [categoriesResult, productsResult] = await Promise.allSettled([
+    categoriesControllerList(),
+    productsControllerList(),
   ]);
 
-  const categories = catRes?.data || [];
-  const products = prodRes?.data || [];
+  const categories =
+    categoriesResult.status === 'fulfilled'
+      ? unwrap<CategoryResponseDto[]>(categoriesResult.value.data)
+      : [];
+  const products =
+    productsResult.status === 'fulfilled'
+      ? unwrap<ProductSummaryResponseDto[]>(productsResult.value.data)
+      : [];
+  const failed = categoriesResult.status === 'rejected' || productsResult.status === 'rejected';
+
+  const groups: MenuGroup[] = categories.map((category) => ({
+    category,
+    products: products.filter((product) => product.categoryId === category.id),
+  }));
+  const knownCategoryIds = new Set(categories.map((category) => category.id));
+  const uncategorized = products.filter((product) => !knownCategoryIds.has(product.categoryId));
+  const selected = groups.find((group) => group.category.id === selectedId) ?? null;
+  const visibleGroups = selected ? [selected] : groups;
+
+  const today = new Intl.DateTimeFormat(isVi ? 'vi-VN' : 'en-US', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    weekday: 'long',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(new Date());
+
+  const itemLabel = isVi ? 'món' : 'items';
+  const meta = isVi
+    ? `${today}. Quầy mở 07:00–21:00. ${products.length} ${itemLabel}, ${categories.length} nhóm.`
+    : `${today}. Counter open 07:00–21:00. ${products.length} ${itemLabel}, ${categories.length} groups.`;
 
   return (
-    <div className="space-y-6 pb-12">
-      <div className="bg-[#1F302B] text-white p-4 sm:p-5 rounded-2xl flex items-center justify-between shadow-sm">
-        <div>
-          <div className="text-[10px] sm:text-xs uppercase font-bold tracking-wider text-[#A3B899]">
-            {isVi ? 'THỰC ĐƠN HÔM NAY' : "TODAY'S MENU"}
-          </div>
-          <div className="font-extrabold text-sm sm:text-base mt-1 text-white">
-            {isVi ? 'Giảm 20.000 ₫ cho đơn từ 69.000 ₫' : 'Save 20,000 ₫ on orders from 69,000 ₫'}
-          </div>
-        </div>
-        <span className="border border-[#446255] bg-[#283C35] text-white text-xs sm:text-sm font-mono font-bold px-3 py-1.5 rounded-xl shadow-xs">
-          BREW20
+    <>
+      <PageHead
+        title={isVi ? 'Thực đơn hôm nay' : "Today's menu"}
+        titleClassName="page-title--buyer"
+        meta={meta}
+        lede={
+          isVi
+            ? 'Giá hiển thị là giá từ, chưa gồm size và topping.'
+            : 'Prices shown are from-prices; size and toppings are extra.'
+        }
+        actions={
+          <>
+            <Link className="btn btn--sm" href="/orders">
+              {isVi ? 'Đơn của tôi' : 'My orders'}
+            </Link>
+            {selected && (
+              <Link className="btn btn--sm btn--primary" href="/">
+                {isVi ? 'Tất cả món' : 'All items'}
+              </Link>
+            )}
+          </>
+        }
+      />
+
+      <div className="promo-band fibre">
+        <span className="promo-code">BREW20</span>
+        <p className="promo-copy">
+          {isVi
+            ? 'Giảm 20.000 ₫ cho đơn từ 69.000 ₫. Nhập mã ở bước thanh toán.'
+            : 'Save 20,000 ₫ on orders from 69,000 ₫. Enter the code at checkout.'}
+        </p>
+        <span className="promo-note">
+          {isVi ? 'Đơn tối thiểu 69.000 ₫' : 'Minimum order 69,000 ₫'}
         </span>
       </div>
 
-      {/* Tabs danh mục */}
-      <div className="flex gap-2 overflow-x-auto no-scrollbar py-0.5">
-        <Link
-          href="/"
-          className={`px-4 py-1.5 rounded-full text-xs font-semibold shrink-0 transition ${
-            !categoryId
-              ? 'bg-[#4E3427] text-white shadow-sm'
-              : 'border border-[#D5C7B7] text-[#4E3427] hover:bg-[#EADFCF]/40'
-          }`}
-        >
-          {isVi ? 'Tất cả' : 'All'}
-        </Link>
-        {Array.isArray(categories) &&
-          categories.map((cat: any) => (
-            <Link
-              key={cat.id}
-              href={`/?categoryId=${cat.id}`}
-              className={`px-4 py-1.5 rounded-full text-xs font-semibold shrink-0 transition ${
-                categoryId === cat.id
-                  ? 'bg-[#4E3427] text-white shadow-sm'
-                  : 'border border-[#D5C7B7] text-[#4E3427] hover:bg-[#EADFCF]/40'
-              }`}
+      {failed && (
+        <Notice tone="warning" role="status" className="menu-notice">
+          {isVi
+            ? 'Không tải được toàn bộ thực đơn lúc này. Danh sách bên dưới có thể chưa đầy đủ.'
+            : 'The full menu could not be loaded. The list below may be incomplete.'}
+        </Notice>
+      )}
+
+      <div className="menu-layout">
+        <aside className="menu-rail" aria-label={isVi ? 'Nhóm món' : 'Menu groups'}>
+          <nav className="index-nav">
+            {groups.map((group, index) => {
+              const active = selected?.category.id === group.category.id;
+              return (
+                <Link
+                  key={group.category.id}
+                  className={active ? 'index-link is-active' : 'index-link'}
+                  href={`/?categoryId=${group.category.id}`}
+                  aria-current={active ? 'page' : undefined}
+                >
+                  <span className="index-num">{String(index + 1).padStart(2, '0')}</span>
+                  <span>{localized(group.category.name, locale)}</span>
+                  <span className="index-count">{group.products.length}</span>
+                </Link>
+              );
+            })}
+          </nav>
+
+          <figure className="menu-figure">
+            <div className="menu-photo">
+              <Image
+                src="/menu-espresso.jpg"
+                alt={
+                  isVi
+                    ? 'Espresso đang chảy từ máy xuống hai ly thuỷ tinh'
+                    : 'Espresso pouring from a retro machine into two glasses'
+                }
+                fill
+                sizes="(max-width: 60rem) 100vw, 236px"
+              />
+            </div>
+            <figcaption className="photo-credit">
+              {isVi
+                ? 'Ảnh minh hoạ: Shixart1985 (CC BY 2.0), qua Wikimedia Commons. Không phải ảnh món tại quán.'
+                : 'Illustration: Shixart1985 (CC BY 2.0), via Wikimedia Commons. Not a photo of an in-store item.'}
+            </figcaption>
+          </figure>
+
+          <div className="menu-note">
+            <p className="menu-note-title">{isVi ? 'Pha theo từng ly' : 'Made to order'}</p>
+            <p>
+              {isVi
+                ? 'Mỗi ly được pha khi đơn vào bếp. Món hết nguyên liệu sẽ bị khóa ở bước đặt đơn.'
+                : 'Each drink is made when the order reaches the bar. Sold-out items are locked at checkout.'}
+            </p>
+          </div>
+        </aside>
+
+        <div>
+          {products.length === 0 ? (
+            <EmptyState
+              title={isVi ? 'Thực đơn đang trống' : 'The menu is empty'}
+              action={
+                <Link className="btn btn--primary" href="/">
+                  {isVi ? 'Tải lại thực đơn' : 'Reload the menu'}
+                </Link>
+              }
             >
-              {localized(cat.name, locale)}
-            </Link>
-          ))}
-      </div>
-
-      {/* Danh sách món ăn có hiển thị ảnh thật từ DB */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
-        {Array.isArray(products) &&
-          products.map((item: any) => {
-            const itemName = localized(item.name, locale);
-            const itemDesc = item.description ? localized(item.description, locale) : '';
-            return (
-              <div
-                key={item.id}
-                className={`bg-[#FDFBF9] border border-[#E8DEC8] rounded-2xl p-3.5 flex gap-3.5 items-center shadow-xs transition hover:shadow-sm ${
-                  item.isSoldOut ? 'opacity-70 bg-[#FDFBF9]/60' : 'hover:border-[#4E3427]/40'
-                }`}
-              >
-                <div className="w-18 h-18 sm:w-20 sm:h-20 rounded-xl bg-[#EFE4D2] flex items-center justify-center shrink-0 relative overflow-hidden text-[#6B4F3B]">
-                  {item.imageUrl ? (
-                    <Image
-                      src={item.imageUrl}
-                      alt={itemName}
-                      width={80}
-                      height={80}
-                      className="object-cover w-full h-full"
-                    />
-                  ) : (
-                    <svg className="w-9 h-9 fill-current opacity-80" viewBox="0 0 24 24">
-                      <path d="M20 3H4v10c0 2.21 1.79 4 4 4h6c2.21 0 4-1.79 4-4v-3h2c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 5h-2V5h2v3zM4 19h16v2H4z" />
-                    </svg>
-                  )}
-                  {item.isSoldOut && (
-                    <div className="absolute inset-0 bg-[#2B1E16]/60 flex items-center justify-center">
-                      <span className="text-white text-[8px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-[#B64A38]">
-                        {isVi ? 'HẾT HÀNG' : 'SOLD OUT'}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <h3
-                    className="font-bold text-xs sm:text-sm text-[#2B1E16] truncate"
-                    title={itemName}
-                  >
-                    {itemName}
-                  </h3>
-                  {itemDesc && (
-                    <p className="text-[11px] text-[#8C7E74] truncate mt-0.5">{itemDesc}</p>
-                  )}
-
-                  <div className="flex items-center justify-between mt-3">
-                    <span className="text-xs sm:text-sm font-bold text-[#C8382B]">
-                      {isVi ? 'từ ' : 'from '}
-                      {formatVnd(item.fromPriceVnd, locale)}
+              {failed
+                ? isVi
+                  ? 'Chưa kết nối được catalog. Thử lại sau ít phút.'
+                  : 'The catalog is unreachable. Try again in a moment.'
+                : isVi
+                  ? 'Chưa có món nào được mở bán.'
+                  : 'No items are on sale yet.'}
+            </EmptyState>
+          ) : (
+            visibleGroups.map((group) => {
+              const altName = localized(group.category.name, isVi ? 'en' : 'vi');
+              const primaryName = localized(group.category.name, locale);
+              return (
+                <section
+                  className="menu-section"
+                  id={`cat-${group.category.id}`}
+                  key={group.category.id}
+                >
+                  <div className="menu-section-head">
+                    <h2>
+                      {primaryName}{' '}
+                      {altName && altName !== primaryName && (
+                        <span
+                          className="muted"
+                          style={{ fontSize: 'var(--text-xs)', fontWeight: 400 }}
+                        >
+                          {altName}
+                        </span>
+                      )}
+                    </h2>
+                    <span className="menu-count">
+                      {group.products.length} {isVi ? 'món' : 'items'}
                     </span>
+                  </div>
 
-                    {item.isSoldOut ? (
-                      <button
-                        disabled
-                        className="border border-[#C8382B] text-[#C8382B] text-[10px] font-bold px-2.5 py-1 rounded-full bg-white"
-                      >
-                        {isVi ? 'Đã hết' : 'Sold out'}
-                      </button>
+                  {group.products.length === 0 && (
+                    <p className="menu-row-meta" style={{ padding: 'var(--space-sm) 0' }}>
+                      {isVi ? 'Chưa có món trong nhóm này.' : 'No items in this group yet.'}
+                    </p>
+                  )}
+
+                  {group.products.map((product) => {
+                    const name = localized(product.name, locale);
+                    const alt = localized(product.name, isVi ? 'en' : 'vi');
+                    return (
+                      <div className="menu-row" key={product.id}>
+                        <div>
+                          <h3>
+                            <Link href={`/products/${product.id}`}>{name}</Link>
+                          </h3>
+                          {alt && alt !== name && <p className="menu-row-meta">{alt}</p>}
+                        </div>
+                        <div className="menu-row-price">
+                          <span className="menu-from">{isVi ? 'từ' : 'from'}</span>
+                          <span className="money">{formatVnd(product.fromPriceVnd, locale)}</span>
+                        </div>
+                        {product.isSoldOut ? (
+                          <span className="tag tag--error">{isVi ? 'Hết hàng' : 'Sold out'}</span>
+                        ) : (
+                          <Link
+                            className="menu-add"
+                            href={`/products/${product.id}`}
+                            aria-label={isVi ? `Xem món ${name}` : `View ${name}`}
+                          >
+                            {isVi ? 'Xem' : 'View'}
+                          </Link>
+                        )}
+                      </div>
+                    );
+                  })}
+                </section>
+              );
+            })
+          )}
+
+          {uncategorized.length > 0 && (
+            <section className="menu-section">
+              <div className="menu-section-head">
+                <h2>{isVi ? 'Khác' : 'Other'}</h2>
+                <span className="menu-count">
+                  {uncategorized.length} {isVi ? 'món' : 'items'}
+                </span>
+              </div>
+              {uncategorized.map((product) => {
+                const name = localized(product.name, locale);
+                return (
+                  <div className="menu-row" key={product.id}>
+                    <div>
+                      <h3>
+                        <Link href={`/products/${product.id}`}>{name}</Link>
+                      </h3>
+                    </div>
+                    <div className="menu-row-price">
+                      <span className="menu-from">{isVi ? 'từ' : 'from'}</span>
+                      <span className="money">{formatVnd(product.fromPriceVnd, locale)}</span>
+                    </div>
+                    {product.isSoldOut ? (
+                      <span className="tag tag--error">{isVi ? 'Hết hàng' : 'Sold out'}</span>
                     ) : (
                       <Link
-                        href={`/products/${item.id}`}
-                        className="w-7 h-7 rounded-full bg-[#4E3427] hover:bg-[#3D281E] text-white flex items-center justify-center text-sm font-bold shadow-sm transition"
+                        className="menu-add"
+                        href={`/products/${product.id}`}
+                        aria-label={isVi ? `Xem món ${name}` : `View ${name}`}
                       >
-                        +
+                        {isVi ? 'Xem' : 'View'}
                       </Link>
                     )}
                   </div>
-                </div>
-              </div>
-            );
-          })}
+                );
+              })}
+            </section>
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }

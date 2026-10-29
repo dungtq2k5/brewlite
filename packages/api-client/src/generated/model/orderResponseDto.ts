@@ -29,7 +29,8 @@ export interface OrderResponseDto {
    * @maximum 9007199254740991
    */
   totalVnd: number;
-  promoCode: string[];
+  /** @nullable */
+  promoCode: string | null;
   /**
    * @minimum -9007199254740991
    * @maximum 9007199254740991
@@ -38,17 +39,24 @@ export interface OrderResponseDto {
   id: string;
   orderNo: string;
   status: string;
-  note: string[];
-  expiresAt: string[];
-  paidAt: string[];
+  /** @nullable */
+  note: string | null;
+  /** @nullable */
+  expiresAt: string | null;
+  /** @nullable */
+  paidAt: string | null;
   createdAt: string;
-  cancelReason: string[];
-  cancelNote: string[];
+  /** @nullable */
+  cancelReason: string | null;
+  /** @nullable */
+  cancelNote: string | null;
   refundStatus: string;
   /**
    * @minimum -9007199254740991
    * @maximum 9007199254740991
    */
   pointsEarned: number;
+  /** @nullable */
+  currentPaymentId: string | null;
   history: OrderResponseDtoHistoryItem[];
 }

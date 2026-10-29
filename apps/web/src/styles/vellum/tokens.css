@@ -1,0 +1,28 @@
+:root {
+  color-scheme: light;
+  --space-3xs: 2px; --space-2xs: 4px; --space-xs: 8px; --space-sm: 12px; --space-md: 16px; --space-lg: 24px; --space-xl: 40px; --space-2xl: 64px; --space-3xl: 96px; --space-4xl: 144px;
+  --text-xs: 0.75rem; --text-sm: 0.875rem; --text-md: 1rem; --text-lg: 1.2rem; --text-xl: 1.44rem; --text-2xl: 1.728rem; --text-3xl: 2.074rem;
+  --text-display-s: 1.44rem; --text-display: 1.728rem; --text-section: 1.2rem; --text-title: 1rem; --text-lead: 1rem;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1); --ease-in: cubic-bezier(0.7, 0, 0.84, 0); --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-micro: 120ms; --dur-short: 220ms; --dur-long: 420ms;
+  --color-error: oklch(52% 0.19 27); --color-success: oklch(47% 0.06 155);
+  --container: 1440px; --gutter: 64px; --gap-columns: 32px; --section-gap-s: 120px; --section-gap: 144px; --section-gap-l: 176px;
+  --z-base: 1; --z-raised: 10; --z-dropdown: 100; --z-sticky: 200; --z-sticky-nav: 300; --z-modal: 400; --z-toast: 500; --z-tooltip: 600;
+  --color-paper: oklch(94% 0.024 82); --color-paper-2: oklch(90% 0.032 80); --color-paper-3: oklch(86% 0.036 78);
+  --color-ink: oklch(23% 0.025 55); --color-ink-2: oklch(31% 0.024 58); --color-muted: oklch(46% 0.024 64);
+  --color-rule: oklch(75% 0.035 72);
+  --color-accent: oklch(43% 0.17 268); --color-accent-deep: oklch(35% 0.15 268); --color-accent-soft: oklch(89% 0.035 268); --color-accent-ink: oklch(95% 0.02 82);
+  --color-focus: oklch(50% 0.18 268); --color-field: var(--color-accent);
+  --color-shell: oklch(23% 0.025 55); --color-shell-ink: oklch(94% 0.024 82);
+  --color-shell-muted: oklch(78% 0.02 75);
+  --color-warning: oklch(48% 0.07 72); --color-warning-soft: oklch(93% 0.022 80);
+  --color-error-soft: oklch(94% 0.025 27); --color-success-soft: oklch(93% 0.016 155);
+  --color-accent-line: oklch(58% 0.12 268);
+  --font-display: var(--font-grenze-gotisch), ui-serif, Georgia, serif; --font-body: var(--font-hanken-grotesk), ui-sans-serif, system-ui, sans-serif;
+  --font-outlier: var(--font-grenze), ui-serif, Georgia, serif; --font-mono: "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
+  --radius-card: 2px; --radius-pill: 2px; --rule-hair: 1px; --rule-thick: 2px; --rule-double: 4px; --shadow-card: none;
+  --tracking-display: -0.01em; --display-weight: 600; --fibre: 0.5;
+  --control-h: 40px; --control-h-sm: 32px; --hit-target: 44px;
+  --topbar-h: 64px; --sidebar-w: 236px; --drawer-w: 440px; --buyer-w: 1180px;
+  --text-page: 2.25rem; --text-page-sm: 1.875rem; --text-figure: 2.75rem; --text-figure-sm: 2rem; --text-display-xl: 3.5rem; --text-display-page: 3.25rem;
+}

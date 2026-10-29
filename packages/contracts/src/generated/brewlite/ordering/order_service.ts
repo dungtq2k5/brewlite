@@ -79,6 +79,7 @@ export interface Order {
   refundStatus: string;
   pointsEarned: number;
   history: OrderHistoryEntry[];
+  currentPaymentId?: string | undefined;
 }
 
 export interface PlaceOrderRequest {

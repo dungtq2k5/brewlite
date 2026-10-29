@@ -7,6 +7,7 @@
 import type {
   CreatePaymentDto,
   PaymentsControllerCreatePayment200,
+  PaymentsControllerCreatePayment201,
   PaymentsControllerCreatePayment400,
   PaymentsControllerCreatePayment404,
   PaymentsControllerCreatePayment409,
@@ -20,6 +21,11 @@ import { apiFetch } from '../../../mutator.js';
 export type paymentsControllerCreatePaymentResponse200 = {
   data: PaymentsControllerCreatePayment200;
   status: 200;
+};
+
+export type paymentsControllerCreatePaymentResponse201 = {
+  data: PaymentsControllerCreatePayment201;
+  status: 201;
 };
 
 export type paymentsControllerCreatePaymentResponse400 = {
@@ -42,10 +48,11 @@ export type paymentsControllerCreatePaymentResponse422 = {
   status: 422;
 };
 
-export type paymentsControllerCreatePaymentResponseSuccess =
-  paymentsControllerCreatePaymentResponse200 & {
-    headers: Headers;
-  };
+export type paymentsControllerCreatePaymentResponseSuccess = (
+  paymentsControllerCreatePaymentResponse200 | paymentsControllerCreatePaymentResponse201
+) & {
+  headers: Headers;
+};
 export type paymentsControllerCreatePaymentResponseError = (
   | paymentsControllerCreatePaymentResponse400
   | paymentsControllerCreatePaymentResponse404

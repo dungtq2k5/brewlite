@@ -6,7 +6,10 @@
     "dev": "next dev -p 23000",
     "build": "next build",
     "start": "next start -p 23000",
-    "lint": "next lint"
+    "lint": "eslint .",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
     "@brewlite/api-client": "workspace:*",
@@ -25,6 +28,7 @@
     "uuid": "^11.1.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@tailwindcss/postcss": "^4.0.0",
     "@types/node": "^24.0.0",
     "@types/react": "^19.0.0",

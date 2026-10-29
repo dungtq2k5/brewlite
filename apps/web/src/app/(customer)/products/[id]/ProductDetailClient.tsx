@@ -1,175 +1,259 @@
 'use client';
 
-import React, { useState } from 'react';
+import Image from 'next/image';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useCart, MAX_TOPPINGS_PER_LINE } from '@/context/CartContext';
-import { localized, formatVnd } from '@/i18n/format';
+import {
+  MAX_LINES_PER_ORDER,
+  MAX_QTY_PER_LINE,
+  MAX_TOPPINGS_PER_LINE,
+  type ProductSize,
+} from '@brewlite/contracts';
+import type {
+  ProductDetailResponseDto,
+  ProductDetailResponseDtoSizesItemSize,
+} from '@brewlite/api-client';
+import { Notice } from '@/components/vellum/Notice';
+import { useCart } from '@/context/CartContext';
+import { formatVnd, localized } from '@/i18n/format';
 
 interface Props {
-  product: any;
+  product: ProductDetailResponseDto;
   locale: 'vi' | 'en';
 }
 
 export default function ProductDetailClient({ product, locale }: Props) {
   const router = useRouter();
   const { addItem } = useCart();
+  const isVi = locale === 'vi';
+  const offeredSizes = product.sizes ?? [];
+  const defaultSize: ProductDetailResponseDtoSizesItemSize = offeredSizes.some(
+    (option) => option.size === 'M',
+  )
+    ? 'M'
+    : (offeredSizes[0]?.size ?? 'M');
 
-  const [size, setSize] = useState<'S' | 'M' | 'L'>('M');
+  const [size, setSize] = useState<ProductDetailResponseDtoSizesItemSize>(defaultSize);
   const [selectedToppings, setSelectedToppings] = useState<string[]>([]);
   const [qty, setQty] = useState(1);
+  const [cartError, setCartError] = useState('');
 
-  const pName = localized(product.name, locale);
-  const pDesc = product.description ? localized(product.description, locale) : '';
-
-  const basePrice = Number(
-    product.fromPriceVnd ?? product.basePriceVnd ?? product.priceVnd ?? product.price ?? 0,
+  const name = localized(product.name, locale);
+  const altName = localized(product.name, isVi ? 'en' : 'vi');
+  const description = product.description ? localized(product.description, locale) : '';
+  const basePriceVnd = Number(product.basePriceVnd ?? product.fromPriceVnd ?? 0);
+  const sizeOption = offeredSizes.find((option) => option.size === size);
+  const sizeDeltaVnd = Number(sizeOption?.priceDeltaVnd ?? 0);
+  const toppings = product.toppings ?? [];
+  const maxToppings = Math.min(
+    product.maxToppings > 0 ? product.maxToppings : MAX_TOPPINGS_PER_LINE,
+    MAX_TOPPINGS_PER_LINE,
   );
-
-  const sizeOption = (product.sizes || []).find((s: any) => s.size === size);
-  const sizeDeltaVnd = Number(sizeOption?.deltaVnd || sizeOption?.price || 0);
-
-  const toppingsList = product.toppings || [];
-  const selectedToppingObjects = toppingsList.filter((t: any) => selectedToppings.includes(t.id));
+  const selectedToppingObjects = toppings.filter((topping) =>
+    selectedToppings.includes(topping.id),
+  );
   const toppingsPriceVnd = selectedToppingObjects.reduce(
-    (acc: number, t: any) => acc + Number(t.priceVnd || t.price || 0),
+    (total, topping) => total + topping.priceVnd,
     0,
   );
-
-  const unitPriceVnd = basePrice + sizeDeltaVnd + toppingsPriceVnd;
+  const unitPriceVnd = basePriceVnd + sizeDeltaVnd + toppingsPriceVnd;
+  const image = product.imageUrl;
 
   const toggleTopping = (toppingId: string) => {
-    if (selectedToppings.includes(toppingId)) {
-      setSelectedToppings((prev) => prev.filter((i) => i !== toppingId));
-    } else {
-      if (selectedToppings.length >= MAX_TOPPINGS_PER_LINE) return;
-      setSelectedToppings((prev) => [...prev, toppingId]);
-    }
+    setSelectedToppings((previous) => {
+      if (previous.includes(toppingId)) return previous.filter((id) => id !== toppingId);
+      if (previous.length >= maxToppings) return previous;
+      return [...previous, toppingId];
+    });
   };
 
-  const handleAddToCart = () => {
-    addItem({
+  const addToCart = () => {
+    if (product.isSoldOut) return;
+    setCartError('');
+    const added = addItem({
       productId: product.id,
       name: product.name,
-      size,
+      size: size as ProductSize,
       toppingIds: selectedToppings,
-      toppingNames: selectedToppingObjects.map((t: any) => t.name),
+      toppingNames: selectedToppingObjects.map((topping) => topping.name),
       qty,
-      basePriceVnd: basePrice,
+      basePriceVnd,
       sizeDeltaVnd,
       toppingsPriceVnd,
     });
-    // Quay lại trang chủ sau khi thêm vào giỏ
+    if (!added) {
+      setCartError(
+        isVi
+          ? `Giỏ hàng đã đạt tối đa ${MAX_LINES_PER_ORDER} dòng. Xóa bớt một món rồi thêm lại.`
+          : `Your cart already has the maximum ${MAX_LINES_PER_ORDER} lines. Remove one and try again.`,
+      );
+      return;
+    }
     router.push('/');
   };
 
+  const currentChoice = isVi
+    ? `Size ${size}${selectedToppings.length > 0 ? `, ${selectedToppings.length} topping` : ''}`
+    : `Size ${size}${selectedToppings.length > 0 ? `, ${selectedToppings.length} topping${selectedToppings.length > 1 ? 's' : ''}` : ''}`;
+
   return (
-    <div className="bg-[#FDFBF9] border border-[#E8DEC8] rounded-3xl p-6 sm:p-8 space-y-6 shadow-xs">
-      <div className="space-y-2 text-center sm:text-left border-b border-[#E8DEC8] pb-4">
-        <h1 className="text-xl sm:text-2xl font-black text-[#2B1E16]">{pName}</h1>
-        {pDesc && <p className="text-xs sm:text-sm text-[#8C7E74]">{pDesc}</p>}
-        <div className="text-lg sm:text-xl font-black text-[#C8382B] pt-1">
-          {formatVnd(unitPriceVnd, locale)}
-        </div>
-      </div>
+    <div className={image ? 'product-layout' : 'product-layout product-layout--single'}>
+      <div className="product-panel">
+        <h1 className="page-title">{name}</h1>
+        {altName && altName !== name && <p className="page-meta">{altName}</p>}
+        {product.isSoldOut && (
+          <p style={{ marginTop: 'var(--space-sm)' }}>
+            <span className="tag tag--error">{isVi ? 'Hết hàng' : 'Sold out'}</span>
+          </p>
+        )}
+        {description && (
+          <p className="statement" style={{ marginTop: 'var(--space-sm)' }}>
+            {description}
+          </p>
+        )}
 
-      {product.sizes && product.sizes.length > 0 && (
-        <div className="space-y-2">
-          <label className="text-xs font-extrabold uppercase text-[#2B1E16] tracking-wider">
-            {locale === 'vi' ? 'Chọn kích thước' : 'Select Size'}
-          </label>
-          <div className="grid grid-cols-3 gap-3">
-            {product.sizes.map((s: any) => (
-              <button
-                type="button"
-                key={s.size}
-                onClick={() => setSize(s.size)}
-                className={`py-2 px-3 rounded-xl border text-xs font-bold transition flex flex-col items-center justify-center ${
-                  size === s.size
-                    ? 'border-[#4E3427] bg-[#4E3427] text-white shadow-xs'
-                    : 'border-[#D5C7B7] bg-white text-[#4E3427] hover:bg-[#EADFCF]/40'
-                }`}
-              >
-                <span>Size {s.size}</span>
-                <span className="text-[10px] opacity-80 font-normal">
-                  {(s.deltaVnd || s.price || 0) > 0
-                    ? `+${formatVnd(s.deltaVnd || s.price, locale)}`
-                    : locale === 'vi'
-                      ? 'Tiêu chuẩn'
-                      : 'Standard'}
-                </span>
-              </button>
-            ))}
-          </div>
+        <div className="product-price">
+          <span className="money">{formatVnd(unitPriceVnd, locale)}</span>
+          <span className="muted">
+            {currentChoice}
+            {isVi ? ', đã tính topping' : ', selected toppings included'}
+          </span>
         </div>
-      )}
 
-      {toppingsList.length > 0 && (
-        <div className="space-y-2">
-          <div className="flex justify-between items-center">
-            <label className="text-xs font-extrabold uppercase text-[#2B1E16] tracking-wider">
-              {locale === 'vi'
-                ? `Thêm Topping (Tối đa ${MAX_TOPPINGS_PER_LINE})`
-                : `Add Toppings (Max ${MAX_TOPPINGS_PER_LINE})`}
-            </label>
-            <span className="text-[11px] text-[#8C7E74]">
-              {locale === 'vi'
-                ? `Đã chọn ${selectedToppings.length}/${MAX_TOPPINGS_PER_LINE}`
-                : `Selected ${selectedToppings.length}/${MAX_TOPPINGS_PER_LINE}`}
-            </span>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {toppingsList.map((t: any) => {
-              const checked = selectedToppings.includes(t.id);
-              return (
-                <button
-                  type="button"
-                  key={t.id}
-                  onClick={() => toggleTopping(t.id)}
-                  className={`p-3 rounded-xl border text-left text-xs font-semibold flex justify-between items-center transition ${
-                    checked
-                      ? 'border-[#4E3427] bg-[#F4EDE2] text-[#4E3427]'
-                      : 'border-[#E8DEC8] bg-white text-[#2B1E16] hover:bg-[#FDFBF9]'
-                  }`}
-                >
-                  <span>{localized(t.name, locale)}</span>
-                  <span className="font-bold text-[#C8382B]">
-                    +{formatVnd(t.priceVnd || t.price || 0, locale)}
+        {offeredSizes.length > 0 && (
+          <fieldset className="choice-field">
+            <legend>
+              {isVi ? 'Chọn size' : 'Choose size'}{' '}
+              <span className="muted">({isVi ? 'bắt buộc' : 'required'})</span>
+            </legend>
+            <div
+              className="size-band"
+              style={{
+                gridTemplateColumns: `repeat(${offeredSizes.length}, minmax(0, 1fr))`,
+              }}
+            >
+              {offeredSizes.map((option) => (
+                <label className="size-option" key={option.size}>
+                  <input
+                    type="radio"
+                    name="size"
+                    value={option.size}
+                    checked={size === option.size}
+                    onChange={() => setSize(option.size)}
+                  />
+                  <span className="size-name">Size {option.size}</span>
+                  <span className="size-delta">
+                    {option.priceDeltaVnd > 0
+                      ? `+${formatVnd(option.priceDeltaVnd, locale)}`
+                      : isVi
+                        ? 'Giá gốc'
+                        : 'Base price'}
                   </span>
-                </button>
-              );
-            })}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        )}
+
+        {toppings.length > 0 && (
+          <fieldset className="choice-field">
+            <legend>
+              {isVi ? 'Thêm topping' : 'Add toppings'}{' '}
+              <span className="muted">
+                ({isVi ? `tối đa ${maxToppings}` : `max ${maxToppings}`})
+              </span>
+            </legend>
+            <div className="topping-grid">
+              {toppings.map((topping) => {
+                const checked = selectedToppings.includes(topping.id);
+                const disabled = !checked && selectedToppings.length >= maxToppings;
+                return (
+                  <label className="topping-option" key={topping.id}>
+                    <span>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        disabled={disabled}
+                        onChange={() => toggleTopping(topping.id)}
+                      />{' '}
+                      {localized(topping.name, locale)}
+                    </span>
+                    <span className="topping-price">+{formatVnd(topping.priceVnd, locale)}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
+        )}
+
+        <div className="qty-row">
+          <div className="stepper" role="group" aria-label={isVi ? 'Số lượng' : 'Quantity'}>
+            <button
+              type="button"
+              onClick={() => setQty((value) => Math.max(1, value - 1))}
+              disabled={qty <= 1}
+              aria-label={isVi ? 'Giảm số lượng' : 'Decrease quantity'}
+            >
+              −
+            </button>
+            <output>{qty}</output>
+            <button
+              type="button"
+              onClick={() => setQty((value) => Math.min(MAX_QTY_PER_LINE, value + 1))}
+              disabled={qty >= MAX_QTY_PER_LINE}
+              aria-label={isVi ? 'Tăng số lượng' : 'Increase quantity'}
+            >
+              +
+            </button>
           </div>
+
+          <button
+            className="btn btn--primary"
+            type="button"
+            onClick={addToCart}
+            disabled={product.isSoldOut}
+            style={{ justifyContent: 'space-between' }}
+          >
+            <span>
+              {product.isSoldOut
+                ? isVi
+                  ? 'Đã hết hàng'
+                  : 'Sold out'
+                : isVi
+                  ? 'Thêm vào giỏ'
+                  : 'Add to cart'}
+            </span>
+            <span className="money">{formatVnd(unitPriceVnd * qty, locale)}</span>
+          </button>
+        </div>
+
+        {cartError && (
+          <Notice tone="error" role="alert">
+            {cartError}
+          </Notice>
+        )}
+
+        <p className="fine">
+          {isVi
+            ? `Tối đa ${MAX_QTY_PER_LINE} phần mỗi dòng. Món hết nguyên liệu sẽ bị khóa ở bước đặt đơn.`
+            : `Up to ${MAX_QTY_PER_LINE} per line. Sold-out items are locked at checkout.`}
+        </p>
+      </div>
+
+      {image && (
+        <div className="product-media">
+          <figure className="photo photo--portrait">
+            <Image
+              src={image}
+              alt={name}
+              width={800}
+              height={1000}
+              sizes="(max-width: 60rem) 100vw, 50vw"
+              priority
+            />
+          </figure>
         </div>
       )}
-
-      <div className="pt-4 border-t border-[#E8DEC8] flex items-center justify-between gap-4">
-        <div className="flex items-center border border-[#D5C7B7] rounded-xl overflow-hidden bg-white">
-          <button
-            type="button"
-            onClick={() => setQty((q) => Math.max(1, q - 1))}
-            className="w-9 h-9 flex items-center justify-center font-bold text-[#4E3427] hover:bg-[#EADFCF]/40"
-          >
-            -
-          </button>
-          <span className="w-10 text-center text-xs font-bold text-[#2B1E16]">{qty}</span>
-          <button
-            type="button"
-            onClick={() => setQty((q) => q + 1)}
-            className="w-9 h-9 flex items-center justify-center font-bold text-[#4E3427] hover:bg-[#EADFCF]/40"
-          >
-            +
-          </button>
-        </div>
-
-        <button
-          type="button"
-          onClick={handleAddToCart}
-          className="flex-1 py-3 px-6 bg-[#4E3427] hover:bg-[#3D281E] text-white font-bold rounded-2xl text-xs sm:text-sm shadow-sm transition flex justify-between items-center"
-        >
-          <span>{locale === 'vi' ? 'Thêm vào giỏ hàng' : 'Add to Cart'}</span>
-          <span>{formatVnd(unitPriceVnd * qty, locale)}</span>
-        </button>
-      </div>
     </div>
   );
 }
