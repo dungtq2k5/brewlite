@@ -9,6 +9,8 @@ import { BaseGrpcClient, PROTO_LOADER_OPTIONS } from '@brewlite/nest-common';
 import type {
   ListStaffProductsRequest,
   ListStaffProductsResponse,
+  ListStaffToppingsRequest,
+  ListStaffToppingsResponse,
   ReleaseStockRequest,
   ReleaseStockResponse,
   ReserveStockRequest,
@@ -51,6 +53,9 @@ class TestStockClient extends BaseGrpcClient {
 
   listStaffProducts(request: ListStaffProductsRequest): Promise<ListStaffProductsResponse> {
     return this.call('listStaffProducts', request);
+  }
+  listStaffToppings(request: ListStaffToppingsRequest): Promise<ListStaffToppingsResponse> {
+    return this.call('listStaffToppings', request);
   }
   setProductAvailability(
     request: SetProductAvailabilityRequest,
@@ -115,6 +120,27 @@ describe('StockService gRPC contract', () => {
     await seedProduct();
     const res = await client.listStaffProducts({});
     expect(res.products.length).toBeGreaterThan(0);
+  });
+
+  it('completes a real ListStaffToppings round trip', async () => {
+    const topping = await prisma.topping.create({
+      data: {
+        id: newId(),
+        nameEn: 'Boba',
+        nameVi: 'Trân châu',
+        priceVnd: 8_000,
+        isAvailable: false,
+      },
+    });
+    const res = await client.listStaffToppings({});
+    expect(res.toppings).toEqual([
+      {
+        id: topping.id,
+        name: { en: 'Boba', vi: 'Trân châu' },
+        priceVnd: 8_000,
+        isAvailable: false,
+      },
+    ]);
   });
 
   it('completes a real SetProductAvailability round trip', async () => {

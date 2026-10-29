@@ -28,6 +28,13 @@ export interface ListStaffProductsResponse {
   products: StaffProduct[];
 }
 
+export interface ListStaffToppingsRequest {
+}
+
+export interface ListStaffToppingsResponse {
+  toppings: StaffTopping[];
+}
+
 export interface SetProductAvailabilityRequest {
   id: string;
   isAvailable: boolean;
@@ -97,6 +104,8 @@ export const BREWLITE_CATALOG_PACKAGE_NAME = "brewlite.catalog";
 export interface StockServiceClient {
   listStaffProducts(request: ListStaffProductsRequest, metadata?: Metadata): Observable<ListStaffProductsResponse>;
 
+  listStaffToppings(request: ListStaffToppingsRequest, metadata?: Metadata): Observable<ListStaffToppingsResponse>;
+
   setProductAvailability(
     request: SetProductAvailabilityRequest,
     metadata?: Metadata,
@@ -119,6 +128,11 @@ export interface StockServiceController {
     request: ListStaffProductsRequest,
     metadata?: Metadata,
   ): Promise<ListStaffProductsResponse> | Observable<ListStaffProductsResponse> | ListStaffProductsResponse;
+
+  listStaffToppings(
+    request: ListStaffToppingsRequest,
+    metadata?: Metadata,
+  ): Promise<ListStaffToppingsResponse> | Observable<ListStaffToppingsResponse> | ListStaffToppingsResponse;
 
   setProductAvailability(
     request: SetProductAvailabilityRequest,
@@ -156,6 +170,7 @@ export function StockServiceControllerMethods() {
   return function (constructor: Function) {
     const grpcMethods: string[] = [
       "listStaffProducts",
+      "listStaffToppings",
       "setProductAvailability",
       "setStockQty",
       "setToppingAvailability",

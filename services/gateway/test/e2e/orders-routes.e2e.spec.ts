@@ -45,6 +45,7 @@ function orderProto(overrides: Partial<Record<string, unknown>> = {}) {
     cancelNote: undefined,
     refundStatus: 'NONE',
     pointsEarned: 0,
+    currentPaymentId: undefined,
     history: [],
     ...overrides,
   };
@@ -132,6 +133,24 @@ describe('gateway e2e — /orders routes', () => {
     expect(res.status).toBe(200);
     expect(orderingClientStub.listMyOrders).toHaveBeenCalledTimes(1);
     expect(orderingClientStub.getOrder).not.toHaveBeenCalled();
+  });
+
+  it('GET /orders/:id carries currentPaymentId — null before a payment, the id after', async () => {
+    const paymentId = newId();
+    orderingClientStub.getOrder.mockResolvedValueOnce({ order: orderProto() });
+    const before = await request(app.getHttpServer())
+      .get(`/api/v1/orders/${newId()}`)
+      .set('Authorization', `Bearer ${e2e.tokenFor('CUSTOMER')}`);
+    expect(before.status).toBe(200);
+    expect(before.body.data.currentPaymentId).toBeNull();
+
+    orderingClientStub.getOrder.mockResolvedValueOnce({
+      order: orderProto({ status: 'PAID', currentPaymentId: paymentId }),
+    });
+    const after = await request(app.getHttpServer())
+      .get(`/api/v1/orders/${newId()}`)
+      .set('Authorization', `Bearer ${e2e.tokenFor('CUSTOMER')}`);
+    expect(after.body.data.currentPaymentId).toBe(paymentId);
   });
 
   it('GET /orders/:id with a malformed id — 400 VALIDATION_FAILED', async () => {

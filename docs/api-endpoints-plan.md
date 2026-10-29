@@ -79,7 +79,7 @@ Every route declares exactly one:
 
 `limit` / `pageSize` default 20, max 100. `sort` is `field` or `-field` from a per-route allowlist; anything else is `400`. The cursor is opaque — clients never parse it.
 
-Bounded lists with no pagination — the menu (`MAX_MENU_PRODUCTS`, 200), categories (`MAX_MENU_CATEGORIES`, 50), the staff board (100), `GET /admin/categories` (`MAX_MENU_CATEGORIES`) and `GET /admin/toppings` (`MAX_ADMIN_TOPPINGS`, 100) — say so in their row. `GET /admin/products` is the one admin list large enough to page.
+Bounded lists with no pagination — the menu (`MAX_MENU_PRODUCTS`, 200), categories (`MAX_MENU_CATEGORIES`, 50), the staff board (100), `GET /admin/categories` (`MAX_MENU_CATEGORIES`), and `GET /admin/toppings` and `GET /staff/toppings` (`MAX_ADMIN_TOPPINGS`, 100) — say so in their row. `GET /admin/products` is the one admin list large enough to page.
 
 ### 0.5 Identifiers
 
@@ -91,7 +91,7 @@ Every id is a **UUIDv7** ([ADR 0009](./decisions/0009-every-identifier-is-a-uuid
 
 - The web app creates the key **when the customer taps the button** and reuses it for every retry of that tap; a new tap is a new key.
 - Missing key → `400 IDEMPOTENCY_KEY_REQUIRED`.
-- Same key, same body → the original resource, `200` (the first call answered `201`).
+- Same key, same body → the original resource, `200` (the first call answered `201`). **Both statuses are documented** on `POST /orders`, `POST /payments` and `POST /auth/firebase` (new account `201`, returning `200`), so the generated client types the pair.
 - Same key, different body → `422 IDEMPOTENCY_KEY_REUSED`.
 - The guarantee is a unique index in the owning service's database (rdm-spec §1.7), so it holds across concurrent requests, replicas and restarts.
 
@@ -219,7 +219,8 @@ ProductDetail  = ProductSummary & {
 | GET | `/staff/products` | Every live product with `{ id, name: LocalizedText, categoryId, isAvailable, stockQty, version }`, bounded. | perm:`stock.update` |
 | PATCH | `/staff/products/:id/availability` | `{ isAvailable }` → the row. Invalidates the menu cache. | perm:`stock.update` |
 | PATCH | `/staff/products/:id/stock` | `{ stockQty: number \| null, expectedVersion }` → the row. `null` stops counting. Under the same optimistic lock as reservations: a stale `expectedVersion` is `409 STOCK_VERSION_CONFLICT` (`details.currentVersion`, `details.currentStockQty`) — the page reloads and staff re-enters. | perm:`stock.update` |
-| PATCH | `/staff/toppings/:id/availability` | `{ isAvailable }`. | perm:`stock.update` |
+| GET | `/staff/toppings` | Every live topping, available or not, as `StaffTopping = { id, name: LocalizedText, priceVnd, isAvailable }`, by English name, bounded (`MAX_ADMIN_TOPPINGS`). | perm:`stock.update` |
+| PATCH | `/staff/toppings/:id/availability` | `{ isAvailable }` → `StaffTopping`. Invalidates the menu cache. | perm:`stock.update` |
 
 ### 2.3 Admin — menu management
 
@@ -271,6 +272,7 @@ Quote = {
 
 Order = Quote & {
   id; orderNo; status; note: string | null;
+  currentPaymentId: string | null;        // the payment in progress, or the one that paid it — read it with GET /payments/:id
   expiresAt: string | null;               // the payment deadline, only while PENDING / PAYMENT_FAILED
   paidAt: string | null; createdAt;
   cancelReason: 'CUSTOMER' | 'EXPIRED' | 'STAFF' | null; cancelNote: string | null;

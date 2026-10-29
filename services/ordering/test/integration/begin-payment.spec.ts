@@ -3,7 +3,8 @@ import { Test } from '@nestjs/testing';
 import type { Metadata } from '@grpc/grpc-js';
 import type { RpcException } from '@nestjs/microservices';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { newId, OrderStatus, PAYMENT_WINDOW_MS } from '@brewlite/contracts';
+import { newId, OrderStatus, PAYMENT_WINDOW_MS, Role } from '@brewlite/contracts';
+import type { Caller } from '@brewlite/nest-common';
 import { envSchema } from '../../src/config/env.schema.js';
 import { OrdersModule } from '../../src/modules/orders/orders.module.js';
 import { OrdersService } from '../../src/modules/orders/orders.service.js';
@@ -107,6 +108,19 @@ describe('OrdersService.beginPayment', () => {
       code: 'ORDER_NOT_PAYABLE',
       details: { status: OrderStatus.PENDING },
     });
+  });
+
+  it('the order the customer reads carries current_payment_id once a payment began', async () => {
+    const order = await seedOrder();
+    const caller: Caller = { kind: 'USER', userId: order.userId, role: Role.CUSTOMER };
+
+    const before = await orders.getOrder({ id: order.id }, caller);
+    expect(before.order?.currentPaymentId).toBeUndefined();
+
+    const paymentId = newId();
+    await orders.beginPayment({ orderId: order.id, userId: order.userId, paymentId });
+    const after = await orders.getOrder({ id: order.id }, caller);
+    expect(after.order?.currentPaymentId).toBe(paymentId);
   });
 
   it('PENDING: sets current_payment_id and raises expires_at, no history row', async () => {

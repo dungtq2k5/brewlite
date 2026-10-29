@@ -41,11 +41,12 @@ export * from './jobs/jobs.module.js';
  * directly can get a *different* physical copy under pnpm's isolated node_modules (peer
  * resolution can fork it), which breaks `instanceof ZodValidationException` in
  * `ErrorFilter`. Every service imports these from here, never from `nestjs-zod` itself.
+ * `createZodDto` is nest-common's own wrapper (it keeps `.nullable()` fields nullable in OpenAPI).
  */
 export {
   ZodValidationPipe,
   ZodSerializerDto,
   ZodValidationException,
-  createZodDto,
   type ZodDto,
 } from 'nestjs-zod';
+export { createZodDto } from './http/zod-dto.js';

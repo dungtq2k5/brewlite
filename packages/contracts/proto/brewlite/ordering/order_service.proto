@@ -82,6 +82,7 @@ message Order {
   string refund_status = 17;
   int32 points_earned = 18;
   repeated OrderHistoryEntry history = 19;
+  // The payment in progress, or the one that paid the order - `GET /payments/:id` reads it.
   optional string current_payment_id = 20;
 }
 

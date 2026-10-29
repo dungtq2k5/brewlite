@@ -126,6 +126,25 @@ describe('StockService', () => {
     invalidateSpy.mockRestore();
   });
 
+  it('ListStaffToppings returns an unavailable topping and omits a soft-deleted one', async () => {
+    const make = (nameEn: string, extra: Record<string, unknown> = {}) =>
+      prisma.topping.create({
+        data: { id: newId(), nameEn, nameVi: nameEn, priceVnd: 8_000, ...extra },
+      });
+    const available = await make('Boba');
+    const switchedOff = await make('Aloe', { isAvailable: false });
+    await make('Jelly', { deletedAt: new Date(), deletedById: newId() });
+
+    const { toppings } = await stock.listStaffToppings({});
+
+    expect(toppings.map((t) => t.id)).toEqual([switchedOff.id, available.id]); // by English name
+    expect(toppings.find((t) => t.id === switchedOff.id)).toMatchObject({
+      isAvailable: false,
+      priceVnd: 8_000,
+      name: { en: 'Aloe', vi: 'Aloe' },
+    });
+  });
+
   it('RESOURCE_NOT_FOUND for an unknown product', async () => {
     const result = (await grpcError(
       stock.setProductAvailability({ id: newId(), isAvailable: false }),
