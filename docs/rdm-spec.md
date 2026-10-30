@@ -138,7 +138,7 @@ Every transition inserts one `order_status_history` (O-3) row in the same transa
 
 - `created_at TIMESTAMPTZ(3) NOT NULL DEFAULT now()` on every table.
 - `updated_at TIMESTAMPTZ(3) NOT NULL DEFAULT now()` on every mutable table, maintained by Prisma `@updatedAt` — declared `@default(now()) @updatedAt`, because `@updatedAt` alone gives no database default and a raw insert fails `NOT NULL`. Append-only tables have **no** `updated_at` — its absence documents that the row is never edited.
-- Always `TIMESTAMPTZ`, stored in UTC. A calendar day (the sales report) is computed in **`Asia/Ho_Chi_Minh`** through the shared `businessDay()` helper, never the server's zone.
+- Always `TIMESTAMPTZ`, stored in UTC. A calendar day (the sales report) is computed in **`Asia/Ho_Chi_Minh`** through `businessDay()` / `businessDayRange()` in `packages/contracts` (`Intl` with the zone name, never a hard-coded offset), never the server's zone.
 
 ### 2.3 Strings
 
@@ -427,7 +427,7 @@ Everything Prisma cannot declare — partial unique indexes, `CHECK` constraints
 - **Placing an order**, in one transaction after catalog reserved the stock: lock and re-validate the promotion, insert O-1, O-2 and the first O-3 row (`from_status` NULL → `PENDING`), increment `promotions.used_count`. Any failure releases the reservation.
 - **Reaching `PAID`**: conditional update from `PENDING` or `PAYMENT_FAILED`, `paid_at`, O-3, O-6 `EARN`, O-5 balance, outbox `ordering.order.status_changed` — one transaction.
 - **Cancelling**: conditional update, O-3, promotion use given back, O-6 `EARN_REVERSED` when points were earned (and `REDEEM_RETURNED` when redeemed), `refund_status = 'PENDING'` when cancelled from `PAID`, outbox event — one transaction.
-- Indexes: `(user_id, id DESC)` — order history; partial `orders_board_idx` and `orders_unpaid_expiry_idx` (§5).
+- Indexes: `(user_id, id DESC)` — order history; `(created_at DESC)` — the admin list; `(paid_at)` — the sales report; partial `orders_board_idx` and `orders_unpaid_expiry_idx` (§5).
 
 #### Table O-2: order_items
 

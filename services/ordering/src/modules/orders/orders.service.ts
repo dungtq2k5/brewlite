@@ -106,7 +106,12 @@ export class OrdersService {
 
     const { count } = await tx.order.updateMany({
       where: { id: orderId, status: current.status, ...where },
-      data: { status: to, ...data },
+      // `cancelledAt` is the transition's, not each caller's: every cancel path has one (O-1).
+      data: {
+        status: to,
+        ...(to === OrderStatus.CANCELLED && { cancelledAt: new Date() }),
+        ...data,
+      },
     });
     if (count === 0) {
       // By id alone — the `where` may no longer match, which is exactly why we are here.

@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package brewlite.ordering;
+
+import "brewlite/common/localized_text.proto";
+
+service ReportService {
+  rpc SalesReport(SalesReportRequest) returns (SalesReportResponse);
+}
+
+message SalesReportRequest {
+  string from = 1; // business day, YYYY-MM-DD, inclusive
+  string to = 2; // business day, YYYY-MM-DD, inclusive; to − from ≤ 92 days
+}
+
+message SalesDay {
+  string day = 1; // YYYY-MM-DD in Vietnam time
+  int32 orders = 2;
+  int64 revenue_vnd = 3; // int64 as a string (conventions §5.1)
+}
+
+message TopProduct {
+  string product_id = 1;
+  brewlite.common.LocalizedText product_name = 2;
+  int32 qty = 3;
+  int64 revenue_vnd = 4;
+}
+
+message SalesReportResponse {
+  repeated SalesDay days = 1; // one per business day of the range, zero days included
+  repeated TopProduct top_products = 2; // by revenue, at most 10
+}

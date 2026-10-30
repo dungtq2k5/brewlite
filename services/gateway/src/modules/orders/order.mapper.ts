@@ -63,6 +63,7 @@ export function toOrderResponseDto(proto: OrderProto): OrderResponseDto {
     createdAt: proto.createdAt,
     cancelReason: proto.cancelReason ?? null,
     cancelNote: proto.cancelNote ?? null,
+    cancelledAt: proto.cancelledAt ?? null,
     refundStatus: proto.refundStatus,
     pointsEarned: proto.pointsEarned,
     currentPaymentId: proto.currentPaymentId ?? null,

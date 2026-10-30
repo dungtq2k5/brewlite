@@ -116,6 +116,7 @@ export const StaffOrdersControllerListBoardResponse = zod.object({
         createdAt: zod.string(),
         cancelReason: zod.string().nullable(),
         cancelNote: zod.string().nullable(),
+        cancelledAt: zod.string().nullable(),
         refundStatus: zod.string(),
         pointsEarned: zod
           .int()
@@ -247,6 +248,7 @@ export const StaffOrdersControllerAdvanceStatusResponse = zod.object({
       createdAt: zod.string(),
       cancelReason: zod.string().nullable(),
       cancelNote: zod.string().nullable(),
+      cancelledAt: zod.string().nullable(),
       refundStatus: zod.string(),
       pointsEarned: zod
         .int()
@@ -375,6 +377,7 @@ export const StaffOrdersControllerCancelPaidResponse = zod.object({
       createdAt: zod.string(),
       cancelReason: zod.string().nullable(),
       cancelNote: zod.string().nullable(),
+      cancelledAt: zod.string().nullable(),
       refundStatus: zod.string(),
       pointsEarned: zod
         .int()

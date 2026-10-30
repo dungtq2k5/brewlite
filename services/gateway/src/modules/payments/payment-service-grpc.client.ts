@@ -9,6 +9,8 @@ import type {
   FakeConfirmResponse,
   GetPaymentRequest,
   GetPaymentResponse,
+  ListPaymentsForOrderRequest,
+  ListPaymentsForOrderResponse,
 } from '@brewlite/contracts/generated/brewlite/payment/payment_service.js';
 import type { Env } from '../../config/env.schema.js';
 
@@ -44,6 +46,14 @@ export class PaymentServiceGrpcClient extends BaseGrpcClient {
     requestId?: string,
   ): Promise<GetPaymentResponse> {
     return this.call('getPayment', request, { requestId, caller });
+  }
+
+  listPaymentsForOrder(
+    caller: Caller,
+    request: ListPaymentsForOrderRequest,
+    requestId?: string,
+  ): Promise<ListPaymentsForOrderResponse> {
+    return this.call('listPaymentsForOrder', request, { requestId, caller });
   }
 
   fakeConfirm(

@@ -81,6 +81,7 @@ export interface Order {
   history: OrderHistoryEntry[];
   /** The payment in progress, or the one that paid the order — `GET /payments/:id` reads it. */
   currentPaymentId?: string | undefined;
+  cancelledAt?: string | undefined;
 }
 
 export interface PlaceOrderRequest {

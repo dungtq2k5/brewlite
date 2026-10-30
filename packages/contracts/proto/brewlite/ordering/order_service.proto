@@ -84,6 +84,7 @@ message Order {
   repeated OrderHistoryEntry history = 19;
   // The payment in progress, or the one that paid the order — `GET /payments/:id` reads it.
   optional string current_payment_id = 20;
+  optional string cancelled_at = 21;
 }
 
 message PlaceOrderRequest {
