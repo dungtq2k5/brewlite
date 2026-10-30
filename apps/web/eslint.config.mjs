@@ -17,6 +17,11 @@ const config = [
     ],
   },
   {
+    // Product photos are plain lazy <img> in a fixed frame — the reason is in ProductImage.
+    files: ['src/components/menu/ProductImage.tsx'],
+    rules: { '@next/next/no-img-element': 'off' },
+  },
+  {
     // conventions §11.6: no user-facing literal in JSX text.
     files: ['src/**/*.tsx'],
     ignores: ['**/*.spec.tsx'],

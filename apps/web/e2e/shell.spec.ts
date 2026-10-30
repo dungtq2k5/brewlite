@@ -1,4 +1,4 @@
-import { expect, register, seedPassword, signIn, test } from './support';
+import { expect, register, seedPassword, signIn, storedCart, test } from './support';
 
 test('the guest header: logo, language, cart, sign in', async ({ page }) => {
   await page.goto('/');
@@ -67,14 +67,12 @@ test('the cart badge counts what is in the cart, and sign-out asks before cleari
   page,
 }) => {
   await register(page);
-  await page.evaluate(() =>
-    localStorage.setItem(
-      'bl_cart',
-      JSON.stringify([
-        { productId: 'x', quantity: 2 },
-        { productId: 'y', quantity: 1 },
-      ]),
-    ),
+  await page.evaluate(
+    (cart) => localStorage.setItem('bl_cart', cart),
+    storedCart([
+      { productId: 'x', quantity: 2 },
+      { productId: 'y', quantity: 1 },
+    ]),
   );
   await page.reload();
   await expect(page.getByRole('link', { name: 'Cart, 3 items' })).toBeVisible();

@@ -7,10 +7,11 @@ export const GATEWAY = process.env.E2E_GATEWAY_URL ?? 'http://localhost:23100/ap
 const DOCKER = ['/usr/bin/docker', '/usr/local/bin/docker'].find((p) => existsSync(p));
 
 /**
- * `AUTH` is 10 requests per 15 minutes per address and per email, and every spec comes from
- * one address (behind Caddy it is always the same one). Each test starts from empty buckets.
+ * `AUTH` is 10 requests per 15 minutes per address and `PUBLIC_READ` 120 per minute (the menu
+ * specs read public routes often), and every spec comes from one address — behind Caddy it is
+ * always the same one. Each test starts from empty buckets.
  */
-export function resetAuthRateLimits(): void {
+export function resetRateLimits(): void {
   if (!DOCKER)
     throw new Error('docker not found — the specs reset the gateway rate limits through Redis');
   execFileSync(
@@ -22,7 +23,7 @@ export function resetAuthRateLimits(): void {
       'redis',
       'sh',
       '-c',
-      "redis-cli --scan --pattern 'gw:rl:AUTH:*' | xargs -r redis-cli del",
+      "for p in 'gw:rl:AUTH:*' 'gw:rl:PUBLIC_READ:*'; do redis-cli --scan --pattern \"$p\" | xargs -r redis-cli del; done",
     ],
     { cwd: new URL('../../..', import.meta.url).pathname, stdio: 'ignore' },
   );
@@ -33,7 +34,7 @@ export const test = base.extend<{ freshBuckets: void }>({
     // Playwright requires the destructuring pattern even when no fixture is used.
     // eslint-disable-next-line no-empty-pattern
     async ({}, use) => {
-      resetAuthRateLimits();
+      resetRateLimits();
       await use();
     },
     { auto: true },
@@ -98,4 +99,104 @@ export async function createAccount(email = newEmail()) {
     body: JSON.stringify({ email, password: PASSWORD, fullName: 'Lan Anh' }),
   });
   return { email, id: body.data.user.id };
+}
+
+/** A stored cart (`{ v: 1, lines }`) for specs that need one without clicking through the menu. */
+export function storedCart(lines: { productId: string; quantity: number; name?: string }[]) {
+  return JSON.stringify({
+    v: 1,
+    lines: lines.map(({ productId, quantity, name = 'Test drink' }) => ({
+      key: `${productId}|S|`,
+      productId,
+      categoryId: 'c',
+      noPhoto: 0,
+      name: { en: name, vi: name },
+      imageUrl: null,
+      size: 'S',
+      basePriceVnd: 29_000,
+      sizeDeltaVnd: 0,
+      toppings: [],
+      quantity,
+    })),
+  });
+}
+
+async function tokenFor(email: string): Promise<string> {
+  const { body } = await api<{ data: { accessToken: string } }>('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ email, password: seedPassword() }),
+  });
+  return body.data.accessToken;
+}
+
+export const staffToken = () => tokenFor('staff@brewlite.test');
+
+/** The public menu, as the API serves it — what the page must show, in the order it must show it. */
+export async function publicMenu() {
+  const categories = await api<{ data: { id: string; name: { en: string; vi: string } }[] }>(
+    '/categories',
+  );
+  const products = await api<{
+    data: {
+      id: string;
+      categoryId: string;
+      name: { en: string; vi: string };
+      fromPriceVnd: number;
+      isSoldOut: boolean;
+      imageUrl: string | null;
+    }[];
+  }>('/products');
+  return { categories: categories.body.data, products: products.body.data };
+}
+
+export interface ProductDetail {
+  id: string;
+  name: { en: string; vi: string };
+  basePriceVnd: number;
+  isSoldOut: boolean;
+  sizes: { size: string; priceDeltaVnd: number }[];
+  toppings: { id: string; name: { en: string; vi: string }; priceVnd: number }[];
+  maxToppings: number;
+}
+
+export async function productDetail(id: string): Promise<ProductDetail> {
+  const { body } = await api<{ data: ProductDetail }>(`/products/${id}`);
+  return body.data;
+}
+
+/** Run `body` with a product made unavailable, and put it back whatever happens. */
+export async function withSoldOut<T>(productId: string, body: () => Promise<T>): Promise<T> {
+  const token = await staffToken();
+  const set = (isAvailable: boolean) =>
+    api(`/staff/products/${productId}/availability`, {
+      method: 'PATCH',
+      token,
+      body: JSON.stringify({ isAvailable }),
+    });
+  await set(false);
+  try {
+    return await body();
+  } finally {
+    await set(true);
+  }
+}
+
+/** The money format of the English UI: `₫71,000`. */
+export const vnd = (amount: number) => `₫${amount.toLocaleString('en-US')}`;
+
+/** The page's scroll position once a smooth scroll has stopped moving. */
+export async function settledScrollY(page: Page): Promise<number> {
+  let last = -1;
+  await expect
+    .poll(
+      async () => {
+        const now = await page.evaluate(() => Math.round(window.scrollY));
+        const still = now === last;
+        last = now;
+        return still;
+      },
+      { intervals: [150] },
+    )
+    .toBe(true);
+  return last;
 }

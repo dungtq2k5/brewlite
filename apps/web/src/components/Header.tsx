@@ -11,7 +11,7 @@ export async function Header({ me }: Readonly<{ me: MeResponseDto | null }>) {
   const { t } = await getT('common');
   return (
     <header className="border-base-300 bg-base-100 sticky top-0 z-30 border-b pt-[env(safe-area-inset-top)]">
-      <div className="mx-auto flex max-w-5xl items-center gap-1 px-4">
+      <div className="mx-auto flex max-w-[70rem] items-center gap-1 px-4">
         <Logo />
         <div className="ml-auto flex items-center gap-1 sm:gap-3">
           <LanguageSwitch />

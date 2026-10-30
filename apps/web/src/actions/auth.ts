@@ -85,9 +85,9 @@ export async function signInWithFirebase(
   const result = await toResult(() => authControllerFirebase({ idToken }));
   if (!result.ok) return { code: result.code, details: result.details };
   const response = result.data;
-  // The gateway answers 201 for a new account and 200 for a returning one, though its OpenAPI
-  // document lists only 200 (reported) — any 2xx with a session is a sign-in.
-  const session = (response.data as { data?: Session }).data;
+  // 201 a new account, 200 a returning one — both are a sign-in.
+  const session =
+    response.status === 200 || response.status === 201 ? response.data.data : undefined;
   if (!session) return { code: 'INTERNAL' };
   await setSession(session as Session);
   redirect(safeNextPath(nextPath));

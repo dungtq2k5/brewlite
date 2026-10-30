@@ -1,0 +1,60 @@
+{
+  "nav": {
+    "label": "Danh mục"
+  },
+  "from": "từ",
+  "soldOut": "Hết món",
+  "allSoldOut": "Hôm nay hết sạch món rồi — hẹn bạn ngày mai.",
+  "failed": {
+    "title": "Không tải được thực đơn",
+    "body": "Kiểm tra kết nối rồi thử lại nhé. Giỏ hàng vẫn an toàn trên thiết bị này.",
+    "retry": "Thử lại"
+  },
+  "product": {
+    "back": "Thực đơn",
+    "size": {
+      "heading": "Cỡ",
+      "name": {
+        "S": "Nhỏ",
+        "M": "Vừa",
+        "L": "Lớn"
+      },
+      "single": "Một cỡ · {{price}}"
+    },
+    "toppings": {
+      "heading": "Topping",
+      "upTo": "Tối đa {{max}}",
+      "chosen": "Đã chọn {{count}}/{{max}}",
+      "limit": "Tối đa {{max}} topping — bỏ bớt một món để đổi."
+    },
+    "quantity": {
+      "label": "Số lượng",
+      "increase": "Tăng số lượng {{name}}",
+      "decrease": "Giảm số lượng {{name}}",
+      "max": "Tối đa {{max}} cho mỗi món."
+    },
+    "add": {
+      "label": "Thêm vào giỏ · {{price}}",
+      "adding": "Đang thêm…",
+      "soldOut": "Hôm nay hết món",
+      "full": "Giỏ hàng đã đầy — tối đa {{max}} món. Hãy thanh toán hoặc bỏ bớt một món."
+    },
+    "soldOutNote": "Hôm nay hết món rồi — mai quay lại nhé.",
+    "toast": {
+      "added": "Đã thêm vào giỏ",
+      "viewCart": "Xem giỏ",
+      "capped": "Đã thêm {{count}} — tối đa {{max}} cho mỗi món."
+    },
+    "notFound": {
+      "title": "Món này không còn trong thực đơn",
+      "body": "Có thể món đã bị gỡ, hoặc đường dẫn đã cũ.",
+      "action": "Về thực đơn"
+    },
+    "failed": {
+      "title": "Không tải được món này",
+      "retry": "Thử lại",
+      "action": "Về thực đơn"
+    }
+  },
+  "title": "Thực đơn"
+}

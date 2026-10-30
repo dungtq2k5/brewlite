@@ -1,0 +1,30 @@
+{
+  "title": "Giỏ hàng",
+  "items_other": "{{count}} món",
+  "line": {
+    "each": "{{price}} / món",
+    "remove": "Bỏ",
+    "removeLabel": "Bỏ {{name}}",
+    "removed": "Đã bỏ {{name}}",
+    "undo": "Hoàn tác",
+    "size": "Cỡ {{size}}"
+  },
+  "summary": {
+    "total": "Tổng",
+    "note": "Giá được xác nhận khi thanh toán",
+    "signInToCheckOut": "Đăng nhập để thanh toán",
+    "checkOut": "Thanh toán"
+  },
+  "empty": {
+    "title": "Chưa có gì cả — hôm nay bạn muốn uống gì?",
+    "action": "Xem thực đơn"
+  },
+  "unavailable": {
+    "PRODUCT_UNAVAILABLE": "Hôm nay hết món",
+    "OPTION_INVALID_SIZE": "Cỡ {{size}} không còn phục vụ",
+    "OPTION_INVALID_TOPPING": "{{topping}} không còn",
+    "OPTION_INVALID_TOO_MANY_TOPPINGS": "Món này giờ chỉ nhận ít topping hơn",
+    "OUT_OF_STOCK": "Chỉ còn {{available}} — giảm số lượng hoặc bỏ món",
+    "notCounted": "Không tính vào tổng"
+  }
+}

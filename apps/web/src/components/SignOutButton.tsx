@@ -4,7 +4,7 @@ import { LogOut } from 'lucide-react';
 import { useState, useTransition } from 'react';
 import { useTranslation } from 'react-i18next';
 import { signOut } from '@/actions/auth';
-import { clearCart, readCartCount } from './useCartCount';
+import { clearCart, itemsInStorage } from '@/lib/cart/storage';
 
 /** Confirms only when the cart has something in it (D01 §12.1); then clears the cart and signs out. */
 export function SignOutButton({ onCancel }: Readonly<{ onCancel?: () => void }>) {
@@ -23,7 +23,7 @@ export function SignOutButton({ onCancel }: Readonly<{ onCancel?: () => void }>)
     onCancel?.();
   };
 
-  const onClick = () => (readCartCount() > 0 ? setConfirming(true) : run());
+  const onClick = () => (itemsInStorage() > 0 ? setConfirming(true) : run());
 
   return (
     <>
@@ -37,7 +37,7 @@ export function SignOutButton({ onCancel }: Readonly<{ onCancel?: () => void }>)
         {t('account.signOut')}
       </button>
       {confirming && (
-        <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center">
+        <div className="fixed inset-0 z-60 flex items-end justify-center sm:items-center">
           <div className="absolute inset-0 bg-black/40" aria-hidden onClick={cancel} />
           <div
             role="alertdialog"

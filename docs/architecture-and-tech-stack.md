@@ -285,7 +285,7 @@ One Redis 8 container, `maxmemory-policy noeviction` (BullMQ requires it). Key p
 📌 [ADR 0025](./decisions/0025-product-images-live-in-firebase-storage.md).
 
 - An admin uploads through the gateway (`multipart/form-data`, ≤ `PRODUCT_IMAGE_MAX_BYTES`); the gateway passes the bytes to catalog over gRPC; catalog **checks the magic bytes** (JPEG, PNG or WebP — never the extension or the declared type), writes `products/<productId>/<newId>.<ext>` with `firebase-admin`, stores the path, and deletes the previous image — **in that order**: the new object exists before the row points at it, and the old object is deleted only after the row commits, so no moment has the row pointing at nothing. A crash between the upload and the write, or a failed old-object delete, leaves an accepted orphan object — never a broken image; a bucket sweep is P2.
-- Clients read images at `${STORAGE_PUBLIC_BASE_URL}/v0/b/<bucket>/o/<encoded path>?alt=media`. Storage security rules **allow public read of `products/**` and deny every write** — the Admin SDK bypasses rules, so only catalog can write.
+- Clients read images at `${STORAGE_PUBLIC_BASE_URL}/v0/b/<bucket>/o/<encoded path>?alt=media`. Storage security rules **allow public read of `products/**` and deny every write** — the Admin SDK bypasses rules, so only catalog can write. The web app shows them with a plain lazy `<img>` in a fixed-aspect frame, **not** `next/image`: its optimiser would fetch the image from the web server, and the address the browser uses is not reachable from inside the `web` container.
 - Locally the **Firebase Storage emulator** stands in for the bucket (`FIREBASE_STORAGE_EMULATOR_HOST`); the same code runs against both.
 - ⚠️ A user-supplied filename never becomes an object name.
 
@@ -329,7 +329,7 @@ browser ──cookies──▶ Next.js server ──Bearer + X-Request-Id──�
 
 ### 4.3 Client state — the cart
 
-- The cart is a React Context provider in the `(customer)` layout, persisted to `localStorage` (wrapped in `try/catch`; a blocked storage degrades to an in-memory cart). It holds lines only — `productId`, size, `toppingIds`, quantity — plus the price snapshot shown in the preview.
+- The cart is a React Context provider in the `(customer)` layout, persisted to `localStorage` (wrapped in `try/catch`; a blocked storage degrades to an in-memory cart). It holds lines only — `productId`, size, `toppingIds`, quantity — plus the price snapshot shown in the preview. Stored as `{ v: 1, lines }`; each line keeps a snapshot — the product's name in **both** languages, its image or no-photo variant, size, base price, size delta, toppings with names and prices, and `quantity` — so the cart renders instantly, in either language, with no API call. Lines with the same product, size and set of toppings merge (key: product id, size and the topping ids sorted with `compareStrings`). **The badge and "N items" count quantities; the 20-line limit (`MAX_LINES_PER_ORDER`) counts lines.** A value that does not parse becomes an empty cart.
 - The preview total uses `computeUnitPrice` from `packages/contracts`, the same function catalog uses. **The checkout page shows the server's quote, never the preview.**
 - The cart is cleared when the confirmation page sees `PAID` — not when payment starts — so a failed payment keeps it (product-overview F2).
 - **The cart belongs to the browser, not the account** (product-overview §6.8): a guest's cart survives the sign-in round trip untouched. **Sign-out clears it** — the sign-out button is a Client Component that clears the cart, then calls the sign-out Server Action (a Server Action cannot reach `localStorage`).
@@ -520,6 +520,5 @@ Every Nest service declares its variables in `src/config/env.schema.ts` (zod), l
 | `NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_URL` | web | `http://localhost:29099` locally; unset for real |
 | `NEXT_PUBLIC_APPLE_SIGN_IN_ENABLED` | web | `false` — *Continue with Apple* is hidden; it stays `false` until the team has a paid Apple Developer account (product-overview §12) |
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | web | `pk_test_…` |
-| `IMAGE_REMOTE_HOSTS` | web (build time) | hosts `next/image` may load from — `localhost:29199` locally |
 
 ⚠️ Anything prefixed `NEXT_PUBLIC_` is compiled into the browser bundle. A secret there is a secret on the internet.

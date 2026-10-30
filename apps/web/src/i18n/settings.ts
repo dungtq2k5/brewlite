@@ -11,5 +11,5 @@ type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : never) : never;
 export const localesMatchContracts: Same<Locale, `${ContractLocale}`> = true;
 
 /** One JSON file per namespace under `locales/<locale>/`. Later docs append theirs. */
-export const NAMESPACES = ['common', 'auth', 'errors', 'orders', 'pwa'] as const;
+export const NAMESPACES = ['common', 'auth', 'errors', 'orders', 'pwa', 'menu', 'cart'] as const;
 export type Namespace = (typeof NAMESPACES)[number];

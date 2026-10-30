@@ -1,0 +1,31 @@
+{
+  "title": "Your cart",
+  "items_one": "{{count}} item",
+  "items_other": "{{count}} items",
+  "line": {
+    "each": "{{price}} each",
+    "remove": "Remove",
+    "removeLabel": "Remove {{name}}",
+    "removed": "Removed {{name}}",
+    "undo": "Undo",
+    "size": "Size {{size}}"
+  },
+  "summary": {
+    "total": "Total",
+    "note": "Prices are confirmed at checkout",
+    "signInToCheckOut": "Sign in to check out",
+    "checkOut": "Check out"
+  },
+  "empty": {
+    "title": "Nothing here yet — what are you craving?",
+    "action": "Browse the menu"
+  },
+  "unavailable": {
+    "PRODUCT_UNAVAILABLE": "Sold out for today",
+    "OPTION_INVALID_SIZE": "Size {{size}} isn't offered any more",
+    "OPTION_INVALID_TOPPING": "{{topping}} isn't available any more",
+    "OPTION_INVALID_TOO_MANY_TOPPINGS": "This drink now takes fewer toppings",
+    "OUT_OF_STOCK": "Only {{available}} left — lower the quantity or remove it",
+    "notCounted": "Not counted in the total"
+  }
+}

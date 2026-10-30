@@ -1,0 +1,60 @@
+{
+  "nav": {
+    "label": "Categories"
+  },
+  "from": "from",
+  "soldOut": "Sold out",
+  "allSoldOut": "Everything's sold out for today — see you tomorrow.",
+  "failed": {
+    "title": "We couldn't load the menu",
+    "body": "Check your connection and try again. Your cart is safe on this device.",
+    "retry": "Try again"
+  },
+  "product": {
+    "back": "Menu",
+    "size": {
+      "heading": "Size",
+      "name": {
+        "S": "Small",
+        "M": "Medium",
+        "L": "Large"
+      },
+      "single": "One size · {{price}}"
+    },
+    "toppings": {
+      "heading": "Toppings",
+      "upTo": "Up to {{max}}",
+      "chosen": "{{count}} of {{max}} chosen",
+      "limit": "Up to {{max}} toppings — remove one to swap."
+    },
+    "quantity": {
+      "label": "Quantity",
+      "increase": "Increase quantity of {{name}}",
+      "decrease": "Decrease quantity of {{name}}",
+      "max": "{{max}} is the most per item."
+    },
+    "add": {
+      "label": "Add to cart · {{price}}",
+      "adding": "Adding…",
+      "soldOut": "Sold out for today",
+      "full": "Your cart is full — {{max}} items is the most. Check out or remove one first."
+    },
+    "soldOutNote": "Sold out for today — back tomorrow.",
+    "toast": {
+      "added": "Added to cart",
+      "viewCart": "View cart",
+      "capped": "Added {{count}} — {{max}} is the most per item."
+    },
+    "notFound": {
+      "title": "This item isn't on the menu any more",
+      "body": "It may have been removed, or the link is old.",
+      "action": "Back to menu"
+    },
+    "failed": {
+      "title": "We couldn't load this item",
+      "retry": "Try again",
+      "action": "Back to menu"
+    }
+  },
+  "title": "Menu"
+}

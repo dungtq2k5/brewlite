@@ -3,11 +3,11 @@
 import { ShoppingBag } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslation } from 'react-i18next';
-import { useCartCount } from './useCartCount';
+import { useCart } from '@/lib/cart/CartProvider';
 
 export function CartButton() {
   const { t } = useTranslation('common');
-  const count = useCartCount();
+  const { itemCount: count } = useCart();
   return (
     <Link
       href="/cart"

@@ -142,9 +142,9 @@ Use these words in code, tickets and commit messages.
 
 ### F1 — Menu (P0)
 
-- Menu grid by category: image, name, price from (the smallest size), *sold out* badge. Loading and empty states.
+- Menu grid by category: image, name, price from (the smallest size), *sold out* badge. Loading and empty states. A category with no products is hidden.
 - Product detail: description, size picker (only offered sizes), topping picker (only allowed toppings, at most `MAX_TOPPINGS_PER_LINE`), quantity, price recalculated live on every choice.
-- A product that is sold out, deleted, or out of stock cannot be added.
+- A product that is sold out, deleted, or out of stock cannot be added. A sold-out product still opens — its page shows why it cannot be added.
 - **No account needed:** every menu page works for a guest.
 - *(P1)* Search by name.
 
