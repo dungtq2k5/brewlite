@@ -4,7 +4,10 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useRef, useState, useTransition } from 'react';
 import { PRODUCT_IMAGE_MAX_BYTES } from '@brewlite/contracts';
+import { useToast } from '@/components/feedback/ToastProvider';
+import { useConsoleCopy } from '@/i18n/console-context';
 import { removeProductImageAction, uploadProductImageAction } from '@/lib/admin-actions';
+import { runAction } from '@/lib/action-result';
 import { describeError } from '@/lib/error-messages';
 
 const ACCEPTED = 'image/jpeg,image/png,image/webp';
@@ -20,6 +23,8 @@ export default function ProductImageControl({
   imageUrl: string | null;
 }) {
   const router = useRouter();
+  const { t, locale } = useConsoleCopy();
+  const { showToast } = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(imageUrl);
   const [error, setError] = useState<string | null>(null);
@@ -33,7 +38,7 @@ export default function ProductImageControl({
   function upload(file: File) {
     setError(null);
     if (!ACCEPTED_TYPES.has(file.type) || file.size > PRODUCT_IMAGE_MAX_BYTES) {
-      setError(describeError('IMAGE_INVALID', {}, 'vi'));
+      setError(describeError('IMAGE_INVALID', {}, locale));
       return;
     }
 
@@ -42,12 +47,13 @@ export default function ProductImageControl({
     formData.set('file', file);
 
     startTransition(async () => {
-      const result = await uploadProductImageAction(formData);
+      const result = await runAction(uploadProductImageAction(formData));
       if (!result.ok) {
-        setError(describeError(result.code, result.details, 'vi'));
+        setError(describeError(result.code, result.details, locale));
         return;
       }
       setPreview(result.data.imageUrl);
+      showToast(t('Đã cập nhật ảnh sản phẩm.', 'Product image updated.'));
       router.refresh();
     });
   }
@@ -55,12 +61,13 @@ export default function ProductImageControl({
   function remove() {
     setError(null);
     startTransition(async () => {
-      const result = await removeProductImageAction(productId);
+      const result = await runAction(removeProductImageAction(productId));
       if (!result.ok) {
-        setError(describeError(result.code, result.details, 'vi'));
+        setError(describeError(result.code, result.details, locale));
         return;
       }
       setPreview(null);
+      showToast(t('Đã xóa ảnh sản phẩm.', 'Product image removed.'));
       router.refresh();
     });
   }
@@ -71,7 +78,7 @@ export default function ProductImageControl({
         {preview ? (
           <Image
             src={preview}
-            alt={`Ảnh ${productName}`}
+            alt={t(`Ảnh ${productName}`, `${productName} image`)}
             width={56}
             height={56}
             sizes="56px"
@@ -81,12 +88,16 @@ export default function ProductImageControl({
             }
           />
         ) : (
-          <span>Chưa có</span>
+          <span>{t('Chưa có', 'None')}</span>
         )}
       </div>
       <div className="image-control-actions">
         <button type="button" className="btn btn--sm" onClick={chooseFile} disabled={pending}>
-          {pending ? 'Đang lưu…' : preview ? 'Đổi ảnh' : 'Tải ảnh'}
+          {pending
+            ? t('Đang lưu…', 'Saving…')
+            : preview
+              ? t('Đổi ảnh', 'Change image')
+              : t('Tải ảnh', 'Upload image')}
         </button>
         {preview && (
           <button
@@ -95,7 +106,7 @@ export default function ProductImageControl({
             onClick={remove}
             disabled={pending}
           >
-            Xóa
+            {t('Xóa', 'Remove')}
           </button>
         )}
       </div>

@@ -2,6 +2,8 @@ import { adminToppingsControllerList, type AdminToppingResponseDto } from '@brew
 import { Notice } from '@/components/vellum/Notice';
 import { PageHead } from '@/components/vellum/PageHead';
 import { readPage } from '@/lib/api-server';
+import { consoleCopy } from '@/i18n/console';
+import { getLocale } from '@/i18n/locale.server';
 import ToppingsClient from './ToppingsClient';
 
 export default async function AdminToppingsPage({
@@ -26,11 +28,20 @@ export default async function AdminToppingsPage({
   }
 
   if (failed) {
+    const locale = await getLocale();
+    const { t } = consoleCopy(locale);
     return (
       <>
-        <PageHead title="Topping" meta="Không đọc được dữ liệu" />
+        <PageHead
+          title={t('Topping', 'Toppings')}
+          meta={t('Không đọc được dữ liệu', 'Could not read data')}
+        />
         <Notice tone="error">
-          <strong>Không tải được topping.</strong> Kiểm tra kết nối mạng rồi tải lại trang.
+          <strong>{t('Không tải được topping.', 'Could not load toppings.')}</strong>{' '}
+          {t(
+            'Kiểm tra kết nối mạng rồi tải lại trang.',
+            'Check your connection and reload the page.',
+          )}
         </Notice>
       </>
     );

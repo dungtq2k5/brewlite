@@ -2,6 +2,7 @@
 import type { Metadata } from 'next';
 import { Grenze, Grenze_Gotisch, Hanken_Grotesk } from 'next/font/google';
 import { cookies } from 'next/headers';
+import { ToastProvider } from '@/components/feedback/ToastProvider';
 import { LOCALE_COOKIE, normalizeLocale } from '@/i18n/locale';
 
 const grenzeGotisch = Grenze_Gotisch({
@@ -38,7 +39,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       lang={locale}
       className={`${grenzeGotisch.variable} ${grenze.variable} ${hankenGrotesk.variable}`}
     >
-      <body>{children}</body>
+      <body>
+        <ToastProvider>{children}</ToastProvider>
+      </body>
     </html>
   );
 }

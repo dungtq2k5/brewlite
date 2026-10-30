@@ -155,6 +155,10 @@ export default function OrderDetailClient({ order, payment, locale, cardholder }
   const [cancelError, setCancelError] = useState('');
   const [streamState, setStreamState] = useState<'connecting' | 'live' | 'polling'>('connecting');
   const paymentKeyRef = useRef<string | null>(null);
+  // Opening a replacement session navigates to its id. A refresh that resolves after that
+  // navigation can restore the old URL, so both the stream and the poll stay quiet until
+  // the address bar points at the new session.
+  const createBusyRef = useRef(false);
 
   const currentStatus = String(order.status ?? '').toUpperCase();
   const live = isLiveOrderStatus(currentStatus);
@@ -166,7 +170,9 @@ export default function OrderDetailClient({ order, payment, locale, cardholder }
     let pollTimer: number | null = null;
     const startPolling = () => {
       if (pollTimer !== null) return;
-      pollTimer = window.setInterval(() => router.refresh(), 5000);
+      pollTimer = window.setInterval(() => {
+        if (!createBusyRef.current) router.refresh();
+      }, 5000);
     };
     const stopPolling = () => {
       if (pollTimer === null) return;
@@ -185,14 +191,14 @@ export default function OrderDetailClient({ order, payment, locale, cardholder }
     const source = new EventSource(`/api/events/orders/${encodeURIComponent(order.id)}`);
     const onStatus = () => {
       setStreamState('live');
-      router.refresh();
+      if (!createBusyRef.current) router.refresh();
     };
 
     source.onopen = () => {
       stopPolling();
       setStreamState('live');
       // A reconnect may have missed frames; the event is a nudge, not the record.
-      router.refresh();
+      if (!createBusyRef.current) router.refresh();
     };
     source.addEventListener('order.status', onStatus);
     source.onerror = () => {
@@ -219,6 +225,7 @@ export default function OrderDetailClient({ order, payment, locale, cardholder }
   const startPayment = async () => {
     setPaymentBusy('CREATE');
     setPaymentError('');
+    createBusyRef.current = true;
     const key = (paymentKeyRef.current ??= newId());
 
     try {
@@ -239,6 +246,7 @@ export default function OrderDetailClient({ order, payment, locale, cardholder }
     } catch (error) {
       setPaymentError(describeUnknownError(error, locale).message);
     } finally {
+      createBusyRef.current = false;
       setPaymentBusy(null);
     }
   };

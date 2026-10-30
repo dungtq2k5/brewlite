@@ -13,6 +13,7 @@ import type {
   ProductDetailResponseDto,
   ProductDetailResponseDtoSizesItemSize,
 } from '@brewlite/api-client';
+import { useToast } from '@/components/feedback/ToastProvider';
 import { Notice } from '@/components/vellum/Notice';
 import ProductArtwork from '@/components/ProductArtwork';
 import { useCart } from '@/context/CartContext';
@@ -27,6 +28,7 @@ interface Props {
 export default function ProductDetailClient({ product, locale, categoryName }: Props) {
   const router = useRouter();
   const { addItem } = useCart();
+  const { showToast } = useToast();
   const isVi = locale === 'vi';
   const offeredSizes = product.sizes ?? [];
   const defaultSize: ProductDetailResponseDtoSizesItemSize = offeredSizes.some(
@@ -91,7 +93,12 @@ export default function ProductDetailClient({ product, locale, categoryName }: P
       );
       return;
     }
-    router.push('/');
+    showToast(isVi ? `Đã thêm ${qty} × ${name} vào giỏ.` : `Added ${qty} × ${name} to the cart.`, {
+      action: {
+        label: isVi ? 'Xem giỏ' : 'View cart',
+        onClick: () => router.push('/cart'),
+      },
+    });
   };
 
   const currentChoice = isVi

@@ -39,12 +39,12 @@ export default async function OrderDetailPage({ params, searchParams }: OrderDet
   }
 
   const rawPaymentId = Array.isArray(query.payment) ? query.payment[0] : query.payment;
-  // Prefer the payment from the Stripe return URL; otherwise resume the order's
-  // current payment so a PENDING order opened from history can mount Stripe directly.
+  // Fetch both the session in the URL and the order's current one: a refresh that was
+  // already in flight when the customer opened a replacement can land with the old id.
   const paymentIds = Array.from(
     new Set([rawPaymentId, order.currentPaymentId].filter((id): id is string => Boolean(id))),
   );
-  let payment: PaymentResponseDto | null = null;
+  const payments = new Map<string, PaymentResponseDto>();
 
   for (const paymentId of paymentIds) {
     try {
@@ -52,14 +52,22 @@ export default async function OrderDetailPage({ params, searchParams }: OrderDet
         (await paymentsControllerGetPayment(paymentId)).data,
       );
       // A stale or foreign id simply means "no session to show"; try the next one.
-      if (candidate.orderId === order.id) {
-        payment = candidate;
-        break;
-      }
+      if (candidate.orderId === order.id) payments.set(paymentId, candidate);
     } catch {
       // Ignore and continue with the order's current payment id, if any.
     }
   }
+
+  const requested = rawPaymentId ? (payments.get(rawPaymentId) ?? null) : null;
+  const current = order.currentPaymentId ? (payments.get(order.currentPaymentId) ?? null) : null;
+  // A Stripe return URL can still be the session worth showing before its webhook updates
+  // the order. A settled (FAILED/EXPIRED) URL, however, must yield to the replacement
+  // session the customer just opened; otherwise the page keeps offering "new payment"
+  // forever while the live session sits unrendered.
+  const requestedStatus = String(requested?.status ?? '').toUpperCase();
+  const requestedSettled = requestedStatus === 'FAILED' || requestedStatus === 'EXPIRED';
+  const payment =
+    requestedSettled && current && current.id !== requested?.id ? current : (requested ?? current);
 
   // Keep the address bar on the session actually rendered. A live refresh started
   // before the client replaced the stale id can otherwise land afterwards and

@@ -2,6 +2,8 @@ import { adminCategoriesControllerList, type AdminCategoryResponseDto } from '@b
 import { Notice } from '@/components/vellum/Notice';
 import { PageHead } from '@/components/vellum/PageHead';
 import { readPage } from '@/lib/api-server';
+import { consoleCopy } from '@/i18n/console';
+import { getLocale } from '@/i18n/locale.server';
 import CategoriesClient from './CategoriesClient';
 
 export default async function AdminCategoriesPage({
@@ -26,11 +28,20 @@ export default async function AdminCategoriesPage({
   }
 
   if (failed) {
+    const locale = await getLocale();
+    const { t } = consoleCopy(locale);
     return (
       <>
-        <PageHead title="Danh mục" meta="Không đọc được dữ liệu" />
+        <PageHead
+          title={t('Danh mục', 'Categories')}
+          meta={t('Không đọc được dữ liệu', 'Could not read data')}
+        />
         <Notice tone="error">
-          <strong>Không tải được danh mục.</strong> Kiểm tra kết nối mạng rồi tải lại trang.
+          <strong>{t('Không tải được danh mục.', 'Could not load categories.')}</strong>{' '}
+          {t(
+            'Kiểm tra kết nối mạng rồi tải lại trang.',
+            'Check your connection and reload the page.',
+          )}
         </Notice>
       </>
     );

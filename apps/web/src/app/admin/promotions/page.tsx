@@ -2,6 +2,8 @@ import { promotionsControllerList, type PromotionResponseDto } from '@brewlite/a
 import { Notice } from '@/components/vellum/Notice';
 import { PageHead } from '@/components/vellum/PageHead';
 import { readPage } from '@/lib/api-server';
+import { consoleCopy } from '@/i18n/console';
+import { getLocale } from '@/i18n/locale.server';
 import { ADMIN_PAGE_SIZE, parsePageParam } from '@/lib/pagination';
 import PromotionsClient from './PromotionsClient';
 
@@ -58,11 +60,20 @@ export default async function AdminPromotionsPage({
   }
 
   if (failed) {
+    const locale = await getLocale();
+    const { t } = consoleCopy(locale);
     return (
       <>
-        <PageHead title="Khuyến mãi" meta="Không đọc được dữ liệu" />
+        <PageHead
+          title={t('Khuyến mãi', 'Promotions')}
+          meta={t('Không đọc được dữ liệu', 'Could not read data')}
+        />
         <Notice tone="error">
-          <strong>Không tải được khuyến mãi.</strong> Kiểm tra kết nối mạng rồi tải lại trang.
+          <strong>{t('Không tải được khuyến mãi.', 'Could not load promotions.')}</strong>{' '}
+          {t(
+            'Kiểm tra kết nối mạng rồi tải lại trang.',
+            'Check your connection and reload the page.',
+          )}
         </Notice>
       </>
     );

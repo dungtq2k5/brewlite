@@ -3,14 +3,17 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { AdminToppingResponseDto } from '@brewlite/api-client';
-import { Button } from '@/components/vellum/Button';
+import { Button, ButtonLink } from '@/components/vellum/Button';
 import { EmptyState } from '@/components/vellum/EmptyState';
 import { Modal } from '@/components/vellum/Modal';
 import { Notice } from '@/components/vellum/Notice';
 import { PageHead } from '@/components/vellum/PageHead';
 import { Panel } from '@/components/vellum/Panel';
 import { Tag } from '@/components/vellum/Tag';
+import { useToast } from '@/components/feedback/ToastProvider';
+import { useConsoleCopy } from '@/i18n/console-context';
 import { formatVnd } from '@/i18n/format';
+import type { Locale } from '@/i18n/locale';
 import { formatDay, nullableText } from '@/lib/admin-format';
 import {
   createToppingAction,
@@ -18,20 +21,21 @@ import {
   restoreToppingAction,
   updateToppingAction,
 } from '@/lib/admin-actions';
-import type { ActionResult } from '@/lib/action-result';
+import { runAction, type ActionResult } from '@/lib/action-result';
 import { describeError } from '@/lib/error-messages';
 import type { ApiErrorDetails } from '@/lib/gateway-types';
 
 type Failure = Extract<ActionResult<unknown>, { ok: false }>;
 
-function failureMessage(result: Failure): string {
-  return describeError(result.code, result.details as ApiErrorDetails, 'vi');
+function failureMessage(result: Failure, locale: Locale): string {
+  return describeError(result.code, result.details as ApiErrorDetails, locale);
 }
 
 function ToppingStatus({ topping }: { topping: AdminToppingResponseDto }) {
-  if (nullableText(topping.deletedAt)) return <Tag tone="error">Đã xóa</Tag>;
-  if (!topping.isAvailable) return <Tag tone="warning">Tạm hết</Tag>;
-  return <Tag tone="success">Đang bán</Tag>;
+  const { t } = useConsoleCopy();
+  if (nullableText(topping.deletedAt)) return <Tag tone="error">{t('Đã xóa', 'Deleted')}</Tag>;
+  if (!topping.isAvailable) return <Tag tone="warning">{t('Tạm hết', 'Sold out')}</Tag>;
+  return <Tag tone="success">{t('Đang bán', 'Available')}</Tag>;
 }
 
 export default function ToppingsClient({
@@ -42,6 +46,8 @@ export default function ToppingsClient({
   deletedOnly: boolean;
 }) {
   const router = useRouter();
+  const { t, locale } = useConsoleCopy();
+  const { showToast } = useToast();
   const [createOpen, setCreateOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<AdminToppingResponseDto | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AdminToppingResponseDto | null>(null);
@@ -82,11 +88,12 @@ export default function ToppingsClient({
     setEditTarget(topping);
   };
 
-  const afterWrite = () => {
+  const afterWrite = (message: string) => {
     setCreateOpen(false);
     setEditTarget(null);
     setDeleteTarget(null);
     setError(null);
+    showToast(message);
     router.refresh();
   };
 
@@ -101,69 +108,89 @@ export default function ToppingsClient({
     if (priceInvalid) return;
     setBusy('create');
     setError(null);
-    const result = await createToppingAction({
-      name: { vi: nameVi, en: nameEn },
-      priceVnd: parsedPrice,
-    });
-    setBusy(null);
-    if (!result.ok) {
-      setError(failureMessage(result));
-      return;
+    try {
+      const result = await runAction(
+        createToppingAction({
+          name: { vi: nameVi, en: nameEn },
+          priceVnd: parsedPrice,
+        }),
+      );
+      if (!result.ok) {
+        setError(failureMessage(result, locale));
+        return;
+      }
+      resetForm();
+      afterWrite(t('Đã thêm topping.', 'Topping added.'));
+    } finally {
+      setBusy(null);
     }
-    resetForm();
-    afterWrite();
   };
 
   const submitEdit = async () => {
     if (!editTarget || priceInvalid) return;
     setBusy('edit');
     setError(null);
-    const result = await updateToppingAction({
-      toppingId: editTarget.id,
-      name: { vi: nameVi, en: nameEn },
-      priceVnd: parsedPrice,
-      isAvailable,
-    });
-    setBusy(null);
-    if (!result.ok) {
-      setError(failureMessage(result));
-      return;
+    try {
+      const result = await runAction(
+        updateToppingAction({
+          toppingId: editTarget.id,
+          name: { vi: nameVi, en: nameEn },
+          priceVnd: parsedPrice,
+          isAvailable,
+        }),
+      );
+      if (!result.ok) {
+        setError(failureMessage(result, locale));
+        return;
+      }
+      afterWrite(t('Đã lưu thay đổi.', 'Changes saved.'));
+    } finally {
+      setBusy(null);
     }
-    afterWrite();
   };
 
   const submitDelete = async () => {
     if (!deleteTarget) return;
     setBusy('delete');
     setError(null);
-    const result = await deleteToppingAction(deleteTarget.id);
-    setBusy(null);
-    if (!result.ok) {
-      setError(failureMessage(result));
-      return;
+    try {
+      const result = await runAction(deleteToppingAction(deleteTarget.id));
+      if (!result.ok) {
+        setError(failureMessage(result, locale));
+        return;
+      }
+      afterWrite(t('Đã xóa mềm topping.', 'Topping soft-deleted.'));
+    } finally {
+      setBusy(null);
     }
-    afterWrite();
   };
 
   const restore = async (topping: AdminToppingResponseDto) => {
     setBusy(topping.id);
     setError(null);
-    const result = await restoreToppingAction(topping.id);
-    setBusy(null);
-    if (!result.ok) {
-      setError(failureMessage(result));
-      return;
+    try {
+      const result = await runAction(restoreToppingAction(topping.id));
+      if (!result.ok) {
+        setError(failureMessage(result, locale));
+        return;
+      }
+      showToast(t('Đã khôi phục topping.', 'Topping restored.'));
+      router.refresh();
+    } finally {
+      setBusy(null);
     }
-    router.refresh();
   };
 
   return (
     <>
       <PageHead
-        title="Topping"
-        meta={`${rows.length} topping`}
-        lede="Topping dùng chung cho các món. Bật/tắt nhanh ở Kho & món; tại đây sửa tên, giá và xóa mềm."
-        actions={<Button onClick={openCreate}>Thêm topping</Button>}
+        title={t('Topping', 'Toppings')}
+        meta={t(`${rows.length} topping`, `${rows.length} toppings`)}
+        lede={t(
+          'Topping dùng chung cho các món. Bật/tắt nhanh ở Kho & món; tại đây sửa tên, giá và xóa mềm.',
+          'Toppings are shared across products. Toggle availability in Stock & menu; edit names, prices and soft delete here.',
+        )}
+        actions={<Button onClick={openCreate}>{t('Thêm topping', 'Add topping')}</Button>}
       />
 
       {error && !createOpen && !editTarget && !deleteTarget && (
@@ -177,24 +204,38 @@ export default function ToppingsClient({
           <label className="check" style={{ flex: 'none' }}>
             <input type="checkbox" name="deleted" value="1" defaultChecked={deletedOnly} />
             <span>
-              Chỉ topping đã xóa
-              <small>Dùng để khôi phục topping đã xóa mềm.</small>
+              {t('Chỉ topping đã xóa', 'Deleted toppings only')}
+              <small>
+                {t(
+                  'Dùng để khôi phục topping đã xóa mềm.',
+                  'Use this to restore soft-deleted toppings.',
+                )}
+              </small>
             </span>
           </label>
-          <Button type="submit">Lọc</Button>
+          <Button type="submit">{t('Lọc', 'Filter')}</Button>
           {deletedOnly && (
             <a className="btn btn--quiet btn--sm" href="/admin/toppings">
-              Xóa lọc
+              {t('Xóa lọc', 'Clear filter')}
             </a>
           )}
         </form>
 
         {rows.length === 0 ? (
           <div className="panel-body">
-            <EmptyState title={deletedOnly ? 'Không có topping đã xóa' : 'Chưa có topping'}>
+            <EmptyState
+              title={
+                deletedOnly
+                  ? t('Không có topping đã xóa', 'No deleted toppings')
+                  : t('Chưa có topping', 'No toppings yet')
+              }
+            >
               {deletedOnly
-                ? 'Không có topping nào bị xóa mềm.'
-                : 'Thêm topping đầu tiên để khách chọn kèm món.'}
+                ? t('Không có topping nào bị xóa mềm.', 'No topping has been soft-deleted.')
+                : t(
+                    'Thêm topping đầu tiên để khách chọn kèm món.',
+                    'Add the first topping so customers can add it to a drink.',
+                  )}
             </EmptyState>
           </div>
         ) : (
@@ -202,11 +243,11 @@ export default function ToppingsClient({
             <table className="table table--stack table--ledger">
               <thead>
                 <tr>
-                  <th>Topping</th>
-                  <th className="num">Giá</th>
-                  <th>Trạng thái</th>
-                  <th>Ngày tạo</th>
-                  <th className="cell-actions">Thao tác</th>
+                  <th>{t('Topping', 'Topping')}</th>
+                  <th className="num">{t('Giá', 'Price')}</th>
+                  <th>{t('Trạng thái', 'Status')}</th>
+                  <th>{t('Ngày tạo', 'Created')}</th>
+                  <th className="cell-actions">{t('Thao tác', 'Actions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -214,35 +255,46 @@ export default function ToppingsClient({
                   const deleted = Boolean(nullableText(topping.deletedAt));
                   return (
                     <tr key={topping.id}>
-                      <td data-label="Topping">
+                      <td data-label={t('Topping', 'Topping')}>
                         <span className="cell-title">{topping.name.vi}</span>
                         <span className="cell-meta">{topping.name.en}</span>
                       </td>
-                      <td data-label="Giá" className="num">
-                        {formatVnd(topping.priceVnd, 'vi')}
+                      <td data-label={t('Giá', 'Price')} className="num">
+                        {formatVnd(topping.priceVnd, locale)}
                       </td>
-                      <td data-label="Trạng thái">
+                      <td data-label={t('Trạng thái', 'Status')}>
                         <ToppingStatus topping={topping} />
                       </td>
-                      <td data-label="Ngày tạo">{formatDay(topping.createdAt)}</td>
-                      <td className="cell-actions" data-label="Thao tác">
+                      <td data-label={t('Ngày tạo', 'Created')}>
+                        {formatDay(topping.createdAt, locale)}
+                      </td>
+                      <td className="cell-actions" data-label={t('Thao tác', 'Actions')}>
                         {deleted ? (
                           <Button
                             size="sm"
                             disabled={busy !== null}
                             onClick={() => void restore(topping)}
                           >
-                            {busy === topping.id ? 'Đang khôi phục…' : 'Khôi phục'}
+                            {busy === topping.id
+                              ? t('Đang khôi phục…', 'Restoring…')
+                              : t('Khôi phục', 'Restore')}
                           </Button>
                         ) : (
                           <>
+                            <ButtonLink
+                              href={`/admin/toppings/${topping.id}`}
+                              size="sm"
+                              variant="quiet"
+                            >
+                              {t('Chi tiết', 'Details')}
+                            </ButtonLink>
                             <Button
                               size="sm"
                               variant="quiet"
                               disabled={busy !== null}
                               onClick={() => openEdit(topping)}
                             >
-                              Sửa
+                              {t('Sửa', 'Edit')}
                             </Button>
                             <Button
                               size="sm"
@@ -253,7 +305,7 @@ export default function ToppingsClient({
                                 setDeleteTarget(topping);
                               }}
                             >
-                              Xóa
+                              {t('Xóa', 'Delete')}
                             </Button>
                           </>
                         )}
@@ -266,18 +318,27 @@ export default function ToppingsClient({
           </div>
         )}
         <p className="pagination">
-          <span>{rows.length} topping, gồm cả mục đã xóa mềm nếu có.</span>
+          <span>
+            {t(
+              `${rows.length} topping, gồm cả mục đã xóa mềm nếu có.`,
+              `${rows.length} toppings, including soft-deleted entries when present.`,
+            )}
+          </span>
         </p>
       </Panel>
 
       {(createOpen || editTarget) && (
         <Modal
-          title={editTarget ? `Sửa topping · ${editTarget.name.vi}` : 'Thêm topping'}
+          title={
+            editTarget
+              ? t(`Sửa topping · ${editTarget.name.vi}`, `Edit topping · ${editTarget.name.vi}`)
+              : t('Thêm topping', 'Add topping')
+          }
           onClose={close}
           footer={
             <>
               <Button variant="quiet" disabled={busy !== null} onClick={close}>
-                Hủy
+                {t('Hủy', 'Cancel')}
               </Button>
               <Button
                 disabled={
@@ -288,7 +349,11 @@ export default function ToppingsClient({
                 }
                 onClick={() => void (editTarget ? submitEdit() : submitCreate())}
               >
-                {busy ? 'Đang lưu…' : editTarget ? 'Lưu thay đổi' : 'Thêm topping'}
+                {busy
+                  ? t('Đang lưu…', 'Saving…')
+                  : editTarget
+                    ? t('Lưu thay đổi', 'Save changes')
+                    : t('Thêm topping', 'Add topping')}
               </Button>
             </>
           }
@@ -300,7 +365,7 @@ export default function ToppingsClient({
           )}
           <div className="form-grid">
             <div className="field">
-              <label htmlFor="topping-vi">Tên tiếng Việt</label>
+              <label htmlFor="topping-vi">{t('Tên tiếng Việt', 'Vietnamese name')}</label>
               <input
                 id="topping-vi"
                 className="input"
@@ -310,7 +375,7 @@ export default function ToppingsClient({
               />
             </div>
             <div className="field">
-              <label htmlFor="topping-en">Tên tiếng Anh</label>
+              <label htmlFor="topping-en">{t('Tên tiếng Anh', 'English name')}</label>
               <input
                 id="topping-en"
                 className="input"
@@ -321,7 +386,7 @@ export default function ToppingsClient({
             </div>
           </div>
           <div className="field">
-            <label htmlFor="topping-price">Giá cộng thêm (VND)</label>
+            <label htmlFor="topping-price">{t('Giá cộng thêm (VND)', 'Extra price (VND)')}</label>
             <input
               id="topping-price"
               className="input"
@@ -333,7 +398,7 @@ export default function ToppingsClient({
               onChange={(event) => setPrice(event.target.value)}
             />
             <p className="field-hint">
-              {formatVnd(Number.isFinite(parsedPrice) ? parsedPrice : 0, 'vi')}
+              {formatVnd(Number.isFinite(parsedPrice) ? parsedPrice : 0, locale)}
             </p>
           </div>
           {editTarget && (
@@ -344,8 +409,10 @@ export default function ToppingsClient({
                 onChange={(event) => setIsAvailable(event.target.checked)}
               />
               <span>
-                Đang bán
-                <small>Bỏ chọn để tạm ngừng topping này.</small>
+                {t('Đang bán', 'Available')}
+                <small>
+                  {t('Bỏ chọn để tạm ngừng topping này.', 'Uncheck to pause this topping.')}
+                </small>
               </span>
             </label>
           )}
@@ -354,19 +421,22 @@ export default function ToppingsClient({
 
       {deleteTarget && (
         <Modal
-          title={`Xóa topping · ${deleteTarget.name.vi}`}
+          title={t(
+            `Xóa topping · ${deleteTarget.name.vi}`,
+            `Delete topping · ${deleteTarget.name.vi}`,
+          )}
           onClose={close}
           footer={
             <>
               <Button variant="quiet" disabled={busy !== null} onClick={close}>
-                Giữ lại
+                {t('Giữ lại', 'Keep')}
               </Button>
               <Button
                 variant="danger-fill"
                 disabled={busy !== null}
                 onClick={() => void submitDelete()}
               >
-                {busy === 'delete' ? 'Đang xóa…' : 'Xóa mềm'}
+                {busy === 'delete' ? t('Đang xóa…', 'Deleting…') : t('Xóa mềm', 'Soft delete')}
               </Button>
             </>
           }
@@ -377,7 +447,10 @@ export default function ToppingsClient({
             </Notice>
           )}
           <Notice tone="warning">
-            Topping sẽ bị gỡ khỏi món đang dùng. Có thể khôi phục ở bộ lọc “Chỉ topping đã xóa”.
+            {t(
+              'Topping sẽ bị gỡ khỏi món đang dùng. Có thể khôi phục ở bộ lọc “Chỉ topping đã xóa”.',
+              'The topping will be removed from products that use it. Restore it with the “Deleted toppings only” filter.',
+            )}
           </Notice>
         </Modal>
       )}

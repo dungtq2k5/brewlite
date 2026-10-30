@@ -1,5 +1,6 @@
 import type { TagTone } from '@/components/vellum/Tag';
 import { formatDateTime, formatVnd } from '@/i18n/format';
+import type { Locale } from '@/i18n/locale';
 
 /**
  * Orval types a nullable response column as `T[]`; the gateway sends `T | null`.
@@ -17,18 +18,18 @@ export function nullableNumber(
   return typeof value === 'number' ? value : null;
 }
 
-export function formatMoment(value: string | null | undefined): string {
+export function formatMoment(value: string | null | undefined, locale: Locale = 'vi'): string {
   if (!value) return '—';
   const time = Date.parse(value);
   if (Number.isNaN(time)) return '—';
-  return formatDateTime(value, 'vi');
+  return formatDateTime(value, locale);
 }
 
-export function formatDay(value: string | null | undefined): string {
+export function formatDay(value: string | null | undefined, locale: Locale = 'vi'): string {
   if (!value) return '—';
   const time = new Date(value);
   if (Number.isNaN(time.getTime())) return '—';
-  return new Intl.DateTimeFormat('vi-VN', {
+  return new Intl.DateTimeFormat(locale === 'vi' ? 'vi-VN' : 'en-GB', {
     timeZone: 'Asia/Ho_Chi_Minh',
     day: '2-digit',
     month: '2-digit',
@@ -36,14 +37,13 @@ export function formatDay(value: string | null | undefined): string {
   }).format(time);
 }
 
-const ROLE_LABELS: Record<string, string> = {
-  CUSTOMER: 'Khách hàng',
-  STAFF: 'Nhân viên',
-  ADMIN: 'Quản trị',
+const ROLE_LABELS: Record<Locale, Record<string, string>> = {
+  vi: { CUSTOMER: 'Khách hàng', STAFF: 'Nhân viên', ADMIN: 'Quản trị' },
+  en: { CUSTOMER: 'Customer', STAFF: 'Staff', ADMIN: 'Admin' },
 };
 
-export function roleLabel(role: string): string {
-  return ROLE_LABELS[role] ?? role;
+export function roleLabel(role: string, locale: Locale = 'vi'): string {
+  return ROLE_LABELS[locale][role] ?? role;
 }
 
 export function roleTone(role: string): TagTone | undefined {
@@ -56,22 +56,36 @@ export function discountLabel(
   discountType: string,
   discountValue: number,
   maxDiscountVnd: number | null,
+  locale: Locale = 'vi',
 ): string {
   if (discountType === 'PERCENT') {
-    const cap = maxDiscountVnd === null ? '' : `, tối đa ${formatVnd(maxDiscountVnd, 'vi')}`;
+    const cap =
+      maxDiscountVnd === null
+        ? ''
+        : locale === 'vi'
+          ? `, tối đa ${formatVnd(maxDiscountVnd, locale)}`
+          : `, up to ${formatVnd(maxDiscountVnd, locale)}`;
     return `${discountValue}%${cap}`;
   }
-  return `−${formatVnd(discountValue, 'vi')}`;
+  return `−${formatVnd(discountValue, locale)}`;
 }
 
-export function promotionState(row: { isActive: boolean; startsAt: string; endsAt: string }): {
+export function promotionState(
+  row: { isActive: boolean; startsAt: string; endsAt: string },
+  locale: Locale = 'vi',
+): {
   label: string;
   tone: TagTone;
 } {
   const now = Date.now();
-  if (Date.parse(row.endsAt) < now) return { label: 'Hết hạn', tone: 'muted' };
-  if (Date.parse(row.startsAt) > now) return { label: 'Chưa bắt đầu', tone: 'muted' };
+  const isVi = locale === 'vi';
+  if (Date.parse(row.endsAt) < now) {
+    return { label: isVi ? 'Hết hạn' : 'Expired', tone: 'muted' };
+  }
+  if (Date.parse(row.startsAt) > now) {
+    return { label: isVi ? 'Chưa bắt đầu' : 'Scheduled', tone: 'muted' };
+  }
   return row.isActive
-    ? { label: 'Đang chạy', tone: 'success' }
-    : { label: 'Tạm dừng', tone: 'warning' };
+    ? { label: isVi ? 'Đang chạy' : 'Active', tone: 'success' }
+    : { label: isVi ? 'Tạm dừng' : 'Paused', tone: 'warning' };
 }

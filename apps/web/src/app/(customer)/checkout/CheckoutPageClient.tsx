@@ -99,6 +99,7 @@ export default function CheckoutPageClient({ locale, recipient }: Props) {
   const [unavailable, setUnavailable] = useState<Record<string, UnavailableLine>>({});
   const [placing, setPlacing] = useState(false);
   const [orderError, setOrderError] = useState('');
+  const [orderConflict, setOrderConflict] = useState(false);
 
   const [promoDraft, setPromoDraft] = useState('');
   const [appliedPromo, setAppliedPromo] = useState('');
@@ -241,6 +242,15 @@ export default function CheckoutPageClient({ locale, recipient }: Props) {
           router.replace(`/login?next=${encodeURIComponent('/checkout')}`);
           return;
         }
+        if (orderResult.code === 'IDEMPOTENCY_KEY_REUSED') {
+          // The previous attempt did create an order, but its response never reached
+          // this tab. Never rotate the key silently here: that would create a second
+          // order. The visitor must check history and explicitly start a new attempt.
+          orderKeyRef.current = null;
+          setOrderConflict(true);
+          setOrderError(describeError(orderResult.code, details, locale));
+          return;
+        }
         const marked = markUnavailable(orderResult.code, details, items);
         if (marked) setUnavailable((previous) => ({ ...previous, ...marked }));
         setOrderError(describeError(orderResult.code, details, locale));
@@ -318,7 +328,7 @@ export default function CheckoutPageClient({ locale, recipient }: Props) {
     appliedPromo.length > 0 &&
     quote.promoCode === appliedPromo;
   const canPlaceOrder =
-    !!quote && quotedKey === quoteKey && !hasUnavailable && !quoting && !placing;
+    !!quote && quotedKey === quoteKey && !hasUnavailable && !quoting && !placing && !orderConflict;
   const quotePending = quoting || (!quote && !quoteError);
 
   const placeLabel = placing
@@ -364,6 +374,38 @@ export default function CheckoutPageClient({ locale, recipient }: Props) {
           {orderError && (
             <Notice tone="error" role="alert">
               {orderError}
+            </Notice>
+          )}
+
+          {orderConflict && (
+            <Notice tone="warning">
+              <p style={{ marginTop: 0 }}>
+                {isVi
+                  ? 'Lần bấm trước đã tạo một đơn. Kiểm tra lịch sử trước khi đặt lại để tránh bị tính hai lần.'
+                  : 'The previous attempt did create an order. Check your history before placing again to avoid a double charge.'}
+              </p>
+              <div
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: 'var(--space-sm)',
+                  marginTop: 'var(--space-sm)',
+                }}
+              >
+                <Link className="btn btn--sm" href="/orders">
+                  {isVi ? 'Xem đơn hàng' : 'View orders'}
+                </Link>
+                <button
+                  className="btn btn--sm btn--quiet"
+                  type="button"
+                  onClick={() => {
+                    setOrderConflict(false);
+                    setOrderError('');
+                  }}
+                >
+                  {isVi ? 'Tôi đã kiểm tra, đặt đơn mới' : 'I checked — place a new order'}
+                </button>
+              </div>
             </Notice>
           )}
 
@@ -533,7 +575,12 @@ export default function CheckoutPageClient({ locale, recipient }: Props) {
                               : 'Checking the code…'}
                     </p>
                   </div>
-                  <button className="btn btn--sm" type="button" onClick={clearPromo}>
+                  <button
+                    className="btn btn--sm"
+                    type="button"
+                    onClick={clearPromo}
+                    disabled={placing}
+                  >
                     {isVi ? 'Bỏ mã' : 'Remove'}
                   </button>
                 </div>
@@ -549,6 +596,7 @@ export default function CheckoutPageClient({ locale, recipient }: Props) {
                   type="text"
                   value={promoDraft}
                   onChange={(event) => setPromoDraft(event.target.value.toUpperCase())}
+                  disabled={placing}
                   onKeyDown={(event) => {
                     if (event.key === 'Enter') {
                       event.preventDefault();
@@ -564,7 +612,7 @@ export default function CheckoutPageClient({ locale, recipient }: Props) {
                   className="btn"
                   type="button"
                   onClick={applyPromo}
-                  disabled={!promoDraft.trim()}
+                  disabled={!promoDraft.trim() || placing}
                 >
                   {isVi ? 'Áp dụng' : 'Apply'}
                 </button>

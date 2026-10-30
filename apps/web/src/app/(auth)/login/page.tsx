@@ -1,5 +1,6 @@
 ﻿import Link from 'next/link';
 import LoginForm from './LoginForm';
+import LocaleSwitcher from '@/components/LocaleSwitcher';
 import { getLocale } from '@/i18n/locale.server';
 import { safeNextPath } from '@/lib/navigation';
 
@@ -12,6 +13,43 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const nextPath = params.next ? safeNextPath(params.next, '') || undefined : undefined;
   const locale = await getLocale();
   const isVi = locale === 'vi';
+  const consoleTarget = nextPath?.startsWith('/admin')
+    ? isVi
+      ? 'Quản trị'
+      : 'Admin'
+    : nextPath?.startsWith('/staff')
+      ? isVi
+        ? 'Quầy'
+        : 'Counter'
+      : null;
+
+  if (consoleTarget) {
+    return (
+      <main className="auth-page auth-page--compact">
+        <section className="auth-panel">
+          <div className="auth-card">
+            <div className="auth-topline">
+              <Link className="wordmark" href="/">
+                BrewLite
+              </Link>
+              <LocaleSwitcher locale={locale} />
+            </div>
+            <h1>{isVi ? 'Đăng nhập' : 'Sign in'}</h1>
+            <p className="page-meta">
+              <span className="auth-context">{consoleTarget}</span>{' '}
+              {isVi ? 'Dùng tài khoản nội bộ để tiếp tục.' : 'Use your staff account to continue.'}
+            </p>
+            <LoginForm nextPath={nextPath} locale={locale} consoleOnly />
+            <p className="auth-footer">
+              <Link className="text-link" href="/">
+                {isVi ? 'Về cửa hàng' : 'Back to store'}
+              </Link>
+            </p>
+          </div>
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main className="auth-page">
@@ -54,6 +92,10 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
       <section className="auth-panel">
         <div className="auth-card">
+          <div className="auth-topline">
+            <span className="auth-context">{isVi ? 'Khách hàng' : 'Customer'}</span>
+            <LocaleSwitcher locale={locale} />
+          </div>
           <h1>{isVi ? 'Đăng nhập' : 'Sign in'}</h1>
           <p className="page-meta">
             {isVi

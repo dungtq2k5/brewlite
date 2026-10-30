@@ -1,15 +1,20 @@
 'use client';
 
 import Link from 'next/link';
+import { useState } from 'react';
 import { MAX_QTY_PER_LINE } from '@brewlite/contracts';
+import { ConfirmDialog } from '@/components/feedback/ConfirmDialog';
+import { useToast } from '@/components/feedback/ToastProvider';
 import { EmptyState } from '@/components/vellum/EmptyState';
 import { PageHead } from '@/components/vellum/PageHead';
-import { useCart } from '@/context/CartContext';
+import { useCart, type CartItem } from '@/context/CartContext';
 import { formatVnd, localized } from '@/i18n/format';
 import type { Locale } from '@/i18n/locale';
 
 export default function CartPageClient({ locale }: { locale: Locale }) {
   const { items, hydrated, updateQty, removeItem, previewSubtotalVnd } = useCart();
+  const { showToast } = useToast();
+  const [removeTarget, setRemoveTarget] = useState<CartItem | null>(null);
   const isVi = locale === 'vi';
   const itemCount = items.reduce((total, item) => total + item.qty, 0);
 
@@ -113,7 +118,7 @@ export default function CartPageClient({ locale }: { locale: Locale }) {
                 <span className="line-total">
                   {formatVnd(item.unitPriceVnd * item.qty, locale)}
                 </span>
-                <button className="remove-link" type="button" onClick={() => removeItem(item.id)}>
+                <button className="remove-link" type="button" onClick={() => setRemoveTarget(item)}>
                   {isVi ? 'Xóa' : 'Remove'}
                 </button>
               </div>
@@ -153,6 +158,29 @@ export default function CartPageClient({ locale }: { locale: Locale }) {
           </p>
         </aside>
       </div>
+
+      {removeTarget && (
+        <ConfirmDialog
+          title={isVi ? 'Xóa món khỏi giỏ?' : 'Remove this item?'}
+          confirmLabel={isVi ? 'Xóa món' : 'Remove item'}
+          cancelLabel={isVi ? 'Giữ lại' : 'Keep it'}
+          onCancel={() => setRemoveTarget(null)}
+          onConfirm={() => {
+            const name = localized(removeTarget.name, locale);
+            removeItem(removeTarget.id);
+            setRemoveTarget(null);
+            showToast(isVi ? `Đã xóa ${name} khỏi giỏ.` : `Removed ${name} from the cart.`, {
+              tone: 'info',
+            });
+          }}
+        >
+          <p>
+            {isVi
+              ? `${localized(removeTarget.name, locale)} (size ${removeTarget.size}, ${removeTarget.qty} phần) sẽ rời giỏ trên thiết bị này.`
+              : `${localized(removeTarget.name, locale)} (size ${removeTarget.size}, ${removeTarget.qty} ×) will leave the cart on this device.`}
+          </p>
+        </ConfirmDialog>
+      )}
     </>
   );
 }

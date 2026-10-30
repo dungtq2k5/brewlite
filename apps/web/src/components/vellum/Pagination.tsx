@@ -1,4 +1,7 @@
+'use client';
+
 import Link from 'next/link';
+import { useConsoleCopy } from '@/i18n/console-context';
 
 function pageHref(basePath: string, page: number, query?: string): string {
   const params = new URLSearchParams(query);
@@ -29,37 +32,41 @@ export function Pagination({
   note?: string;
   query?: string;
 }) {
+  const { t } = useConsoleCopy();
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const current = Math.min(Math.max(1, page), totalPages);
   const from = total === 0 ? 0 : (current - 1) * pageSize + 1;
   const to = Math.min(current * pageSize, total);
 
   return (
-    <nav className="pagination" aria-label="Phân trang">
+    <nav className="pagination" aria-label={t('Phân trang', 'Pagination')}>
       <span>
-        Hiển thị {from}–{to} trên {total} {label}
+        {t(
+          `Hiển thị ${from}–${to} trên ${total} ${label}`,
+          `Showing ${from}–${to} of ${total} ${label}`,
+        )}
         {note ? ` · ${note}` : ''}
       </span>
       <span className="pagination-actions">
         {current > 1 ? (
           <Link className="btn btn--sm" href={pageHref(basePath, current - 1, query)} rel="prev">
-            Trước
+            {t('Trước', 'Previous')}
           </Link>
         ) : (
           <button className="btn btn--sm" type="button" disabled>
-            Trước
+            {t('Trước', 'Previous')}
           </button>
         )}
         <span aria-current="page" style={{ alignSelf: 'center' }}>
-          Trang {current} / {totalPages}
+          {t(`Trang ${current} / ${totalPages}`, `Page ${current} / ${totalPages}`)}
         </span>
         {current < totalPages ? (
           <Link className="btn btn--sm" href={pageHref(basePath, current + 1, query)} rel="next">
-            Sau
+            {t('Sau', 'Next')}
           </Link>
         ) : (
           <button className="btn btn--sm" type="button" disabled>
-            Sau
+            {t('Sau', 'Next')}
           </button>
         )}
       </span>

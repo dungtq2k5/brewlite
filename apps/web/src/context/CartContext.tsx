@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   MAX_LINES_PER_ORDER,
   MAX_QTY_PER_LINE,
@@ -85,58 +85,103 @@ function readStoredCart(): CartItem[] {
   }
 }
 
+function storedCartJson(items: CartItem[]): string {
+  return JSON.stringify(items);
+}
+
 /** Holds the browser-owned cart; it survives reloads and sign-in (ADR 0029). */
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [hydrated, setHydrated] = useState(false);
+  // Mutations read the latest cart synchronously so two quick adds cannot race
+  // past MAX_LINES_PER_ORDER before React commits the previous update.
+  const itemsRef = useRef<CartItem[]>([]);
+
+  const commit = (next: CartItem[]) => {
+    itemsRef.current = next;
+    setItems(next);
+  };
 
   useEffect(() => {
-    setItems(readStoredCart());
+    const stored = readStoredCart();
+    itemsRef.current = stored;
+    setItems(stored);
     setHydrated(true);
   }, []);
 
   useEffect(() => {
     if (!hydrated) return;
+    const serialized = storedCartJson(items);
     try {
-      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+      // Another tab may have written a newer cart; only write when this tab's state
+      // actually differs, so the two tabs cannot ping-pong storage events.
+      if (localStorage.getItem(CART_STORAGE_KEY) !== serialized) {
+        localStorage.setItem(CART_STORAGE_KEY, serialized);
+      }
     } catch {
       // A blocked storage leaves the in-memory cart usable for this visit.
     }
   }, [items, hydrated]);
+
+  // Keep every open tab on the same cart. `storage` fires only in the other tabs, which
+  // is exactly what a second tab needs; `visibilitychange` covers a suspended tab that
+  // missed the event while it was frozen.
+  useEffect(() => {
+    const sync = () => {
+      const next = readStoredCart();
+      if (storedCartJson(next) === storedCartJson(itemsRef.current)) return;
+      itemsRef.current = next;
+      setItems(next);
+    };
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === null || event.key === CART_STORAGE_KEY) sync();
+    };
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') sync();
+    };
+
+    window.addEventListener('storage', onStorage);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, []);
 
   const addItem = (newItem: Omit<CartItem, 'id' | 'unitPriceVnd'>) => {
     if (newItem.toppingIds.length > MAX_TOPPINGS_PER_LINE) return false;
 
     const unitPriceVnd = newItem.basePriceVnd + newItem.sizeDeltaVnd + newItem.toppingsPriceVnd;
     const id = `${newItem.productId}-${newItem.size}-${[...newItem.toppingIds].sort().join('_')}`;
-    const existing = items.find((item) => item.id === id);
-    if (!existing && items.length >= MAX_LINES_PER_ORDER) return false;
+    const current = itemsRef.current;
+    const existing = current.find((item) => item.id === id);
+    if (!existing && current.length >= MAX_LINES_PER_ORDER) return false;
 
-    setItems((prev) => {
-      const idx = prev.findIndex((item) => item.id === id);
-      if (idx > -1) {
-        const updated = [...prev];
-        updated[idx] = {
-          ...updated[idx],
-          qty: Math.min(MAX_QTY_PER_LINE, updated[idx].qty + newItem.qty),
-        };
-        return updated;
-      }
-      return [
-        ...prev,
-        { ...newItem, id, qty: Math.min(MAX_QTY_PER_LINE, newItem.qty), unitPriceVnd },
-      ];
-    });
+    if (existing) {
+      commit(
+        current.map((item) =>
+          item.id === id
+            ? { ...item, qty: Math.min(MAX_QTY_PER_LINE, item.qty + newItem.qty) }
+            : item,
+        ),
+      );
+      return true;
+    }
+
+    commit([
+      ...current,
+      { ...newItem, id, qty: Math.min(MAX_QTY_PER_LINE, newItem.qty), unitPriceVnd },
+    ]);
     return true;
   };
 
   const removeItem = (id: string) => {
-    setItems((prev) => prev.filter((item) => item.id !== id));
+    commit(itemsRef.current.filter((item) => item.id !== id));
   };
 
   const updateQty = (id: string, delta: number) => {
-    setItems((prev) =>
-      prev
+    commit(
+      itemsRef.current
         .map((item) => {
           if (item.id !== id) return item;
           const nextQty = item.qty + delta;
@@ -147,7 +192,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     );
   };
 
-  const clearCart = () => setItems([]);
+  const clearCart = () => commit([]);
 
   const previewSubtotalVnd = useMemo(
     () => items.reduce((acc, item) => acc + item.unitPriceVnd * item.qty, 0),

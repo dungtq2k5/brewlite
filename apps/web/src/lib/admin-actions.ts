@@ -451,6 +451,7 @@ export async function updateProductAction(input: {
     return invalid();
   }
 
+  let partial = false;
   try {
     await adminProductsControllerUpdate(input.productId, {
       categoryId: input.categoryId,
@@ -459,13 +460,18 @@ export async function updateProductAction(input: {
       basePriceVnd: input.basePriceVnd,
       ...(input.sortOrder !== undefined && { sortOrder: input.sortOrder }),
     });
+    partial = true;
     await adminProductsControllerReplaceSizes(input.productId, { sizes });
     await adminProductsControllerReplaceToppings(input.productId, { toppingIds });
     const response = await adminProductsControllerGet(input.productId);
     revalidateAdmin('/admin/products', '/admin/categories', '/admin/toppings');
     return { ok: true, data: unwrap<AdminProductResponseDto>(response.data) };
   } catch (error) {
-    return actionFailure(error);
+    const failure = actionFailure(error);
+    if (!partial) return failure;
+    // The base row is already saved; tell the form so it can re-read the server state
+    // instead of implying that nothing changed.
+    return { ...failure, details: { ...failure.details, partial: true } };
   }
 }
 

@@ -16,7 +16,15 @@ function detailRecord(details: unknown): ApiErrorDetails {
   return typeof details === 'object' && details !== null ? (details as ApiErrorDetails) : {};
 }
 
-export default function LoginForm({ nextPath, locale }: { nextPath?: string; locale: Locale }) {
+export default function LoginForm({
+  nextPath,
+  locale,
+  consoleOnly = false,
+}: {
+  nextPath?: string;
+  locale: Locale;
+  consoleOnly?: boolean;
+}) {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>('login');
   const [fullName, setFullName] = useState('');
@@ -39,17 +47,21 @@ export default function LoginForm({ nextPath, locale }: { nextPath?: string; loc
     event.preventDefault();
     setError(null);
     startTransition(async () => {
-      const result =
-        mode === 'login'
-          ? await loginAction({ email, password, next: nextPath })
-          : await registerAction({
-              email,
-              password,
-              fullName,
-              next: nextPath,
-              preferredLocale: locale,
-            });
-      finish(result);
+      try {
+        const result =
+          mode === 'login'
+            ? await loginAction({ email, password, next: nextPath })
+            : await registerAction({
+                email,
+                password,
+                fullName,
+                next: nextPath,
+                preferredLocale: locale,
+              });
+        finish(result);
+      } catch {
+        setError({ code: 'INTERNAL', details: {} });
+      }
     });
   }
 
@@ -74,40 +86,44 @@ export default function LoginForm({ nextPath, locale }: { nextPath?: string; loc
 
   return (
     <>
-      <input
-        className="auth-radio"
-        type="radio"
-        name="auth-mode"
-        id="auth-login"
-        checked={mode === 'login'}
-        onChange={() => {
-          setMode('login');
-          setError(null);
-        }}
-      />
-      <input
-        className="auth-radio"
-        type="radio"
-        name="auth-mode"
-        id="auth-register"
-        checked={mode === 'register'}
-        onChange={() => {
-          setMode('register');
-          setError(null);
-        }}
-      />
-      <div
-        className="auth-tabs"
-        role="tablist"
-        aria-label={isVi ? 'Chế độ xác thực' : 'Authentication mode'}
-      >
-        <label htmlFor="auth-login" role="tab" aria-selected={mode === 'login'}>
-          {isVi ? 'Đăng nhập' : 'Sign in'}
-        </label>
-        <label htmlFor="auth-register" role="tab" aria-selected={mode === 'register'}>
-          {isVi ? 'Đăng ký' : 'Sign up'}
-        </label>
-      </div>
+      {!consoleOnly && (
+        <>
+          <input
+            className="auth-radio"
+            type="radio"
+            name="auth-mode"
+            id="auth-login"
+            checked={mode === 'login'}
+            onChange={() => {
+              setMode('login');
+              setError(null);
+            }}
+          />
+          <input
+            className="auth-radio"
+            type="radio"
+            name="auth-mode"
+            id="auth-register"
+            checked={mode === 'register'}
+            onChange={() => {
+              setMode('register');
+              setError(null);
+            }}
+          />
+          <div
+            className="auth-tabs"
+            role="tablist"
+            aria-label={isVi ? 'Chế độ xác thực' : 'Authentication mode'}
+          >
+            <label htmlFor="auth-login" role="tab" aria-selected={mode === 'login'}>
+              {isVi ? 'Đăng nhập' : 'Sign in'}
+            </label>
+            <label htmlFor="auth-register" role="tab" aria-selected={mode === 'register'}>
+              {isVi ? 'Đăng ký' : 'Sign up'}
+            </label>
+          </div>
+        </>
+      )}
 
       <form className="auth-form" onSubmit={submit}>
         {error && (
@@ -178,18 +194,22 @@ export default function LoginForm({ nextPath, locale }: { nextPath?: string; loc
         </button>
       </form>
 
-      <div className="auth-divider" style={{ marginTop: 'var(--space-lg)' }}>
-        {isVi ? 'hoặc' : 'or'}
-      </div>
-      <button
-        className="btn btn--block"
-        type="button"
-        style={{ marginTop: 'var(--space-md)' }}
-        onClick={googleSignIn}
-        disabled={pending}
-      >
-        {isVi ? 'Tiếp tục với Google' : 'Continue with Google'}
-      </button>
+      {!consoleOnly && (
+        <>
+          <div className="auth-divider" style={{ marginTop: 'var(--space-lg)' }}>
+            {isVi ? 'hoặc' : 'or'}
+          </div>
+          <button
+            className="btn btn--block"
+            type="button"
+            style={{ marginTop: 'var(--space-md)' }}
+            onClick={googleSignIn}
+            disabled={pending}
+          >
+            {isVi ? 'Tiếp tục với Google' : 'Continue with Google'}
+          </button>
+        </>
+      )}
     </>
   );
 }

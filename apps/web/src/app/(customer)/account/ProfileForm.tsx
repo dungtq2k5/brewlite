@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/vellum/Button';
 import { Notice } from '@/components/vellum/Notice';
-import type { ActionResult } from '@/lib/action-result';
 import { describeError } from '@/lib/error-messages';
 import type { ApiErrorDetails } from '@/lib/gateway-types';
 import { updateProfileAction } from '@/lib/profile-actions';
@@ -12,10 +11,12 @@ import { updateProfileAction } from '@/lib/profile-actions';
 export default function ProfileForm({
   initialFullName,
   initialLocale,
+  uiLocale,
   labels,
 }: {
   initialFullName: string;
   initialLocale: 'vi' | 'en';
+  uiLocale: 'vi' | 'en';
   labels: {
     title: string;
     lede: string;
@@ -39,15 +40,23 @@ export default function ProfileForm({
     setBusy(true);
     setError(null);
     setSaved(false);
-    const result = await updateProfileAction({ fullName, preferredLocale: locale });
-    setBusy(false);
-    if (!result.ok) {
-      const failure = result as Extract<ActionResult<unknown>, { ok: false }>;
-      setError(describeError(failure.code, failure.details as ApiErrorDetails, 'vi'));
-      return;
+    try {
+      const result = await updateProfileAction({ fullName, preferredLocale: locale });
+      if (!result.ok) {
+        setError(describeError(result.code, result.details as ApiErrorDetails, uiLocale));
+        return;
+      }
+      setSaved(true);
+      router.refresh();
+    } catch {
+      setError(
+        uiLocale === 'vi'
+          ? 'Không thể lưu lúc này. Vui lòng thử lại.'
+          : 'Could not save right now. Please try again.',
+      );
+    } finally {
+      setBusy(false);
     }
-    setSaved(true);
-    router.refresh();
   };
 
   return (

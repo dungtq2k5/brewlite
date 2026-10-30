@@ -57,12 +57,17 @@ test.describe('customer order payment', () => {
 
     // A failed session can be replaced; the stale query must not survive the retry.
     await page.getByRole('button', { name: 'Tạo thanh toán mới' }).click();
+    await expect
+      .poll(async () => (await readOrder(page, order.id)).currentPaymentId, { timeout: 30_000 })
+      .not.toBe(payment.id);
+    const replacement = await readOrder(page, order.id);
     await expect(page).toHaveURL(
       (url) =>
         url.pathname === `/orders/${order.id}` &&
-        url.searchParams.get('payment') !== stalePaymentId,
+        url.searchParams.get('payment') === replacement.currentPaymentId,
       { timeout: 30_000 },
     );
+    await expect(page.getByLabel('Số thẻ')).toHaveValue('4242 4242 4242 4242');
     await page.getByRole('button', { name: /^Thanh toán / }).click();
     await expect(page.locator('.order-status')).toHaveText('Đã thanh toán', { timeout: 30_000 });
     await expect.poll(() => readOrderStatus(page, order.id), { timeout: 30_000 }).toBe('PAID');

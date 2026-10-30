@@ -1,0 +1,221 @@
+BREWLITE - YÊU CẦU API CHO ADMIN ORDERS & REPORTS
+==================================================
+Ngày: 30/10/2026
+Người nhận: dev backend
+Liên quan: docs/api-endpoints-plan.md §3.4
+
+MỤC TIÊU
+---------
+Frontend đã có 2 route /admin/orders và /admin/reports nhưng hiện là placeholder.
+Cần bổ sung API thật để admin xem lịch sử đơn hàng và báo cáo doanh thu.
+
+Hiện trạng API:
+- Chỉ có GET /staff/orders: trả đơn PAID / PREPARING / READY, tối đa 100,
+  không phân trang, không lọc ngày, không có lịch sử.
+- Không có /admin/orders, /admin/orders/:id, /admin/reports/sales.
+- KHÔNG dùng /staff/orders để giả làm admin orders: sẽ thiếu đơn COMPLETED /
+  CANCELLED và không tính được doanh thu.
+
+Quyền đã có sẵn trong packages/contracts/src/access.ts:
+- order.read.all  (ADMIN)
+- report.read     (ADMIN)
+Không cần sửa permission matrix.
+
+PHẠM VI
+-------
+Phase 1 - bắt buộc:
+  A. GET /admin/orders
+  B. GET /admin/reports/sales
+
+Phase 2 - không chặn Phase 1:
+  C. GET /admin/orders/:id
+
+QUY ƯỚC CHUNG
+-------------
+- Base path: /api/v1
+- Auth: Bearer token, permission theo từng endpoint.
+- Response envelope: { "data": ..., "meta": ... }
+- Tiền là số nguyên VND, không có phần thập phân.
+- Ngày/giờ trả về ISO 8601. Múi giờ nghiệp vụ: Asia/Ho_Chi_Minh (UTC+7).
+- Tham số ngày: YYYY-MM-DD.
+- orderNo là BigInt trong DB nhưng PHẢI trả ra string trong JSON.
+- Lỗi dùng format chung của gateway: 401 / 403 / 422.
+- Không trả dữ liệu mẫu, không fake data trong endpoint thật.
+
+
+=================================================
+A. GET /admin/orders
+=================================================
+Permission: order.read.all
+
+Query params:
+  page      int, default 1, min 1
+  pageSize  int, default 20, min 1, max 100
+  status    optional, enum:
+            PENDING | PAYMENT_FAILED | PAID | PREPARING | READY |
+            COMPLETED | CANCELLED
+  from      optional, YYYY-MM-DD, lọc theo createdAt, bao gồm ngày này
+  to        optional, YYYY-MM-DD, lọc theo createdAt, bao gồm ngày này
+  orderNo   optional, string, khớp chính xác với order_no
+  sort      optional: createdAt | -createdAt | totalVnd | -totalVnd
+            default: -createdAt
+
+Quy tắc:
+- Trả TẤT CẢ trạng thái, gồm COMPLETED và CANCELLED.
+- Nếu from > to: 422 VALIDATION_FAILED.
+- Nếu status/orderNo không hợp lệ: 422 VALIDATION_FAILED.
+- Sắp xếp mặc định mới nhất trước.
+- meta.total là tổng số bản ghi khớp filter, không phải số bản ghi của trang.
+
+Response 200:
+{
+  "data": [
+    {
+      "id": "01a0e67a-33af-743d-a4c4-39a0241de1ae",
+      "orderNo": "1024",
+      "status": "COMPLETED",
+      "subtotalVnd": 120000,
+      "promoDiscountVnd": 10000,
+      "pointsDiscountVnd": 0,
+      "totalVnd": 110000,
+      "promoCode": "WELCOME10",
+      "note": null,
+      "itemCount": 3,
+      "createdAt": "2026-10-30T02:15:00.000Z",
+      "paidAt": "2026-10-30T02:16:00.000Z",
+      "cancelledAt": null,
+      "cancelReason": null,
+      "cancelNote": null,
+      "refundStatus": "NONE"
+    }
+  ],
+  "meta": {
+    "page": 1,
+    "pageSize": 20,
+    "total": 128
+  }
+}
+
+Ghi chú:
+- itemCount = tổng qty của các OrderItem. Nếu dev thấy dễ hơn thì trả
+  lineCount, nhưng phải ghi rõ trong Swagger.
+- Không bắt buộc trả customer name/email ở Phase 1. Nếu thêm, phải nói rõ
+  nguồn dữ liệu và cách batch call identity, không gọi identity từng đơn.
+- Chi tiết từng dòng hàng (items/history) để Phase 2; danh sách chỉ cần summary.
+
+
+=================================================
+B. GET /admin/reports/sales
+=================================================
+Permission: report.read
+
+Query params:
+  from  required, YYYY-MM-DD
+  to    required, YYYY-MM-DD
+  - from/to bao gồm cả hai đầu, tính theo ngày nghiệp vụ Asia/Ho_Chi_Minh.
+  - to >= from.
+  - Khoảng ngày tối đa 93 ngày; vượt quá: 422 VALIDATION_FAILED.
+
+Response 200:
+{
+  "data": {
+    "days": [
+      { "day": "2026-10-29", "orders": 12, "revenueVnd": 1250000 },
+      { "day": "2026-10-30", "orders": 8,  "revenueVnd": 890000 }
+    ],
+    "topProducts": [
+      {
+        "productId": "01a0e67a-33af-743d-a4c4-39a0241de1ae",
+        "productName": { "vi": "Trà sữa truyền thống", "en": "Classic milk tea" },
+        "qty": 42,
+        "revenueVnd": 1260000
+      }
+    ]
+  }
+}
+
+Quy tắc tính:
+- Chỉ tính đơn đã thanh toán: paidAt != null, status != CANCELLED,
+  refundStatus != REFUNDED.
+  (Bám docs §3.4: đơn đã đạt PAID và chưa refund; loại CANCELLED để tránh
+  doanh thu ảo.)
+- Nhóm doanh thu theo ngày của paidAt, không phải createdAt.
+- days phải trả ĐỦ MỌI NGÀY trong khoảng from..to, ngày không có đơn thì
+  orders = 0, revenueVnd = 0. Sắp xếp tăng dần theo ngày.
+- topProducts: lấy từ OrderItem của các đơn thỏa điều kiện trên.
+  - qty = sum(order_items.qty)
+  - revenueVnd = sum(order_items.line_total_vnd)
+  - Sắp xếp revenueVnd giảm dần, tie-break qty giảm dần.
+  - Trả tối đa 10 sản phẩm.
+  - productName lấy từ snapshot product_name_vi / product_name_en của đơn hàng,
+    không đọc lại catalog để tránh sai tên nếu sản phẩm đã đổi tên.
+- Nếu không có dữ liệu: days vẫn đủ ngày với số 0; topProducts = [].
+
+Lưu ý hiệu năng:
+- Cần index phù hợp cho query theo paid_at/status nếu chưa có.
+- Không load toàn bộ order vào memory rồi mới tính; dùng aggregate/groupBy ở DB.
+
+
+=================================================
+C. GET /admin/orders/:id  (Phase 2, không bắt buộc ngay)
+=================================================
+Permission: order.read.all
+
+Response: Order đầy đủ theo OrderResponseDto hiện có, gồm:
+- lines
+- history
+- currentPaymentId
+- paidAt, cancelledAt, cancelReason, cancelNote, refundStatus
+
+Nếu muốn trả payments:
+- payments: [...] hoặc null
+- Nếu payment service lỗi: payments = null, meta.degraded = ["payment"];
+  vẫn trả order bình thường.
+- Cần thêm RPC ListPaymentsForOrder ở payment service nếu chưa có.
+
+Không có endpoint này thì frontend vẫn làm được danh sách + báo cáo Phase 1.
+
+
+=================================================
+GHI CHÚ IMPLEMENTATION CHO DEV
+=================================================
+1. Ordering service là nơi xử lý orders/reports. Gateway chỉ map HTTP -> gRPC.
+2. Thêm proto RPC (có thể tạo AdminOrderService / AdminReportService riêng,
+   hoặc mở rộng OrderService; miễn là rõ ràng và có test):
+   - ListAllOrders(page, page_size, status?, from?, to?, order_no?, sort?)
+   - GetSalesReport(from, to)
+   - GetOrderById(id)  (Phase 2)
+   Dùng brewlite.common.PageRequest / PageMeta nếu phù hợp.
+3. Gateway:
+   - Thêm module/controller admin-orders và admin-reports.
+   - Dùng @RequirePermission('order.read.all') / @RequirePermission('report.read').
+   - Dùng @ApiEnvelope(..., { paged: true }) cho danh sách để OpenAPI đúng.
+4. Regenerate API client, KHÔNG sửa tay file generated:
+   - build gateway
+   - chạy script openapi:emit của gateway để cập nhật
+     services/gateway/openapi.json
+   - chạy pnpm --filter @brewlite/api-client generate
+   - chạy typecheck/lint
+5. Test tối thiểu:
+   - 403 với CUSTOMER/STAFF, 200 với ADMIN.
+   - Admin orders: phân trang, filter status, from/to, orderNo, sort.
+   - orderNo trả về string, không bị mất precision.
+   - Reports: đúng timezone, ngày rỗng = 0, loại đơn refunded/cancelled,
+     giới hạn 93 ngày, topProducts đúng snapshot tên.
+6. Definition of done:
+   - Swagger/OpenAPI có 3 endpoint và schema rõ ràng.
+   - API client generated có function tương ứng.
+   - Không có mock data.
+   - Test + typecheck + lint pass.
+
+
+=================================================
+FRONTEND SẼ LÀM GÌ KHI API XONG
+=================================================
+- /admin/orders: bảng đơn hàng, filter status/from/to/orderNo, phân trang,
+  link chi tiết (nếu có API C).
+- /admin/reports: chọn khoảng ngày (mặc định 7 ngày), bảng/biểu đồ doanh thu
+  theo ngày, top sản phẩm.
+- Thay thế 2 trang placeholder hiện tại.
+
+Hết.

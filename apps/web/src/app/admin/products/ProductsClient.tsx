@@ -1,13 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import Image from 'next/image';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { PRODUCT_IMAGE_MAX_BYTES } from '@brewlite/contracts';
 import type {
   AdminCategoryResponseDto,
   AdminProductListItemResponseDto,
   AdminProductResponseDto,
   AdminToppingResponseDto,
 } from '@brewlite/api-client';
+import { useToast } from '@/components/feedback/ToastProvider';
 import { Button } from '@/components/vellum/Button';
 import { EmptyState } from '@/components/vellum/EmptyState';
 import { Modal } from '@/components/vellum/Modal';
@@ -16,7 +20,9 @@ import { PageHead } from '@/components/vellum/PageHead';
 import { Pagination } from '@/components/vellum/Pagination';
 import { Panel } from '@/components/vellum/Panel';
 import { Tag } from '@/components/vellum/Tag';
+import { useConsoleCopy } from '@/i18n/console-context';
 import { formatVnd } from '@/i18n/format';
+import type { Locale } from '@/i18n/locale';
 import { formatDay, nullableText } from '@/lib/admin-format';
 import {
   createProductAction,
@@ -24,8 +30,9 @@ import {
   getProductAction,
   restoreProductAction,
   updateProductAction,
+  uploadProductImageAction,
 } from '@/lib/admin-actions';
-import type { ActionResult } from '@/lib/action-result';
+import { runAction, type ActionResult } from '@/lib/action-result';
 import { describeError } from '@/lib/error-messages';
 import type { ApiErrorDetails } from '@/lib/gateway-types';
 import { ADMIN_PAGE_SIZE } from '@/lib/pagination';
@@ -37,6 +44,8 @@ type SizeState = Record<SizeKey, { enabled: boolean; delta: string }>;
 
 const SIZE_KEYS: SizeKey[] = ['S', 'M', 'L'];
 const STOCK_MAX = 2_147_483_647;
+const IMAGE_ACCEPT = 'image/jpeg,image/png,image/webp';
+const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
 function emptySizes(): SizeState {
   return {
@@ -46,14 +55,15 @@ function emptySizes(): SizeState {
   };
 }
 
-function failureMessage(result: Failure): string {
-  return describeError(result.code, result.details as ApiErrorDetails, 'vi');
+function failureMessage(result: Failure, locale: Locale): string {
+  return describeError(result.code, result.details as ApiErrorDetails, locale);
 }
 
 function ProductStatus({ product }: { product: AdminProductListItemResponseDto }) {
-  if (nullableText(product.deletedAt)) return <Tag tone="error">Đã xóa</Tag>;
-  if (!product.isAvailable) return <Tag tone="warning">Tạm ngừng</Tag>;
-  return <Tag tone="success">Đang bán</Tag>;
+  const { t } = useConsoleCopy();
+  if (nullableText(product.deletedAt)) return <Tag tone="error">{t('Đã xóa', 'Deleted')}</Tag>;
+  if (!product.isAvailable) return <Tag tone="warning">{t('Tạm ngừng', 'Paused')}</Tag>;
+  return <Tag tone="success">{t('Đang bán', 'On sale')}</Tag>;
 }
 
 export default function ProductsClient({
@@ -66,6 +76,7 @@ export default function ProductsClient({
   query,
   categoryId,
   queryString,
+  editId,
 }: {
   rows: AdminProductListItemResponseDto[];
   total: number | null;
@@ -76,8 +87,10 @@ export default function ProductsClient({
   query: string;
   categoryId: string;
   queryString: string;
+  editId: string;
 }) {
   const router = useRouter();
+  const { t, locale } = useConsoleCopy();
   const [createOpen, setCreateOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<AdminProductResponseDto | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AdminProductListItemResponseDto | null>(null);
@@ -95,6 +108,44 @@ export default function ProductsClient({
   const [sortOrder, setSortOrder] = useState('');
   const [sizes, setSizes] = useState<SizeState>(emptySizes);
   const [toppingIds, setToppingIds] = useState<string[]>([]);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageError, setImageError] = useState<string | null>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const autoEditRef = useRef(false);
+  const { showToast } = useToast();
+
+  const clearImage = () => {
+    setImageFile(null);
+    setImagePreview((current) => {
+      if (current?.startsWith('blob:')) URL.revokeObjectURL(current);
+      return null;
+    });
+    setImageError(null);
+    if (imageInputRef.current) imageInputRef.current.value = '';
+  };
+
+  const pickImage = (file: File) => {
+    setImageError(null);
+    if (!IMAGE_TYPES.has(file.type) || file.size > PRODUCT_IMAGE_MAX_BYTES) {
+      setImageError(
+        t(
+          `Ảnh phải là JPEG, PNG hoặc WebP và không quá ${Math.round(
+            PRODUCT_IMAGE_MAX_BYTES / (1024 * 1024),
+          )} MB.`,
+          `The image must be JPEG, PNG or WebP and no larger than ${Math.round(
+            PRODUCT_IMAGE_MAX_BYTES / (1024 * 1024),
+          )} MB.`,
+        ),
+      );
+      return;
+    }
+    setImageFile(file);
+    setImagePreview((current) => {
+      if (current?.startsWith('blob:')) URL.revokeObjectURL(current);
+      return URL.createObjectURL(file);
+    });
+  };
 
   const close = () => {
     if (busy) return;
@@ -115,6 +166,7 @@ export default function ProductsClient({
     setSortOrder('');
     setSizes(emptySizes());
     setToppingIds([]);
+    clearImage();
     setError(null);
   };
 
@@ -142,24 +194,35 @@ export default function ProductsClient({
     setError(null);
   };
 
-  const openEdit = async (product: AdminProductListItemResponseDto) => {
+  const openEdit = async (product: { id: string }) => {
     setLoadingId(product.id);
     setError(null);
-    const result = await getProductAction(product.id);
-    setLoadingId(null);
-    if (!result.ok) {
-      setError(failureMessage(result));
-      return;
+    try {
+      const result = await runAction(getProductAction(product.id));
+      if (!result.ok) {
+        setError(failureMessage(result, locale));
+        return;
+      }
+      fillForm(result.data);
+      setEditTarget(result.data);
+    } finally {
+      setLoadingId(null);
     }
-    fillForm(result.data);
-    setEditTarget(result.data);
   };
 
-  const afterWrite = () => {
+  // The product detail page deep-links here with `?edit=<id>`; open that record once.
+  useEffect(() => {
+    if (!editId || autoEditRef.current) return;
+    autoEditRef.current = true;
+    void openEdit({ id: editId });
+  }, [editId]);
+
+  const afterWrite = (message?: string) => {
     setCreateOpen(false);
     setEditTarget(null);
     setDeleteTarget(null);
     setError(null);
+    if (message) showToast(message);
     router.refresh();
   };
 
@@ -192,76 +255,132 @@ export default function ProductsClient({
     if (baseInvalid || stockInvalid || sortInvalid || sizesInvalid || descriptionPartial) return;
     setBusy('create');
     setError(null);
-    const result = await createProductAction({
-      categoryId: formCategory,
-      name: { vi: nameVi, en: nameEn },
-      description:
-        descriptionVi.trim().length > 0 && descriptionEn.trim().length > 0
-          ? { vi: descriptionVi, en: descriptionEn }
-          : undefined,
-      basePriceVnd: parsedBase,
-      sizes: buildSizes(),
-      toppingIds,
-      stockQty: parsedStock,
-      sortOrder: parsedSort,
-    });
-    setBusy(null);
-    if (!result.ok) {
-      setError(failureMessage(result));
-      return;
+    try {
+      const result = await runAction(
+        createProductAction({
+          categoryId: formCategory,
+          name: { vi: nameVi, en: nameEn },
+          description:
+            descriptionVi.trim().length > 0 && descriptionEn.trim().length > 0
+              ? { vi: descriptionVi, en: descriptionEn }
+              : undefined,
+          basePriceVnd: parsedBase,
+          sizes: buildSizes(),
+          toppingIds,
+          stockQty: parsedStock,
+          sortOrder: parsedSort,
+        }),
+      );
+      if (!result.ok) {
+        setError(failureMessage(result, locale));
+        return;
+      }
+      if (imageFile) {
+        const formData = new FormData();
+        formData.set('productId', result.data.id);
+        formData.set('file', imageFile);
+        const upload = await runAction(uploadProductImageAction(formData));
+        if (!upload.ok) {
+          showToast(
+            t(
+              `Đã tạo ${nameVi} nhưng chưa tải được ảnh: ${describeError(
+                upload.code,
+                upload.details,
+                locale,
+              )}`,
+              `${nameVi} was created but the image could not be uploaded: ${describeError(
+                upload.code,
+                upload.details,
+                locale,
+              )}`,
+            ),
+            { tone: 'error', duration: 9000 },
+          );
+        } else {
+          showToast(t(`Đã tạo ${nameVi} kèm ảnh sản phẩm.`, `${nameVi} created with an image.`));
+        }
+      } else {
+        showToast(t(`Đã tạo ${nameVi}.`, `${nameVi} created.`));
+      }
+      resetForm();
+      afterWrite();
+    } finally {
+      setBusy(null);
     }
-    resetForm();
-    afterWrite();
   };
 
   const submitEdit = async () => {
     if (!editTarget || baseInvalid || sortInvalid || sizesInvalid || descriptionPartial) return;
     setBusy('edit');
     setError(null);
-    const result = await updateProductAction({
-      productId: editTarget.id,
-      categoryId: formCategory,
-      name: { vi: nameVi, en: nameEn },
-      description:
-        descriptionVi.trim().length > 0 && descriptionEn.trim().length > 0
-          ? { vi: descriptionVi, en: descriptionEn }
-          : null,
-      basePriceVnd: parsedBase,
-      sizes: buildSizes(),
-      toppingIds,
-      sortOrder: parsedSort,
-    });
-    setBusy(null);
-    if (!result.ok) {
-      setError(failureMessage(result));
-      return;
+    try {
+      const result = await runAction(
+        updateProductAction({
+          productId: editTarget.id,
+          categoryId: formCategory,
+          name: { vi: nameVi, en: nameEn },
+          description:
+            descriptionVi.trim().length > 0 && descriptionEn.trim().length > 0
+              ? { vi: descriptionVi, en: descriptionEn }
+              : null,
+          basePriceVnd: parsedBase,
+          sizes: buildSizes(),
+          toppingIds,
+          sortOrder: parsedSort,
+        }),
+      );
+      if (!result.ok) {
+        if (result.details.partial === true) {
+          setError(
+            t(
+              'Thông tin cơ bản đã lưu, nhưng size/topping chưa cập nhật. Kiểm tra lại rồi lưu lần nữa.',
+              'The core details were saved, but sizes/toppings did not update. Review and save again.',
+            ),
+          );
+          const fresh = await runAction(getProductAction(editTarget.id));
+          if (fresh.ok) fillForm(fresh.data);
+          router.refresh();
+          return;
+        }
+        setError(failureMessage(result, locale));
+        return;
+      }
+      afterWrite(t('Đã lưu thay đổi.', 'Changes saved.'));
+    } finally {
+      setBusy(null);
     }
-    afterWrite();
   };
 
   const submitDelete = async () => {
     if (!deleteTarget) return;
     setBusy('delete');
     setError(null);
-    const result = await deleteProductAction(deleteTarget.id);
-    setBusy(null);
-    if (!result.ok) {
-      setError(failureMessage(result));
-      return;
+    try {
+      const result = await runAction(deleteProductAction(deleteTarget.id));
+      if (!result.ok) {
+        setError(failureMessage(result, locale));
+        return;
+      }
+      afterWrite(t('Đã xóa mềm sản phẩm.', 'Product soft-deleted.'));
+    } finally {
+      setBusy(null);
     }
-    afterWrite();
   };
 
   const restore = async (product: AdminProductListItemResponseDto) => {
     setBusy(product.id);
     setError(null);
-    const result = await restoreProductAction(product.id);
-    setBusy(null);
-    if (!result.ok) {
-      setError(failureMessage(result));
-      return;
+    try {
+      const result = await runAction(restoreProductAction(product.id));
+      if (!result.ok) {
+        setError(failureMessage(result, locale));
+        return;
+      }
+      showToast(t('Đã khôi phục sản phẩm.', 'Product restored.'));
+      router.refresh();
+    } finally {
+      setBusy(null);
     }
-    router.refresh();
   };
 
   const toggleSize = (key: SizeKey) => {
@@ -282,10 +401,13 @@ export default function ProductsClient({
   return (
     <>
       <PageHead
-        title="Sản phẩm"
-        meta={`${total ?? rows.length} sản phẩm`}
-        lede="Tạo món mới, sửa giá và mô tả, chọn size và topping được phép. Tồn kho thao tác nhanh ở Kho & món."
-        actions={<Button onClick={openCreate}>Thêm sản phẩm</Button>}
+        title={t('Sản phẩm', 'Products')}
+        meta={t(`${total ?? rows.length} sản phẩm`, `${total ?? rows.length} products`)}
+        lede={t(
+          'Tạo món mới, sửa giá và mô tả, chọn size và topping được phép. Tồn kho thao tác nhanh ở Kho & món.',
+          'Create drinks, edit prices and descriptions, choose allowed sizes and toppings. Manage stock in Stock & menu.',
+        )}
+        actions={<Button onClick={openCreate}>{t('Thêm sản phẩm', 'Add product')}</Button>}
       />
 
       {error && !modalOpen && !deleteTarget && (
@@ -297,27 +419,27 @@ export default function ProductsClient({
       <Panel>
         <form className="toolbar" action="/admin/products" method="get">
           <div className="field">
-            <label htmlFor="product-q">Tìm theo tên</label>
+            <label htmlFor="product-q">{t('Tìm theo tên', 'Search by name')}</label>
             <input
               id="product-q"
               className="input"
               name="q"
               defaultValue={query}
-              placeholder="Ví dụ: latte"
+              placeholder="latte"
             />
           </div>
           <div className="field">
-            <label htmlFor="product-category">Danh mục</label>
+            <label htmlFor="product-category">{t('Danh mục', 'Category')}</label>
             <select
               id="product-category"
               className="input"
               name="categoryId"
               defaultValue={categoryId}
             >
-              <option value="">Tất cả</option>
+              <option value="">{t('Tất cả', 'All')}</option>
               {categories.map((category) => (
                 <option key={category.id} value={category.id}>
-                  {category.name.vi}
+                  {category.name[locale]}
                 </option>
               ))}
             </select>
@@ -325,24 +447,41 @@ export default function ProductsClient({
           <label className="check" style={{ flex: 'none' }}>
             <input type="checkbox" name="deleted" value="1" defaultChecked={deletedOnly} />
             <span>
-              Chỉ món đã xóa
-              <small>Bật để khôi phục món đã xóa mềm.</small>
+              {t('Chỉ món đã xóa', 'Deleted products only')}
+              <small>
+                {t(
+                  'Bật để khôi phục món đã xóa mềm.',
+                  'Use this to restore soft-deleted products.',
+                )}
+              </small>
             </span>
           </label>
-          <Button type="submit">Lọc</Button>
+          <Button type="submit">{t('Lọc', 'Filter')}</Button>
           {(query || categoryId || deletedOnly) && (
             <a className="btn btn--quiet btn--sm" href="/admin/products">
-              Xóa lọc
+              {t('Xóa lọc', 'Clear filter')}
             </a>
           )}
         </form>
 
         {rows.length === 0 ? (
           <div className="panel-body">
-            <EmptyState title={deletedOnly ? 'Không có món đã xóa' : 'Chưa có sản phẩm'}>
+            <EmptyState
+              title={
+                deletedOnly
+                  ? t('Không có món đã xóa', 'No deleted products')
+                  : t('Chưa có sản phẩm', 'No products yet')
+              }
+            >
               {deletedOnly
-                ? 'Không có sản phẩm nào bị xóa mềm khớp bộ lọc.'
-                : 'Thêm sản phẩm đầu tiên để bắt đầu bán.'}
+                ? t(
+                    'Không có sản phẩm nào bị xóa mềm khớp bộ lọc.',
+                    'No soft-deleted product matches the filter.',
+                  )
+                : t(
+                    'Thêm sản phẩm đầu tiên để bắt đầu bán.',
+                    'Add the first product to start selling.',
+                  )}
             </EmptyState>
           </div>
         ) : (
@@ -350,13 +489,13 @@ export default function ProductsClient({
             <table className="table table--stack table--ledger">
               <thead>
                 <tr>
-                  <th>Sản phẩm</th>
-                  <th>Ảnh</th>
-                  <th>Nhóm</th>
-                  <th className="num">Giá gốc</th>
-                  <th>Kho</th>
-                  <th>Trạng thái</th>
-                  <th className="cell-actions">Thao tác</th>
+                  <th>{t('Sản phẩm', 'Product')}</th>
+                  <th>{t('Ảnh', 'Image')}</th>
+                  <th>{t('Nhóm', 'Category')}</th>
+                  <th className="num">{t('Giá gốc', 'Base price')}</th>
+                  <th>{t('Kho', 'Stock')}</th>
+                  <th>{t('Trạng thái', 'Status')}</th>
+                  <th className="cell-actions">{t('Thao tác', 'Actions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -364,39 +503,44 @@ export default function ProductsClient({
                   const deleted = Boolean(nullableText(product.deletedAt));
                   return (
                     <tr key={product.id}>
-                      <td data-label="Sản phẩm">
+                      <td data-label={t('Sản phẩm', 'Product')}>
                         <span className="cell-title">{product.name.vi}</span>
                         <span className="cell-meta">{product.name.en}</span>
                       </td>
-                      <td data-label="Ảnh">
+                      <td data-label={t('Ảnh', 'Image')}>
                         <ProductImageControl
                           productId={product.id}
                           productName={product.name.vi}
                           imageUrl={product.imageUrl}
                         />
                       </td>
-                      <td data-label="Nhóm">{product.categoryName.vi}</td>
-                      <td data-label="Giá gốc" className="num">
-                        {formatVnd(product.basePriceVnd, 'vi')}
+                      <td data-label={t('Nhóm', 'Category')}>{product.categoryName[locale]}</td>
+                      <td data-label={t('Giá gốc', 'Base price')} className="num">
+                        {formatVnd(product.basePriceVnd, locale)}
                       </td>
-                      <td data-label="Kho">
+                      <td data-label={t('Kho', 'Stock')}>
                         {product.stockQty === null ? (
-                          <span className="muted">Không theo dõi</span>
+                          <span className="muted">{t('Không theo dõi', 'Not tracked')}</span>
                         ) : (
                           product.stockQty
                         )}
                       </td>
-                      <td data-label="Trạng thái">
+                      <td data-label={t('Trạng thái', 'Status')}>
                         <ProductStatus product={product} />
                       </td>
-                      <td className="cell-actions" data-label="Thao tác">
+                      <td className="cell-actions" data-label={t('Thao tác', 'Actions')}>
+                        <Link className="text-link" href={`/admin/products/${product.id}`}>
+                          {t('Chi tiết', 'Details')}
+                        </Link>
                         {deleted ? (
                           <Button
                             size="sm"
                             disabled={busy !== null}
                             onClick={() => void restore(product)}
                           >
-                            {busy === product.id ? 'Đang khôi phục…' : 'Khôi phục'}
+                            {busy === product.id
+                              ? t('Đang khôi phục…', 'Restoring…')
+                              : t('Khôi phục', 'Restore')}
                           </Button>
                         ) : (
                           <>
@@ -406,7 +550,9 @@ export default function ProductsClient({
                               disabled={busy !== null || loadingId !== null}
                               onClick={() => void openEdit(product)}
                             >
-                              {loadingId === product.id ? 'Đang tải…' : 'Sửa'}
+                              {loadingId === product.id
+                                ? t('Đang tải…', 'Loading…')
+                                : t('Sửa', 'Edit')}
                             </Button>
                             <Button
                               size="sm"
@@ -417,7 +563,7 @@ export default function ProductsClient({
                                 setDeleteTarget(product);
                               }}
                             >
-                              Xóa
+                              {t('Xóa', 'Delete')}
                             </Button>
                           </>
                         )}
@@ -435,8 +581,8 @@ export default function ProductsClient({
             page={pageNumber}
             pageSize={ADMIN_PAGE_SIZE}
             total={total ?? rows.length}
-            label="sản phẩm"
-            note="sắp theo thứ tự menu"
+            label={t('sản phẩm', 'products')}
+            note={t('sắp theo thứ tự menu', 'sorted by menu order')}
             query={queryString}
           />
         )}
@@ -444,18 +590,28 @@ export default function ProductsClient({
 
       {modalOpen && (
         <Modal
-          title={editTarget ? `Sửa sản phẩm · ${editTarget.name.vi}` : 'Thêm sản phẩm'}
+          title={
+            editTarget
+              ? t(`Sửa sản phẩm · ${editTarget.name.vi}`, `Edit product · ${editTarget.name.vi}`)
+              : t('Thêm sản phẩm', 'Add product')
+          }
           meta={
             editTarget
-              ? `Tạo lúc ${formatDay(editTarget.createdAt)}`
-              : 'Món mới sẽ hiện ngay trên menu khi đang bán.'
+              ? t(
+                  `Tạo lúc ${formatDay(editTarget.createdAt, locale)}`,
+                  `Created ${formatDay(editTarget.createdAt, locale)}`,
+                )
+              : t(
+                  'Món mới sẽ hiện ngay trên menu khi đang bán.',
+                  'A new product appears on the menu as soon as it is on sale.',
+                )
           }
           wide
           onClose={close}
           footer={
             <>
               <Button variant="quiet" disabled={busy !== null} onClick={close}>
-                Hủy
+                {t('Hủy', 'Cancel')}
               </Button>
               <Button
                 disabled={
@@ -472,7 +628,11 @@ export default function ProductsClient({
                 }
                 onClick={() => void (editTarget ? submitEdit() : submitCreate())}
               >
-                {busy ? 'Đang lưu…' : editTarget ? 'Lưu thay đổi' : 'Thêm sản phẩm'}
+                {busy
+                  ? t('Đang lưu…', 'Saving…')
+                  : editTarget
+                    ? t('Lưu thay đổi', 'Save changes')
+                    : t('Thêm sản phẩm', 'Add product')}
               </Button>
             </>
           }
@@ -485,24 +645,24 @@ export default function ProductsClient({
 
           <div className="form-grid">
             <div className="field">
-              <label htmlFor="product-form-category">Danh mục</label>
+              <label htmlFor="product-form-category">{t('Danh mục', 'Category')}</label>
               <select
                 id="product-form-category"
                 className="input"
                 value={formCategory}
                 onChange={(event) => setFormCategory(event.target.value)}
               >
-                <option value="">Chọn danh mục</option>
+                <option value="">{t('Chọn danh mục', 'Choose a category')}</option>
                 {categories.map((category) => (
                   <option key={category.id} value={category.id}>
-                    {category.name.vi}
-                    {category.isActive ? '' : ' (tạm ẩn)'}
+                    {category.name[locale]}
+                    {category.isActive ? '' : t(' (tạm ẩn)', ' (hidden)')}
                   </option>
                 ))}
               </select>
             </div>
             <div className="field">
-              <label htmlFor="product-form-base">Giá gốc (VND)</label>
+              <label htmlFor="product-form-base">{t('Giá gốc (VND)', 'Base price (VND)')}</label>
               <input
                 id="product-form-base"
                 className="input"
@@ -514,15 +674,15 @@ export default function ProductsClient({
                 onChange={(event) => setBasePrice(event.target.value)}
               />
               <p className="field-hint">
-                {formatVnd(Number.isFinite(parsedBase) ? parsedBase : 0, 'vi')} · size cộng thêm
-                tính riêng.
+                {formatVnd(Number.isFinite(parsedBase) ? parsedBase : 0, locale)} ·{' '}
+                {t('size cộng thêm tính riêng.', 'size surcharges are added separately.')}
               </p>
             </div>
           </div>
 
           <div className="form-grid">
             <div className="field">
-              <label htmlFor="product-form-vi">Tên tiếng Việt</label>
+              <label htmlFor="product-form-vi">{t('Tên tiếng Việt', 'Vietnamese name')}</label>
               <input
                 id="product-form-vi"
                 className="input"
@@ -532,7 +692,7 @@ export default function ProductsClient({
               />
             </div>
             <div className="field">
-              <label htmlFor="product-form-en">Tên tiếng Anh</label>
+              <label htmlFor="product-form-en">{t('Tên tiếng Anh', 'English name')}</label>
               <input
                 id="product-form-en"
                 className="input"
@@ -545,7 +705,9 @@ export default function ProductsClient({
 
           <div className="form-grid">
             <div className="field">
-              <label htmlFor="product-form-desc-vi">Mô tả tiếng Việt</label>
+              <label htmlFor="product-form-desc-vi">
+                {t('Mô tả tiếng Việt', 'Vietnamese description')}
+              </label>
               <textarea
                 id="product-form-desc-vi"
                 className="input"
@@ -556,7 +718,9 @@ export default function ProductsClient({
               />
             </div>
             <div className="field">
-              <label htmlFor="product-form-desc-en">Mô tả tiếng Anh</label>
+              <label htmlFor="product-form-desc-en">
+                {t('Mô tả tiếng Anh', 'English description')}
+              </label>
               <textarea
                 id="product-form-desc-en"
                 className="input"
@@ -569,13 +733,76 @@ export default function ProductsClient({
           </div>
           {descriptionPartial && (
             <p className="field-hint" style={{ color: 'var(--color-error)' }}>
-              Mô tả phải có đủ cả hai ngôn ngữ, hoặc để trống cả hai.
+              {t(
+                'Mô tả phải có đủ cả hai ngôn ngữ, hoặc để trống cả hai.',
+                'Provide the description in both languages, or leave both empty.',
+              )}
             </p>
+          )}
+
+          {!editTarget && (
+            <div className="field">
+              <label htmlFor="product-form-image">
+                {t('Ảnh sản phẩm (không bắt buộc)', 'Product image (optional)')}
+              </label>
+              <div className="image-picker">
+                <div className="image-picker-preview">
+                  {imagePreview ? (
+                    <Image
+                      src={imagePreview}
+                      alt={t(
+                        `Ảnh xem trước ${nameVi || 'sản phẩm mới'}`,
+                        `Preview of ${nameVi || 'the new product'}`,
+                      )}
+                      width={72}
+                      height={72}
+                      unoptimized
+                    />
+                  ) : (
+                    <span>{t('Chưa chọn', 'None selected')}</span>
+                  )}
+                </div>
+                <div className="image-picker-actions">
+                  <input
+                    ref={imageInputRef}
+                    id="product-form-image"
+                    className="input"
+                    type="file"
+                    accept={IMAGE_ACCEPT}
+                    disabled={busy !== null}
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      if (file) pickImage(file);
+                    }}
+                  />
+                  {imagePreview && (
+                    <Button size="sm" variant="quiet" disabled={busy !== null} onClick={clearImage}>
+                      {t('Bỏ ảnh', 'Remove image')}
+                    </Button>
+                  )}
+                </div>
+              </div>
+              <p className="field-hint">
+                {t(
+                  `JPEG, PNG hoặc WebP, tối đa ${Math.round(
+                    PRODUCT_IMAGE_MAX_BYTES / (1024 * 1024),
+                  )} MB. Ảnh được tải lên ngay sau khi tạo sản phẩm.`,
+                  `JPEG, PNG or WebP, up to ${Math.round(
+                    PRODUCT_IMAGE_MAX_BYTES / (1024 * 1024),
+                  )} MB. The image uploads right after the product is created.`,
+                )}
+              </p>
+              {imageError && (
+                <p className="field-hint" role="alert" style={{ color: 'var(--color-error)' }}>
+                  {imageError}
+                </p>
+              )}
+            </div>
           )}
 
           <div className="field-row">
             <div className="field">
-              <label htmlFor="product-form-sort">Thứ tự trong menu</label>
+              <label htmlFor="product-form-sort">{t('Thứ tự trong menu', 'Menu order')}</label>
               <input
                 id="product-form-sort"
                 className="input"
@@ -588,7 +815,7 @@ export default function ProductsClient({
               />
             </div>
             <div className="field">
-              <label htmlFor="product-form-stock">Tồn kho ban đầu</label>
+              <label htmlFor="product-form-stock">{t('Tồn kho ban đầu', 'Initial stock')}</label>
               <input
                 id="product-form-stock"
                 className="input"
@@ -601,24 +828,30 @@ export default function ProductsClient({
               />
               <p className="field-hint">
                 {editTarget
-                  ? 'Sửa tồn kho ở Kho & món để tránh ghi đè.'
-                  : 'Để trống nếu không theo dõi kho.'}
+                  ? t(
+                      'Sửa tồn kho ở Kho & món để tránh ghi đè.',
+                      'Change stock in Stock & menu to avoid overwriting it.',
+                    )
+                  : t('Để trống nếu không theo dõi kho.', 'Leave empty to stop tracking stock.')}
               </p>
             </div>
           </div>
 
           <div className="form-section">
-            <h2>Size được bán</h2>
+            <h2>{t('Size được bán', 'Sizes sold')}</h2>
             <p className="field-hint" style={{ marginBottom: 'var(--space-sm)' }}>
-              Chọn ít nhất một size. Giá hiển thị = giá gốc + phụ thu size.
+              {t(
+                'Chọn ít nhất một size. Giá hiển thị = giá gốc + phụ thu size.',
+                'Choose at least one size. Display price = base price + size surcharge.',
+              )}
             </p>
             <table className="size-table">
               <thead>
                 <tr>
-                  <th>Dùng</th>
+                  <th>{t('Dùng', 'Use')}</th>
                   <th>Size</th>
-                  <th>Phụ thu (VND)</th>
-                  <th>Giá bán</th>
+                  <th>{t('Phụ thu (VND)', 'Surcharge (VND)')}</th>
+                  <th>{t('Giá bán', 'Sale price')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -631,7 +864,7 @@ export default function ProductsClient({
                         <input
                           type="checkbox"
                           checked={sizes[key].enabled}
-                          aria-label={`Bán size ${key}`}
+                          aria-label={t(`Bán size ${key}`, `Sell size ${key}`)}
                           onChange={() => toggleSize(key)}
                         />
                       </td>
@@ -647,7 +880,7 @@ export default function ProductsClient({
                           step={1000}
                           value={sizes[key].delta}
                           disabled={!sizes[key].enabled}
-                          aria-label={`Phụ thu size ${key}`}
+                          aria-label={t(`Phụ thu size ${key}`, `Surcharge for size ${key}`)}
                           onChange={(event) =>
                             setSizes((current) => ({
                               ...current,
@@ -658,7 +891,7 @@ export default function ProductsClient({
                       </td>
                       <td className="num">
                         {sizes[key].enabled && Number.isFinite(price)
-                          ? formatVnd(price, 'vi')
+                          ? formatVnd(price, locale)
                           : '—'}
                       </td>
                     </tr>
@@ -669,12 +902,17 @@ export default function ProductsClient({
           </div>
 
           <div className="form-section">
-            <h2>Topping được phép</h2>
+            <h2>{t('Topping được phép', 'Allowed toppings')}</h2>
             <p className="field-hint" style={{ marginBottom: 'var(--space-sm)' }}>
-              Không chọn topping nào nếu món không nhận topping.
+              {t(
+                'Không chọn topping nào nếu món không nhận topping.',
+                'Choose none if the product does not accept toppings.',
+              )}
             </p>
             {toppings.length === 0 ? (
-              <p className="muted">Chưa có topping trong hệ thống.</p>
+              <p className="muted">
+                {t('Chưa có topping trong hệ thống.', 'No toppings exist yet.')}
+              </p>
             ) : (
               <div
                 style={{
@@ -691,10 +929,10 @@ export default function ProductsClient({
                       onChange={() => toggleTopping(topping.id)}
                     />
                     <span>
-                      {topping.name.vi}
+                      {topping.name[locale]}
                       <small>
-                        {formatVnd(topping.priceVnd, 'vi')}
-                        {topping.isAvailable ? '' : ' · tạm hết'}
+                        {formatVnd(topping.priceVnd, locale)}
+                        {topping.isAvailable ? '' : t(' · tạm hết', ' · sold out')}
                       </small>
                     </span>
                   </label>
@@ -707,19 +945,22 @@ export default function ProductsClient({
 
       {deleteTarget && (
         <Modal
-          title={`Xóa sản phẩm · ${deleteTarget.name.vi}`}
+          title={t(
+            `Xóa sản phẩm · ${deleteTarget.name.vi}`,
+            `Delete product · ${deleteTarget.name.vi}`,
+          )}
           onClose={close}
           footer={
             <>
               <Button variant="quiet" disabled={busy !== null} onClick={close}>
-                Giữ lại
+                {t('Giữ lại', 'Keep')}
               </Button>
               <Button
                 variant="danger-fill"
                 disabled={busy !== null}
                 onClick={() => void submitDelete()}
               >
-                {busy === 'delete' ? 'Đang xóa…' : 'Xóa mềm'}
+                {busy === 'delete' ? t('Đang xóa…', 'Deleting…') : t('Xóa mềm', 'Soft delete')}
               </Button>
             </>
           }
@@ -730,7 +971,10 @@ export default function ProductsClient({
             </Notice>
           )}
           <Notice tone="warning">
-            Món sẽ biến mất khỏi menu khách. Có thể khôi phục ở bộ lọc “Chỉ món đã xóa”.
+            {t(
+              'Món sẽ biến mất khỏi menu khách. Có thể khôi phục ở bộ lọc “Chỉ món đã xóa”.',
+              'The product disappears from the customer menu. Restore it with the “Deleted products only” filter.',
+            )}
           </Notice>
         </Modal>
       )}

@@ -81,6 +81,7 @@ export default async function AccountPage() {
         <ProfileForm
           initialFullName={user.fullName}
           initialLocale={user.preferredLocale}
+          uiLocale={locale}
           labels={{
             title: isVi ? 'Thông tin cá nhân' : 'Personal details',
             lede: isVi

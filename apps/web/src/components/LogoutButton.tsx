@@ -6,10 +6,12 @@ import { logoutAction } from '@/lib/auth-actions';
 
 export default function LogoutButton({
   label = 'Đăng xuất',
+  pendingLabel = 'Đang đăng xuất…',
   className = 'btn btn--sm',
   style,
 }: {
   label?: string;
+  pendingLabel?: string;
   className?: string;
   style?: CSSProperties;
 }) {
@@ -32,7 +34,7 @@ export default function LogoutButton({
         })
       }
     >
-      {pending ? 'Đang đăng xuất…' : label}
+      {pending ? pendingLabel : label}
     </button>
   );
 }

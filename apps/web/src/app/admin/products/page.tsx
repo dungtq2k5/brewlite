@@ -9,6 +9,8 @@ import {
 import { Notice } from '@/components/vellum/Notice';
 import { PageHead } from '@/components/vellum/PageHead';
 import { readPage } from '@/lib/api-server';
+import { consoleCopy } from '@/i18n/console';
+import { getLocale } from '@/i18n/locale.server';
 import { ADMIN_PAGE_SIZE, parsePageParam } from '@/lib/pagination';
 import ProductsClient from './ProductsClient';
 
@@ -25,6 +27,7 @@ export default async function AdminProductsPage({
     q?: string | string[];
     categoryId?: string | string[];
     deleted?: string | string[];
+    edit?: string | string[];
   }>;
 }) {
   const params = await searchParams;
@@ -32,6 +35,7 @@ export default async function AdminProductsPage({
   const query = first(params.q).trim().slice(0, 100);
   const categoryId = first(params.categoryId);
   const deletedOnly = first(params.deleted) === '1';
+  const editId = first(params.edit).trim();
 
   let rows: AdminProductListItemResponseDto[] = [];
   let total: number | null = null;
@@ -76,11 +80,20 @@ export default async function AdminProductsPage({
   }
 
   if (failed) {
+    const locale = await getLocale();
+    const { t } = consoleCopy(locale);
     return (
       <>
-        <PageHead title="Sản phẩm" meta="Không đọc được dữ liệu" />
+        <PageHead
+          title={t('Sản phẩm', 'Products')}
+          meta={t('Không đọc được dữ liệu', 'Could not read data')}
+        />
         <Notice tone="error">
-          <strong>Không tải được sản phẩm.</strong> Kiểm tra kết nối mạng rồi tải lại trang.
+          <strong>{t('Không tải được sản phẩm.', 'Could not load products.')}</strong>{' '}
+          {t(
+            'Kiểm tra kết nối mạng rồi tải lại trang.',
+            'Check your connection and reload the page.',
+          )}
         </Notice>
       </>
     );
@@ -103,6 +116,7 @@ export default async function AdminProductsPage({
       query={query}
       categoryId={categoryId}
       queryString={queryString}
+      editId={editId}
     />
   );
 }
