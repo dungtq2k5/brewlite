@@ -1,5 +1,7 @@
 export * from './admin-categories/admin-categories.zod.js';
+export * from './admin-orders/admin-orders.zod.js';
 export * from './admin-products/admin-products.zod.js';
+export * from './admin-reports/admin-reports.zod.js';
 export * from './admin-toppings/admin-toppings.zod.js';
 export * from './admin-users/admin-users.zod.js';
 export * from './auth/auth.zod.js';

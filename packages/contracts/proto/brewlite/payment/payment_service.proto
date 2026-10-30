@@ -5,6 +5,9 @@ package brewlite.payment;
 service PaymentService {
   rpc CreatePayment(CreatePaymentRequest) returns (CreatePaymentResponse);
   rpc GetPayment(GetPaymentRequest) returns (GetPaymentResponse);
+  // Admin read: every payment of one order, newest first, no ownership scope and never a
+  // client secret (an admin never mounts a checkout). The gateway's permission is the gate.
+  rpc ListPaymentsForOrder(ListPaymentsForOrderRequest) returns (ListPaymentsForOrderResponse);
   // `404 ROUTE_NOT_FOUND` unless the payment's provider is FAKE and NODE_ENV is not
   // production (api §4) — the gateway calls it unconditionally either way.
   rpc FakeConfirm(FakeConfirmRequest) returns (FakeConfirmResponse);
@@ -33,6 +36,9 @@ message CreatePaymentResponse {
 
 message GetPaymentRequest { string id = 1; }
 message GetPaymentResponse { Payment payment = 1; }
+
+message ListPaymentsForOrderRequest { string order_id = 1; }
+message ListPaymentsForOrderResponse { repeated Payment payments = 1; }
 
 message FakeConfirmRequest {
   string id = 1;

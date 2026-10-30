@@ -50,6 +50,8 @@ export interface OrderResponseDto {
   cancelReason: string | null;
   /** @nullable */
   cancelNote: string | null;
+  /** @nullable */
+  cancelledAt: string | null;
   refundStatus: string;
   /**
    * @minimum -9007199254740991

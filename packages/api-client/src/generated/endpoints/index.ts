@@ -1,5 +1,7 @@
 export * from './admin-categories/admin-categories.js';
+export * from './admin-orders/admin-orders.js';
 export * from './admin-products/admin-products.js';
+export * from './admin-reports/admin-reports.js';
 export * from './admin-toppings/admin-toppings.js';
 export * from './admin-users/admin-users.js';
 export * from './auth/auth.js';

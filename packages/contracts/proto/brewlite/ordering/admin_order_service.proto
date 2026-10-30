@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package brewlite.ordering;
+
+import "brewlite/common/paging.proto";
+import "brewlite/ordering/order_service.proto";
+
+// Every customer's orders — no ownership scope; the gateway's `order.read.all` is the gate.
+service AdminOrderService {
+  rpc ListOrders(ListOrdersRequest) returns (ListOrdersResponse);
+  // Named apart from OrderService.GetOrder: both live in this package, and buf wants each
+  // RPC's request message to carry its own name.
+  rpc GetAdminOrder(GetAdminOrderRequest) returns (GetAdminOrderResponse);
+}
+
+message ListOrdersRequest {
+  brewlite.common.PageRequest page = 1;
+  optional string status = 2;
+  optional string from = 3; // business day, YYYY-MM-DD, inclusive
+  optional string to = 4; // business day, YYYY-MM-DD, inclusive
+  optional string order_no = 5; // int64 as a string (conventions §5.1)
+}
+// Each order is the `Order` without `history`, as /orders/me returns it.
+message ListOrdersResponse {
+  repeated Order orders = 1;
+  brewlite.common.PageMeta meta = 2;
+}
+
+message GetAdminOrderRequest { string id = 1; }
+// The `Order` with its `history`.
+message GetAdminOrderResponse { Order order = 1; }

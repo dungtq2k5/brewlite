@@ -248,6 +248,7 @@ export const OrdersControllerPlaceOrderResponse = zod.object({
       createdAt: zod.string(),
       cancelReason: zod.string().nullable(),
       cancelNote: zod.string().nullable(),
+      cancelledAt: zod.string().nullable(),
       refundStatus: zod.string(),
       pointsEarned: zod
         .int()
@@ -395,6 +396,7 @@ export const OrdersControllerListMyOrdersResponse = zod.object({
         createdAt: zod.string(),
         cancelReason: zod.string().nullable(),
         cancelNote: zod.string().nullable(),
+        cancelledAt: zod.string().nullable(),
         refundStatus: zod.string(),
         pointsEarned: zod
           .int()
@@ -523,6 +525,7 @@ export const OrdersControllerGetOrderResponse = zod.object({
       createdAt: zod.string(),
       cancelReason: zod.string().nullable(),
       cancelNote: zod.string().nullable(),
+      cancelledAt: zod.string().nullable(),
       refundStatus: zod.string(),
       pointsEarned: zod
         .int()
@@ -645,6 +648,7 @@ export const OrdersControllerCancelOrderResponse = zod.object({
       createdAt: zod.string(),
       cancelReason: zod.string().nullable(),
       cancelNote: zod.string().nullable(),
+      cancelledAt: zod.string().nullable(),
       refundStatus: zod.string(),
       pointsEarned: zod
         .int()

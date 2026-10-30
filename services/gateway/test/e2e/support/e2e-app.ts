@@ -6,6 +6,8 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import { JWT_AUDIENCE, JWT_ISSUER, newId } from '@brewlite/contracts';
 import { RATE_LIMIT_REDIS_CLIENT } from '../../../src/auth/rate-limit-redis.token.js';
 import { OrderEventsSource } from '../../../src/events/order-events.source.js';
+import { AdminOrderGrpcClient } from '../../../src/modules/admin-orders/admin-order-grpc.client.js';
+import { ReportGrpcClient } from '../../../src/modules/admin-reports/report-grpc.client.js';
 import { IdentityServiceGrpcClient } from '../../../src/modules/auth/identity-service-grpc.client.js';
 import { CatalogAdminGrpcClient } from '../../../src/modules/catalog/catalog-admin-grpc.client.js';
 import { CatalogServiceGrpcClient } from '../../../src/modules/catalog/catalog-service-grpc.client.js';
@@ -34,6 +36,8 @@ const PEER_CLIENTS: Type<unknown>[] = [
   PromotionAdminGrpcClient,
   LoyaltyGrpcClient,
   StaffOrdersGrpcClient,
+  AdminOrderGrpcClient,
+  ReportGrpcClient,
 ];
 
 /**

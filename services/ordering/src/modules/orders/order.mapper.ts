@@ -81,5 +81,6 @@ export function toProtoOrder(
     pointsEarned: order.pointsEarned,
     currentPaymentId: order.currentPaymentId ?? undefined,
     history: history.map(toHistoryEntry),
+    cancelledAt: order.cancelledAt?.toISOString(),
   };
 }

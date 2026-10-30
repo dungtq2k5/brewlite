@@ -42,6 +42,14 @@ export interface GetPaymentResponse {
   payment: Payment | undefined;
 }
 
+export interface ListPaymentsForOrderRequest {
+  orderId: string;
+}
+
+export interface ListPaymentsForOrderResponse {
+  payments: Payment[];
+}
+
 export interface FakeConfirmRequest {
   id: string;
   /** 'SUCCEEDED' | 'FAILED' */
@@ -58,6 +66,16 @@ export interface PaymentServiceClient {
   createPayment(request: CreatePaymentRequest, metadata?: Metadata): Observable<CreatePaymentResponse>;
 
   getPayment(request: GetPaymentRequest, metadata?: Metadata): Observable<GetPaymentResponse>;
+
+  /**
+   * Admin read: every payment of one order, newest first, no ownership scope and never a
+   * client secret (an admin never mounts a checkout). The gateway's permission is the gate.
+   */
+
+  listPaymentsForOrder(
+    request: ListPaymentsForOrderRequest,
+    metadata?: Metadata,
+  ): Observable<ListPaymentsForOrderResponse>;
 
   /**
    * `404 ROUTE_NOT_FOUND` unless the payment's provider is FAKE and NODE_ENV is not
@@ -79,6 +97,16 @@ export interface PaymentServiceController {
   ): Promise<GetPaymentResponse> | Observable<GetPaymentResponse> | GetPaymentResponse;
 
   /**
+   * Admin read: every payment of one order, newest first, no ownership scope and never a
+   * client secret (an admin never mounts a checkout). The gateway's permission is the gate.
+   */
+
+  listPaymentsForOrder(
+    request: ListPaymentsForOrderRequest,
+    metadata?: Metadata,
+  ): Promise<ListPaymentsForOrderResponse> | Observable<ListPaymentsForOrderResponse> | ListPaymentsForOrderResponse;
+
+  /**
    * `404 ROUTE_NOT_FOUND` unless the payment's provider is FAKE and NODE_ENV is not
    * production (api §4) — the gateway calls it unconditionally either way.
    */
@@ -91,7 +119,7 @@ export interface PaymentServiceController {
 
 export function PaymentServiceControllerMethods() {
   return function (constructor: Function) {
-    const grpcMethods: string[] = ["createPayment", "getPayment", "fakeConfirm"];
+    const grpcMethods: string[] = ["createPayment", "getPayment", "listPaymentsForOrder", "fakeConfirm"];
     for (const method of grpcMethods) {
       const descriptor: any = Reflect.getOwnPropertyDescriptor(constructor.prototype, method);
       GrpcMethod("PaymentService", method)(constructor.prototype[method], method, descriptor);

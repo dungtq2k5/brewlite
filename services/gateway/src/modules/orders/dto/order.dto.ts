@@ -99,6 +99,8 @@ export const orderResponseSchema = quoteResponseSchema.extend({
   createdAt: z.string(),
   cancelReason: z.string().nullable(),
   cancelNote: z.string().nullable(),
+  // O-1 `cancelled_at`: set by every cancel (the table's CHECK says so), `null` otherwise.
+  cancelledAt: z.string().nullable(),
   refundStatus: z.string(),
   pointsEarned: z.number().int(),
   // The payment in progress, or the one that paid it (`GET /payments/:id`).

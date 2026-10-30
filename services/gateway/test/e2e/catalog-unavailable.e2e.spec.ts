@@ -12,7 +12,8 @@ describe('gateway e2e — catalog peer unreachable', () => {
   let app: NestExpressApplication;
 
   beforeAll(async () => {
-    process.env.CATALOG_GRPC_URL = 'localhost:25053';
+    // A port no BrewLite service uses (ADR 0027 reserves 25051–25054), so the case holds with the stack up.
+    process.env.CATALOG_GRPC_URL = 'localhost:25099';
     const { AppModule } = await import('../../src/app.module.js');
     const { configureApp } = await import('../../src/configure-app.js');
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();

@@ -275,7 +275,7 @@ Order = Quote & {
   currentPaymentId: string | null;        // the payment in progress, or the one that paid it — read it with GET /payments/:id
   expiresAt: string | null;               // the payment deadline, only while PENDING / PAYMENT_FAILED
   paidAt: string | null; createdAt;
-  cancelReason: 'CUSTOMER' | 'EXPIRED' | 'STAFF' | null; cancelNote: string | null;
+  cancelledAt: string | null; cancelReason: 'CUSTOMER' | 'EXPIRED' | 'STAFF' | null; cancelNote: string | null;
   refundStatus: 'NONE' | 'PENDING' | 'REFUNDED' | 'FAILED';
   pointsEarned: number;
   history: { fromStatus: string | null; toStatus; actorType; note: string | null; at }[];
@@ -306,9 +306,9 @@ Order = Quote & {
 
 | Method | Path | Description | Auth |
 | :---- | :---- | :---- | :---- |
-| GET | `/admin/orders` *(P1)* | `?status=&from=&to=&orderNo=`, page style, sort `createdAt`, `totalVnd`. | perm:`order.read.all` |
-| GET | `/admin/orders/:id` *(P1)* | `Order` with `history`, plus `payments` from payment (`payment.PaymentService.ListPaymentsForOrder`). If payment is down: `payments: null`, `meta.degraded: ["payment"]` — the order still shows. | perm:`order.read.all` |
-| GET | `/admin/reports/sales` *(P1)* | `?from=&to=` (business days, inclusive, ≤ 93 days) → `{ days: [{ day, orders, revenueVnd }], topProducts: [{ productId, productName: LocalizedText, qty, revenueVnd }] }`. Counts orders that reached `PAID` and were not refunded. | perm:`report.read` |
+| GET | `/admin/orders` | `?status=&from=&to=&orderNo=` — any status; `from`/`to` are Vietnam business days (`businessDay()`), inclusive, on `created_at`; `orderNo` exact. Page style, sort `createdAt`, `totalVnd`, default `-createdAt`. Each item is the `Order` without `history`. | perm:`order.read.all` |
+| GET | `/admin/orders/:id` | `Order` with `history`, plus `payments` from payment (`payment.PaymentService.ListPaymentsForOrder`). If payment is down: `payments: null`, `meta.degraded: ["payment"]` — the order still shows. | perm:`order.read.all` The response is `{ data: Order & { payments }, meta?: { degraded } }` — the one single-resource response with `meta`. |
+| GET | `/admin/reports/sales` | `?from=&to=` (business days, inclusive, ≤ 93 days) → `{ days: [{ day, orders, revenueVnd }], topProducts: [{ productId, productName: LocalizedText, qty, revenueVnd }] }`. Counts orders that reached `PAID` and were not refunded — `paid_at IS NOT NULL AND refund_status <> 'REFUNDED'`, so a paid order whose refund **failed** still counts. Days are Vietnam days (`businessDay()`), grouped in SQL; days with no order are included with zeros. `topProducts`: the top **10** by revenue, named with the most recent line's snapshot. `from` after `to`, or more than 93 days, is `400`. | perm:`report.read` |
 
 ### 3.5 Promotions — `/admin/promotions`
 
@@ -538,7 +538,7 @@ gRPC packages are `brewlite.<service>`; protos in `packages/contracts/proto/brew
 | `catalog.StockService.ReleaseStock(orderId)` | ordering (compensation only) | undo a reservation whose order was never written | log; the orphan sweep releases it later |
 | `ordering.OrderService.BeginPayment(orderId, userId, paymentId)` | payment | the amount and the payability must be current. The deadline check and the `expires_at` raise are **one conditional write** whose `WHERE` repeats `status IN (PENDING, PAYMENT_FAILED) AND expires_at > now` — the same condition `orders-expire` uses, so whichever commits first wins and the other is told `ORDER_NOT_PAYABLE`. `expires_at` only moves forward | refuse the payment (`503`); no payment row is written |
 | `ordering.OrderService.GetOrderStatus(orderId)` | catalog (orphan sweep) | the sweep must not guess | skip the row; the next run retries |
-| `payment.PaymentService.ListPaymentsForOrder(orderId)` | gateway (composition, §3.4) | — | `payments: null`, `meta.degraded` |
+| `payment.PaymentService.ListPaymentsForOrder(orderId)` | gateway (composition, §3.4) | — every payment of the order, newest first; `clientSecret` always `null` | `payments: null`, `meta.degraded` |
 
 `PriceItems` also runs a read-only `OUT_OF_STOCK` check (summed per counted product across the caller's lines) so the quote can refuse early — the reservation in `ReserveStock` stays the authority, since stock can change between the two calls. It returns every field O-2 snapshots — both product and topping names, base price, size delta, unit price — so ordering never reads catalog again to build an order line (rdm-spec §1.4).
 
@@ -592,10 +592,10 @@ Every service serves these — backend services on `OPS_PORT`, the gateway on it
 
 | Phase | Sections |
 | :---- | :---- |
-| **A — backend (P0)** | §0 · §1.1, §1.2 (not the password route), §1.3 · §2 · §3.1–3.3, §3.5, §3.6 · §4 · §5 · §6 · §7 · §8 · §9 (not `ListPaymentsForOrder`) · §10 · §11 |
+| **A — backend (P0)** | §0 · §1.1, §1.2 (not the password route), §1.3 · §2 · §3.1–3.3, §3.5, §3.6 · §4 · §5 · §6 · §7 · §8 · §9 · §10 · §11 |
 | **B — frontend** | consumes Phase A through the generated client; no new routes |
 | **C — handover** | no new routes; the Compose `apps` profile runs everything, the README, the J1 demo |
-| **P1** | `PATCH /users/me/password` · §3.4 admin orders and reports · `pointsToRedeem` on quote and order · `ListPaymentsForOrder` |
+| **P1** | `PATCH /users/me/password` · `pointsToRedeem` on quote and order — §3.4 admin orders and reports and `ListPaymentsForOrder` were built with the admin pages' needs |
 
 **Phase A is done.** Audited at the end of the phase: every §1–§4 route is built and documented (58 operations), each with this plan's marker and rate-limit class; every `ERRORS` code is raised except the two P1 ones. A guard keeps this plan and `openapi.json` in sync from here on.
 
