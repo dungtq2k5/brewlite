@@ -1,0 +1,51 @@
+{
+  "title": "Thanh toán",
+  "subtitle": "Nhận tại quầy · thanh toán ở bước tiếp theo",
+  "back": "Giỏ hàng",
+  "summary": {
+    "subtotal": "Tạm tính",
+    "promo": "Mã · {{code}}",
+    "total": "Tổng cộng",
+    "unpriced": "—",
+    "earn_other": "Bạn sẽ nhận {{count}} điểm",
+    "earnLater": "Điểm hiển thị khi đơn được tính giá"
+  },
+  "place": {
+    "label": "Đặt món · {{price}}",
+    "labelUnpriced": "Đặt món",
+    "placing": "Đang đặt món…",
+    "hold": "Đơn được giữ {{minutes}} phút trong lúc bạn thanh toán.",
+    "blocked": "Bỏ hoặc chỉnh món ở trên để tiếp tục."
+  },
+  "refusal": {
+    "products_other": "{{count}} món đã hết từ lúc bạn thêm vào. Bỏ chúng để tiếp tục.",
+    "option": "Một món cần chỉnh lại. Sửa xong, chúng tôi sẽ kiểm tra lại đơn.",
+    "stockLeft": "Chỉ còn {{available}} — giảm số lượng còn {{available}} hoặc bỏ món.",
+    "stockNone": "Hết rồi — bỏ món để tiếp tục.",
+    "stockAtPlace": "Vừa có người lấy chiếc {{name}} cuối cùng. Giảm số lượng hoặc bỏ món rồi đặt lại nhé.",
+    "contended": "Quán đang đông — thử lại nhé.",
+    "tooLow": "Đơn tối thiểu {{min}} — thêm chút nữa để thanh toán nhé.",
+    "tooHigh": "Đơn tối đa {{max}} — hãy chia thành hai đơn.",
+    "backToMenu": "Về thực đơn"
+  },
+  "failed": {
+    "title": "Không tính được giá đơn",
+    "body": "Kiểm tra kết nối rồi thử lại. Chưa có gì được đặt hay bị trừ tiền.",
+    "retry": "Thử lại",
+    "back": "Về giỏ hàng"
+  },
+  "promo": {
+    "label": "Mã khuyến mãi",
+    "apply": "Áp dụng",
+    "applying": "Đang áp dụng…",
+    "applied": "{{code}} · −{{amount}}",
+    "remove": "Bỏ"
+  },
+  "note": {
+    "label": "Ghi chú cho barista",
+    "optional": "không bắt buộc",
+    "placeholder": "vd. Ít đá, ít ngọt",
+    "counter": "{{count}} / {{max}}"
+  },
+  "yourOrder": "Đơn của bạn"
+}

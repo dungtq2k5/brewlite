@@ -1,5 +1,7 @@
 import {
   EMPTY_CART,
+  clearIfPlaced as clearCartIfPlaced,
+  markPlaced as markCartPlaced,
   add as addToCart,
   remove as removeFromCart,
   restore as restoreToCart,
@@ -82,6 +84,16 @@ export function createCartStore(storage = createCartStorage()) {
     restore(line: CartLine, index: number) {
       ensureLoaded();
       commit(restoreToCart(snapshot.cart, line, index));
+    },
+    /** *Place order* worked: the cart stays, marked as that order's. */
+    markPlaced(orderId: string) {
+      ensureLoaded();
+      commit(markCartPlaced(snapshot.cart, orderId));
+    },
+    /** The order was seen paid: clear the cart if it is still that order's. */
+    clearIfPlaced(orderId: string) {
+      ensureLoaded();
+      commit(clearCartIfPlaced(snapshot.cart, orderId));
     },
   };
 }

@@ -23,6 +23,8 @@ interface CartContextValue {
   setQuantity: CartStore['setQuantity'];
   remove: CartStore['remove'];
   restore: CartStore['restore'];
+  markPlaced: CartStore['markPlaced'];
+  clearIfPlaced: CartStore['clearIfPlaced'];
 }
 
 const CartContext = createContext<CartContextValue | null>(null);
@@ -64,6 +66,8 @@ export function CartProvider({ children }: Readonly<{ children: ReactNode }>) {
       setQuantity: store.setQuantity,
       remove: store.remove,
       restore: store.restore,
+      markPlaced: store.markPlaced,
+      clearIfPlaced: store.clearIfPlaced,
     }),
     [cart, ready, store],
   );

@@ -5,6 +5,11 @@ import { gitFiles, readRepoFile } from './lib/corpus.js';
  * Every contract spec starts a real gRPC server on a fixed port, and turbo runs the
  * services' integration suites in parallel — two specs on one port fail with EADDRINUSE,
  * but only when the timing lines up. So each port belongs to exactly one spec.
+ *
+ * The same ports are read in the services' e2e and integration specs too: a spec that dials a
+ * **closed** port (to prove a peer-down answer) must not pick a service's port, nor one a
+ * contract spec listens on — with the stack up, or the contract spec running, the port is not
+ * closed any more.
  */
 /**
  * Ports a running service owns (ADR 0027): web 23000, gateway 23100, the four services' ops
@@ -35,7 +40,7 @@ const PORT = /(?:localhost|127\.0\.0\.1):(\d{4,5})/;
 export function portUses(files: string[], read: (file: string) => string): Use[] {
   const uses: Use[] = [];
   for (const file of files.filter((f) =>
-    /^services\/[^/]+\/test\/contract\/.+\.spec\.ts$/.test(f),
+    /^services\/[^/]+\/test\/(?:contract|e2e|integration)\/.+\.spec\.ts$/.test(f),
   )) {
     for (const [index, line] of read(file).split('\n').entries()) {
       const match = PORT.exec(line);
@@ -51,11 +56,17 @@ export function servicePortUses(uses: Use[]): string[] {
     .map((use) => `${use.file}:${use.line} uses ${use.port}, a running service's port (ADR 0027)`);
 }
 
+const isContract = (file: string) => /\/test\/contract\//.test(file);
+
+/** A port in two files, at least one of them a contract spec (two closed-port specs share nothing). */
 export function duplicates(uses: Use[]): string[] {
   const byPort = new Map<string, Use[]>();
   for (const use of uses) byPort.set(use.port, [...(byPort.get(use.port) ?? []), use]);
   return [...byPort]
-    .filter(([, list]) => new Set(list.map((u) => u.file)).size > 1)
+    .filter(
+      ([, list]) =>
+        new Set(list.map((u) => u.file)).size > 1 && list.some((u) => isContract(u.file)),
+    )
     .map(
       ([port, list]) =>
         `port ${port} is used by ${[...new Set(list.map((u) => u.file))].join(' and ')}`,
@@ -98,6 +109,22 @@ describe('contract-ports', () => {
     expect(found[0]).toContain(
       'a.contract.spec.ts and services/b/test/contract/b.contract.spec.ts',
     );
+  });
+
+  it("reports a closed-port e2e spec on a service port or on a contract spec's port", () => {
+    const e2e = 'services/a/test/e2e/down.e2e.spec.ts';
+    expect(
+      servicePortUses(portUses([e2e], () => "process.env.X = 'localhost:25053';")),
+    ).toHaveLength(1);
+    const files = ['services/b/test/contract/b.contract.spec.ts', e2e];
+    const found = duplicates(portUses(files, () => "const url = 'localhost:25097';"));
+    expect(found).toHaveLength(1);
+    expect(found[0]).toContain('down.e2e.spec.ts');
+  });
+
+  it('lets two closed-port specs share a port nobody listens on', () => {
+    const files = ['services/a/test/e2e/a.e2e.spec.ts', 'services/b/test/integration/b.spec.ts'];
+    expect(duplicates(portUses(files, () => "const url = 'localhost:25089';"))).toEqual([]);
   });
 
   it('actually sees the contract specs (the guard is not vacuous)', () => {

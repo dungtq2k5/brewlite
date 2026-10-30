@@ -300,6 +300,8 @@ services:
         condition: service_healthy
     environment:
       API_URL: http://gateway:23100/api/v1
+      # The origin the *browser* loads product photos from — the CSP's `img-src` (same as catalog's).
+      STORAGE_PUBLIC_BASE_URL: http://localhost:29199
     # `expose`, never `ports`: a published web port would bypass Caddy and reopen the
     # X-Forwarded-For spoof (ADR 0033).
     expose:

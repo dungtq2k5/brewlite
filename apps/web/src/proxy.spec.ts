@@ -5,6 +5,10 @@ const refresh = vi.fn();
 vi.mock('@/lib/refresh', () => ({ refreshAccessToken: (...args: unknown[]) => refresh(...args) }));
 
 vi.stubEnv('API_URL', 'http://api/api/v1');
+vi.stubEnv('STORAGE_PUBLIC_BASE_URL', 'http://localhost:29199');
+vi.stubEnv('NEXT_PUBLIC_FIREBASE_API_KEY', 'k');
+vi.stubEnv('NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN', 'demo.firebaseapp.com');
+vi.stubEnv('NEXT_PUBLIC_FIREBASE_PROJECT_ID', 'demo');
 const { proxy } = await import('./proxy');
 
 const jwt = (claims: object) => `h.${Buffer.from(JSON.stringify(claims)).toString('base64url')}.s`;
@@ -78,5 +82,41 @@ describe('proxy', () => {
     refresh.mockResolvedValue({ kind: 'unchanged' });
     const res = await proxy(request('/', { bl_rt: 'rt' }));
     expect(res.headers.get('set-cookie')).toBeNull();
+  });
+
+  describe('step 4: the Content-Security-Policy', () => {
+    const nonceOf = (res: Response) =>
+      /'nonce-([^']+)'/.exec(res.headers.get('content-security-policy') ?? '')?.[1];
+
+    it('is on every page it lets through, with a nonce, and the same nonce is forwarded', async () => {
+      const res = await proxy(request('/'));
+      const nonce = nonceOf(res);
+      expect(nonce).toBeTruthy();
+      expect(res.headers.get('x-middleware-request-x-nonce')).toBe(nonce);
+      expect(res.headers.get('x-middleware-request-content-security-policy')).toBe(
+        res.headers.get('content-security-policy'),
+      );
+    });
+
+    it('is a new nonce every request', async () => {
+      expect(nonceOf(await proxy(request('/')))).not.toBe(nonceOf(await proxy(request('/'))));
+    });
+
+    it('also rides a refreshed render, beside the new cookie', async () => {
+      refresh.mockResolvedValue({
+        kind: 'refreshed',
+        accessToken: fresh('CUSTOMER'),
+        accessTokenExpiresAt: new Date(Date.now() + 9e5).toISOString(),
+      });
+      const res = await proxy(request('/', { bl_rt: 'rt' }));
+      expect(nonceOf(res)).toBeTruthy();
+      expect(res.headers.get('x-middleware-request-cookie')).toContain('bl_at=');
+    });
+
+    it('is not put on a redirect', async () => {
+      const res = await proxy(request('/checkout'));
+      expect(res.status).toBe(307);
+      expect(res.headers.get('content-security-policy')).toBeNull();
+    });
   });
 });

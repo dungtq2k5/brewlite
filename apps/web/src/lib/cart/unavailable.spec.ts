@@ -61,9 +61,28 @@ describe('the unavailable line', () => {
     expect(unavailableText(vi, reason, line, 'vi')).toBe(vietnamese);
   });
 
-  it('names the line’s own toppings in the viewer’s language when the API names none', () => {
+  it('names the topping when the line has exactly one', () => {
     const reason: UnavailableReason = { code: 'OPTION_INVALID', reason: 'TOPPING' };
     expect(unavailableText(en, reason, line, 'en')).toBe("Cheese foam isn't available any more");
     expect(unavailableText(vi, reason, line, 'vi')).toBe('Kem phô mai không còn');
+  });
+
+  it('does not guess among several toppings, and says so without a name', () => {
+    const reason: UnavailableReason = { code: 'OPTION_INVALID', reason: 'TOPPING' };
+    const two = { ...line, toppings: [...line.toppings, topping('p')] };
+    expect(unavailableText(en, reason, two, 'en')).toBe(
+      "A topping on this drink isn't available any more",
+    );
+    expect(unavailableText(vi, reason, two, 'vi')).toBe('Một topping của món này không còn');
+  });
+
+  it('a reason that names its topping is believed, whatever the line holds', () => {
+    const reason: UnavailableReason = {
+      code: 'OPTION_INVALID',
+      reason: 'TOPPING',
+      toppingName: 'Pearls',
+    };
+    const two = { ...line, toppings: [...line.toppings, topping('p')] };
+    expect(unavailableText(en, reason, two, 'en')).toBe("Pearls isn't available any more");
   });
 });

@@ -68,6 +68,30 @@ describe('the cart store', () => {
     expect(early.getSnapshot().cart.lines.map((l) => l.productId)).toEqual(['p1', 'p2']);
   });
 
+  it('marks the cart placed and clears it only for that order', () => {
+    const store = createCartStore(createCartStorage(() => memory()));
+    store.load();
+    store.add(newLine(), 2);
+    store.markPlaced('order-1');
+    store.clearIfPlaced('order-0');
+    expect(store.getSnapshot().cart.lines).toHaveLength(1);
+    store.clearIfPlaced('order-1');
+    expect(store.getSnapshot().cart.lines).toHaveLength(0);
+  });
+
+  it('the marker survives a reload and is dropped by an edit', () => {
+    const storage = memory();
+    const a = createCartStore(createCartStorage(() => storage));
+    a.load();
+    a.add(newLine(), 2);
+    a.markPlaced('order-1');
+    const b = createCartStore(createCartStorage(() => storage));
+    b.load();
+    expect(b.getSnapshot().cart.placedOrderId).toBe('order-1');
+    b.setQuantity(b.getSnapshot().cart.lines[0]!.key, 3);
+    expect(b.getSnapshot().cart.placedOrderId).toBeUndefined();
+  });
+
   it('undo puts the line back', () => {
     const store = createCartStore(createCartStorage(() => memory()));
     store.load();

@@ -11,7 +11,8 @@ import viCommon from '@/i18n/locales/vi/common.json';
 import viPwa from '@/i18n/locales/vi/pwa.json';
 import { LOCALE_COOKIE, LOCALE_MAX_AGE_SECONDS } from '@/lib/cookies';
 import { resolveLocale } from '@/i18n/locale';
-import { SUPPORTED_LOCALES, type Locale } from '@/i18n/settings';
+import { LanguageToggle } from './LanguageToggle';
+import type { Locale } from '@/i18n/settings';
 
 const resources = {
   en: { common: enCommon, pwa: enPwa },
@@ -89,28 +90,14 @@ function OfflineContent({
           unoptimized
           className="min-[380px]:hidden"
         />
-        <div
-          role="group"
-          aria-label={t('common:language.label')}
-          className="bg-base-200 border-base-300 ml-auto inline-flex items-center rounded-full border"
-        >
-          {SUPPORTED_LOCALES.map((l) => (
-            <button
-              key={l}
-              type="button"
-              lang={l}
-              aria-label={t(`common:language.name.${l}`)}
-              aria-pressed={l === locale}
-              onClick={() => onChoose(l)}
-              className="grid min-h-11 min-w-11 place-items-center"
-            >
-              <span
-                className={`rounded-full px-2.5 py-1 text-xs font-semibold ${l === locale ? 'bg-primary text-primary-content' : ''}`}
-              >
-                {t(`common:language.${l}`)}
-              </span>
-            </button>
-          ))}
+        <div className="ml-auto">
+          <LanguageToggle
+            locale={locale}
+            onChoose={onChoose}
+            groupLabel={t('common:language.label')}
+            nameOf={(l) => t(`common:language.name.${l}`)}
+            shortOf={(l) => t(`common:language.${l}`)}
+          />
         </div>
       </header>
       <main className="mx-auto flex max-w-md flex-col items-center gap-4 px-4 py-16 text-center">

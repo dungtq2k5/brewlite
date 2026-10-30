@@ -45,5 +45,12 @@
   "PAYMENT_PROVIDER_UNAVAILABLE": "Payment isn't available right now. Try again in a moment.",
   "UPSTREAM_TIMEOUT": "That took too long. Please try again.",
   "RATE_LIMITED_one": "Too many attempts. Try again in {{count}} minute.",
-  "RATE_LIMITED_other": "Too many attempts. Try again in {{count}} minutes."
+  "RATE_LIMITED_other": "Too many attempts. Try again in {{count}} minutes.",
+  "PROMO_CODE_INVALID_NOT_FOUND": "We don't know this code — check the spelling.",
+  "PROMO_CODE_INVALID_INACTIVE": "This code isn't active.",
+  "PROMO_CODE_INVALID_NOT_STARTED": "This code hasn't started yet.",
+  "PROMO_CODE_INVALID_EXPIRED": "This code has expired.",
+  "PROMO_CODE_INVALID_MIN_SUBTOTAL": "Spend {{minSubtotalVnd}} to use this code.",
+  "PROMO_CODE_INVALID_EXHAUSTED": "This code has been used up.",
+  "PROMO_CODE_INVALID_PER_USER_LIMIT": "You've already used this code."
 }

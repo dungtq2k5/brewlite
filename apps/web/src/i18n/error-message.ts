@@ -31,11 +31,14 @@ export function errorMessage(
   if (code === 'RATE_LIMITED' && typeof d.retryAfterSeconds === 'number') {
     options.count = Math.max(1, Math.ceil(d.retryAfterSeconds / 60));
   }
-  if (code === 'FIREBASE_TOKEN_INVALID' && typeof d.reason === 'string') {
+  if (
+    (code === 'FIREBASE_TOKEN_INVALID' || code === 'PROMO_CODE_INVALID') &&
+    typeof d.reason === 'string'
+  ) {
     options.context = d.reason;
   }
 
-  for (const field of ['minimumVnd', 'maximumVnd'] as const) {
+  for (const field of ['minimumVnd', 'maximumVnd', 'minSubtotalVnd'] as const) {
     if (typeof d[field] === 'number' || typeof d[field] === 'string') {
       options[field] = formatVnd(d[field], locale);
     }

@@ -25,6 +25,7 @@
     "OPTION_INVALID_TOPPING": "{{topping}} không còn",
     "OPTION_INVALID_TOO_MANY_TOPPINGS": "Món này giờ chỉ nhận ít topping hơn",
     "OUT_OF_STOCK": "Chỉ còn {{available}} — giảm số lượng hoặc bỏ món",
-    "notCounted": "Không tính vào tổng"
+    "notCounted": "Không tính vào tổng",
+    "OPTION_INVALID_TOPPING_UNNAMED": "Một topping của món này không còn"
   }
 }

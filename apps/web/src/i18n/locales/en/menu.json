@@ -37,7 +37,7 @@
       "label": "Add to cart · {{price}}",
       "adding": "Adding…",
       "soldOut": "Sold out for today",
-      "full": "Your cart is full — {{max}} items is the most. Check out or remove one first."
+      "full": "Your cart is full — {{max}} different drinks is the most. Check out or remove one first."
     },
     "soldOutNote": "Sold out for today — back tomorrow.",
     "toast": {

@@ -7,5 +7,130 @@
     "READY": "Xong rồi — mời nhận món",
     "COMPLETED": "Đã nhận",
     "CANCELLED": "Đã hủy"
+  },
+  "title": "Đơn của tôi",
+  "loadMore": "Xem thêm",
+  "loadMoreFailed": "Không tải thêm được đơn. Thử lại nhé.",
+  "empty": {
+    "title": "Chưa có đơn nào — đơn đầu tiên chỉ cách vài chạm.",
+    "action": "Xem thực đơn"
+  },
+  "failed": {
+    "body": "Không tải được đơn của bạn. Kiểm tra kết nối rồi thử lại.",
+    "retry": "Thử lại"
+  },
+  "row": {
+    "label": "Đơn #{{no}}"
+  },
+  "order": {
+    "ticket": "Đơn {{no}}",
+    "live": "Trực tiếp",
+    "reconnecting": "Đang kết nối lại…",
+    "note": "Ghi chú của bạn",
+    "message": {
+      "PENDING": {
+        "title": "Chờ thanh toán",
+        "body": "Thanh toán trước {{time}} — hoặc hủy nếu bạn đổi ý."
+      },
+      "PAYMENT_FAILED": {
+        "title": "Chờ thanh toán",
+        "body": "Thanh toán trước {{time}} — hoặc hủy nếu bạn đổi ý."
+      },
+      "PAID": {
+        "title": "Đã thanh toán — quán nhận đơn rồi.",
+        "body": "Đơn đang chờ pha, sẽ cập nhật ngay tại đây."
+      },
+      "PREPARING": {
+        "title": "Đang pha chế",
+        "body": "Món của bạn đang được pha."
+      },
+      "READY": {
+        "title": "Xong rồi — mời nhận món",
+        "body": "#{{no}} xong rồi — mời bạn ra quầy nhận món."
+      },
+      "COMPLETED": {
+        "title": "Đã nhận — chúc ngon miệng!"
+      },
+      "CANCELLED_CUSTOMER": "Bạn đã hủy đơn này. Chưa có gì bị trừ tiền.",
+      "CANCELLED_EXPIRED": "Đơn chưa được thanh toán kịp nên đã bị hủy. Chưa có gì bị trừ tiền.",
+      "CANCELLED_STAFF": "Quán đã hủy đơn này: “{{note}}”.",
+      "CANCELLED_STAFF_NO_NOTE": "Quán đã hủy đơn này."
+    },
+    "points_other": "+{{count}} điểm",
+    "readyTitle": "● Xong rồi · #{{no}} — BrewLite",
+    "refund": {
+      "PENDING": "Đang hoàn tiền — {{amount}} sẽ được trả về phương thức bạn đã thanh toán, thường trong 5–10 ngày.",
+      "REFUNDED": "Đã hoàn {{amount}} về phương thức bạn đã thanh toán.",
+      "FAILED": "Chưa hoàn tiền tự động được. Bạn đưa đơn #{{no}} ra quầy, quán sẽ xử lý ngay."
+    },
+    "cancel": {
+      "button": "Hủy đơn",
+      "title": "Hủy đơn này?",
+      "body": "#{{no}} chưa được thanh toán. Hủy sẽ trả lại món — giỏ hàng vẫn giữ nguyên.",
+      "confirm": "Hủy đơn",
+      "keep": "Giữ đơn",
+      "invalidState": "Đơn này không thể hủy nữa."
+    },
+    "timeline": {
+      "heading": "Tiến trình",
+      "status": {
+        "PENDING": "Đã đặt",
+        "PAYMENT_FAILED": "Thanh toán không thành công",
+        "PAID": "Đã thanh toán",
+        "PREPARING": "Đang pha chế",
+        "READY": "Xong rồi",
+        "COMPLETED": "Đã nhận",
+        "CANCELLED": "Đã hủy"
+      },
+      "actor": {
+        "CUSTOMER": "bạn",
+        "PAYMENT": "thanh toán",
+        "STAFF": "nhân viên",
+        "SYSTEM": "hệ thống"
+      }
+    },
+    "notFound": {
+      "title": "Không tìm thấy đơn này",
+      "body": "Đường dẫn có thể sai, hoặc đơn thuộc tài khoản khác.",
+      "orders": "Đơn của tôi",
+      "menu": "Về thực đơn"
+    },
+    "failed": {
+      "title": "Không tải được đơn này",
+      "body": "Kiểm tra kết nối rồi thử lại.",
+      "retry": "Thử lại"
+    },
+    "deadline": {
+      "payBy_other": "Thanh toán trước {{time}} · Còn {{count}} phút",
+      "warning_other": "Còn {{count}} phút — đơn được giữ đến lúc đó",
+      "passed": "Hết giờ",
+      "announce": "Còn {{count}} phút để thanh toán đơn này."
+    },
+    "pay": {
+      "title": "Thanh toán {{amount}}",
+      "secure": "Bảo mật · Stripe",
+      "loading": "Đang chuẩn bị thanh toán…",
+      "fakeNote": "Chế độ thử — không trừ tiền thật. Chỉ dùng để demo và kiểm thử.",
+      "simulateSuccess": "Giả lập thành công",
+      "simulateFailure": "Giả lập thất bại",
+      "confirming": {
+        "title": "Đang xác nhận thanh toán…",
+        "body": "Thường chỉ mất một giây. Bạn có thể đóng trang — đơn vẫn an toàn và sẽ ở đây khi bạn quay lại."
+      },
+      "failed": {
+        "body": "Thanh toán không thành công. Bạn chưa bị trừ tiền.",
+        "retry": "Thử lại"
+      },
+      "unavailable": "Hiện chưa thanh toán được — thử lại sau giây lát nhé.",
+      "closed": "Phiên thanh toán đã đóng. Chưa có gì bị trừ — bắt đầu lại nhé.",
+      "notPayable": {
+        "body": "Đơn chưa được thanh toán kịp nên đã bị hủy. Chưa có gì bị trừ — giỏ hàng vẫn còn.",
+        "action": "Về giỏ hàng"
+      },
+      "noStripeKey": "Thiết bị này chưa thiết lập thanh toán bằng thẻ."
+    },
+    "placed": "Đặt lúc · {{date}}",
+    "yourOrder": "Đơn của bạn",
+    "items_other": "{{count}} món"
   }
 }

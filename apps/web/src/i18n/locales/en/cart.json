@@ -26,6 +26,7 @@
     "OPTION_INVALID_TOPPING": "{{topping}} isn't available any more",
     "OPTION_INVALID_TOO_MANY_TOPPINGS": "This drink now takes fewer toppings",
     "OUT_OF_STOCK": "Only {{available}} left — lower the quantity or remove it",
-    "notCounted": "Not counted in the total"
+    "notCounted": "Not counted in the total",
+    "OPTION_INVALID_TOPPING_UNNAMED": "A topping on this drink isn't available any more"
   }
 }

@@ -59,6 +59,18 @@ describe('parseCart', () => {
   });
 });
 
+describe('parseCart with the placed marker', () => {
+  it('keeps a string placedOrderId and round-trips it', () => {
+    const marked = { ...cart, placedOrderId: 'order-1' };
+    expect(parseCart(JSON.stringify(marked))).toEqual(marked);
+    expect(parseCart(JSON.stringify(cart)).placedOrderId).toBeUndefined();
+  });
+
+  it('is an empty cart for a marker that is not a string', () => {
+    expect(parseCart(JSON.stringify({ ...cart, placedOrderId: 42 }))).toEqual(EMPTY_CART);
+  });
+});
+
 describe('createCartStorage', () => {
   it('writes and reads through storage; an empty cart removes the key', () => {
     const storage = memory();

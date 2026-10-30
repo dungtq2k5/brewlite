@@ -7,8 +7,9 @@ export const GATEWAY = process.env.E2E_GATEWAY_URL ?? 'http://localhost:23100/ap
 const DOCKER = ['/usr/bin/docker', '/usr/local/bin/docker'].find((p) => existsSync(p));
 
 /**
- * `AUTH` is 10 requests per 15 minutes per address and `PUBLIC_READ` 120 per minute (the menu
- * specs read public routes often), and every spec comes from one address — behind Caddy it is
+ * `AUTH` is 10 requests per 15 minutes per address, `PUBLIC_READ` 120 per minute (the menu
+ * specs read public routes often), and `ORDER_WRITE` / `PAYMENT` are per user (the checkout specs
+ * quote, place and pay many times), and every spec comes from one address — behind Caddy it is
  * always the same one. Each test starts from empty buckets.
  */
 export function resetRateLimits(): void {
@@ -23,7 +24,7 @@ export function resetRateLimits(): void {
       'redis',
       'sh',
       '-c',
-      "for p in 'gw:rl:AUTH:*' 'gw:rl:PUBLIC_READ:*'; do redis-cli --scan --pattern \"$p\" | xargs -r redis-cli del; done",
+      "for p in 'gw:rl:AUTH:*' 'gw:rl:PUBLIC_READ:*' 'gw:rl:ORDER_WRITE:*' 'gw:rl:PAYMENT:*'; do redis-cli --scan --pattern \"$p\" | xargs -r redis-cli del; done",
     ],
     { cwd: new URL('../../..', import.meta.url).pathname, stdio: 'ignore' },
   );
@@ -33,12 +34,28 @@ export const test = base.extend<{ freshBuckets: void }>({
   freshBuckets: [
     // Playwright requires the destructuring pattern even when no fixture is used.
     // eslint-disable-next-line no-empty-pattern
-    async ({}, use) => {
+    async ({}, run) => {
       resetRateLimits();
-      await use();
+      await run();
     },
     { auto: true },
   ],
+  // Every spec is the Content-Security-Policy's test: a violation reported on any page, in the
+  // console or as a `securitypolicyviolation` event, fails it.
+  page: async ({ page }, run) => {
+    const violations: string[] = [];
+    page.on('console', (message) => {
+      const text = message.text();
+      if (/Content[- ]Security[- ]Policy|CSP-VIOLATION/i.test(text)) violations.push(text);
+    });
+    await page.addInitScript(() => {
+      document.addEventListener('securitypolicyviolation', (event) =>
+        console.error(`CSP-VIOLATION ${event.violatedDirective} ${event.blockedURI}`),
+      );
+    });
+    await run(page);
+    expect(violations, 'Content-Security-Policy violations').toEqual([]);
+  },
 });
 export { expect };
 
@@ -199,4 +216,57 @@ export async function settledScrollY(page: Page): Promise<number> {
     )
     .toBe(true);
   return last;
+}
+
+/** Adds the named drink (smallest size, no toppings) from its product page. */
+export async function addDrink(page: Page, name = 'Espresso') {
+  const { products } = await publicMenu();
+  const product = products.find((p) => p.name.en === name)!;
+  await page.goto(`/products/${product.id}`);
+  await page.getByRole('button', { name: /^Add to cart/ }).click();
+  await expect(page).toHaveURL(/\/$/);
+  return product;
+}
+
+/**
+ * A new customer with a drink in the cart who taps *Place order*: ends on `/orders/[id]`, and
+ * returns that id. (The order page starts the payment by itself on arrival.)
+ */
+export async function placeOrderAsNewCustomer(page: Page, name = 'Espresso') {
+  const account = await register(page);
+  await addDrink(page, name);
+  await page.goto('/checkout');
+  await page.getByRole('button', { name: /^Place order/ }).click();
+  await expect(page).toHaveURL(/\/orders\/[0-9a-f-]{36}$/);
+  return { ...account, orderId: page.url().split('/').pop()! };
+}
+
+/** A customer's access token — setup only. */
+export async function userToken(email: string, password = PASSWORD): Promise<string> {
+  const { body } = await api<{ data: { accessToken: string } }>('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ email, password }),
+  });
+  return body.data.accessToken;
+}
+
+/** The counter moving an order along (`PREPARING` → `READY` → `COMPLETED`). */
+export async function advance(orderId: string, to: 'PREPARING' | 'READY' | 'COMPLETED') {
+  const { status } = await api(`/staff/orders/${orderId}/status`, {
+    method: 'POST',
+    token: await staffToken(),
+    body: JSON.stringify({ to }),
+  });
+  expect(status).toBe(200);
+}
+
+/**
+ * Whether the payment service is the fake provider — the payment specs only make sense then.
+ * Waits for the frame to settle on one provider (the page starts the payment by itself).
+ */
+export async function fakeProviderIsOn(page: Page): Promise<boolean> {
+  const fake = page.getByRole('button', { name: 'Simulate success' });
+  const other = page.getByText(/Secure · Stripe|unavailable right now|aren.t set up/).first();
+  await fake.or(other).waitFor({ timeout: 15_000 });
+  return fake.isVisible();
 }

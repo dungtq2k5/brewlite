@@ -4,11 +4,13 @@ import {
   EMPTY_CART,
   add,
   canAdd,
+  clearIfPlaced,
   itemCount,
   keyOf,
   lineCount,
   lineKey,
   lineTotalVnd,
+  markPlaced,
   quantityOf,
   remove,
   restore,
@@ -156,5 +158,42 @@ describe('remove and restore (Undo)', () => {
   it('removing an unknown key changes nothing', () => {
     const cart = three();
     expect(remove(cart, 'nope')).toEqual({ cart });
+  });
+});
+
+describe('the placed-order marker', () => {
+  const placed = () => markPlaced(add(EMPTY_CART, newLine(), 2).cart, 'order-1');
+
+  it('marks the cart without emptying it', () => {
+    const cart = placed();
+    expect(cart.placedOrderId).toBe('order-1');
+    expect(itemCount(cart)).toBe(2);
+  });
+
+  it('is cleared when that order is seen paid', () => {
+    expect(clearIfPlaced(placed(), 'order-1')).toBe(EMPTY_CART);
+  });
+
+  it("keeps the cart when another order's id is seen (an old paid order from history)", () => {
+    const cart = placed();
+    expect(clearIfPlaced(cart, 'order-0')).toBe(cart);
+  });
+
+  it('every edit drops the marker, so an edited cart is not the one that was paid for', () => {
+    const cart = placed();
+    const key = cart.lines[0]!.key;
+    expect(add(cart, newLine(), 1).cart.placedOrderId).toBeUndefined();
+    expect(setQuantity(cart, key, 5).placedOrderId).toBeUndefined();
+    expect(add(cart, newLine({ productId: 'p2' }), 1).cart.placedOrderId).toBeUndefined();
+    const { cart: without, removed } = remove(cart, key);
+    expect(without.placedOrderId).toBeUndefined();
+    expect(restore(without, removed!.line, 0).placedOrderId).toBeUndefined();
+    expect(clearIfPlaced(setQuantity(cart, key, 5), 'order-1').lines).toHaveLength(1);
+  });
+
+  it('a change that changes nothing keeps it', () => {
+    const cart = placed();
+    expect(setQuantity(cart, 'unknown', 3)).toBe(cart);
+    expect(add(cart, newLine(), 0).cart).toBe(cart);
   });
 });

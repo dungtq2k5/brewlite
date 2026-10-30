@@ -41,6 +41,11 @@ export interface CartLine {
 export interface Cart {
   v: 1;
   lines: CartLine[];
+  /**
+   * The order this cart became at *Place order*. Set by `markPlaced`; **every edit drops it**, so
+   * a cart changed after placing is no longer "the cart that was paid for" (see `clearIfPlaced`).
+   */
+  placedOrderId?: string;
 }
 
 export const EMPTY_CART: Cart = { v: 1, lines: [] };
@@ -58,6 +63,22 @@ export const keyOf = (line: Pick<CartLine, 'productId' | 'size' | 'toppings'>) =
     line.size,
     line.toppings.map((t) => t.id),
   );
+
+/** A changed cart: new lines, and no placed-order marker — an edit un-places it. */
+const withLines = (lines: CartLine[]): Cart => ({ v: 1, lines });
+
+/** *Place order* succeeded: remember which order this cart is, without emptying it yet. */
+export const markPlaced = (cart: Cart, orderId: string): Cart => ({
+  ...cart,
+  placedOrderId: orderId,
+});
+
+/**
+ * The order was seen paid: empty the cart **only if it still is that order's cart**. Viewing an
+ * old paid order never empties a new cart, and a cart edited after placing is kept.
+ */
+export const clearIfPlaced = (cart: Cart, orderId: string): Cart =>
+  cart.placedOrderId === orderId ? EMPTY_CART : cart;
 
 export const itemCount = (cart: Cart): number => cart.lines.reduce((n, l) => n + l.quantity, 0);
 export const lineCount = (cart: Cart): number => cart.lines.length;
@@ -106,23 +127,20 @@ export function add(cart: Cart, line: NewLine, quantity: number): AddResult {
     const added = next - existing.quantity;
     if (added === 0) return { cart, added: 0 };
     return {
-      cart: {
-        ...cart,
-        lines: cart.lines.map((l) => (l.key === key ? { ...l, quantity: next } : l)),
-      },
+      cart: withLines(cart.lines.map((l) => (l.key === key ? { ...l, quantity: next } : l))),
       added,
     };
   }
   if (wanted === 0 || cart.lines.length >= MAX_LINES_PER_ORDER) return { cart, added: 0 };
   const added = Math.min(MAX_QTY_PER_LINE, wanted);
-  return { cart: { ...cart, lines: [...cart.lines, { ...line, key, quantity: added }] }, added };
+  return { cart: withLines([...cart.lines, { ...line, key, quantity: added }]), added };
 }
 
 /** The stepper: clamps to 1…10; a missing key changes nothing. */
 export function setQuantity(cart: Cart, key: string, quantity: number): Cart {
   if (!findLine(cart, key)) return cart;
   const next = Math.min(MAX_QTY_PER_LINE, Math.max(1, Math.floor(quantity)));
-  return { ...cart, lines: cart.lines.map((l) => (l.key === key ? { ...l, quantity: next } : l)) };
+  return withLines(cart.lines.map((l) => (l.key === key ? { ...l, quantity: next } : l)));
 }
 
 export interface RemoveResult {
@@ -135,7 +153,7 @@ export function remove(cart: Cart, key: string): RemoveResult {
   const index = cart.lines.findIndex((l) => l.key === key);
   if (index === -1) return { cart };
   return {
-    cart: { ...cart, lines: cart.lines.filter((_, i) => i !== index) },
+    cart: withLines(cart.lines.filter((_, i) => i !== index)),
     removed: { line: cart.lines[index]!, index },
   };
 }
@@ -151,5 +169,5 @@ export function restore(cart: Cart, line: CartLine, index: number): Cart {
   }
   if (cart.lines.length >= MAX_LINES_PER_ORDER) return cart;
   const at = Math.min(Math.max(0, index), cart.lines.length);
-  return { ...cart, lines: [...cart.lines.slice(0, at), line, ...cart.lines.slice(at)] };
+  return withLines([...cart.lines.slice(0, at), line, ...cart.lines.slice(at)]);
 }

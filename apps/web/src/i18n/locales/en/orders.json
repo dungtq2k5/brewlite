@@ -7,5 +7,134 @@
     "READY": "Ready — collect now",
     "COMPLETED": "Collected",
     "CANCELLED": "Cancelled"
+  },
+  "title": "My orders",
+  "loadMore": "Load more",
+  "loadMoreFailed": "Couldn't load more orders. Try again.",
+  "empty": {
+    "title": "No orders yet — your first one is a few taps away.",
+    "action": "Browse the menu"
+  },
+  "failed": {
+    "body": "We couldn't load your orders. Check your connection and try again.",
+    "retry": "Try again"
+  },
+  "row": {
+    "label": "Order #{{no}}"
+  },
+  "order": {
+    "ticket": "Order {{no}}",
+    "live": "Live",
+    "reconnecting": "Reconnecting…",
+    "note": "Your note",
+    "message": {
+      "PENDING": {
+        "title": "Waiting for payment",
+        "body": "Pay by {{time}} — or cancel if you changed your mind."
+      },
+      "PAYMENT_FAILED": {
+        "title": "Waiting for payment",
+        "body": "Pay by {{time}} — or cancel if you changed your mind."
+      },
+      "PAID": {
+        "title": "Paid — we've got it.",
+        "body": "You're in the queue. We'll show it here when it's brewing."
+      },
+      "PREPARING": {
+        "title": "Brewing",
+        "body": "Your drinks are being made now."
+      },
+      "READY": {
+        "title": "Ready — collect now",
+        "body": "#{{no}} is ready — come grab it at the counter."
+      },
+      "COMPLETED": {
+        "title": "Collected — enjoy!"
+      },
+      "CANCELLED_CUSTOMER": "You cancelled this order. Nothing was charged.",
+      "CANCELLED_EXPIRED": "This order wasn't paid in time, so we cancelled it. Nothing was charged.",
+      "CANCELLED_STAFF": "The café cancelled this order: “{{note}}”.",
+      "CANCELLED_STAFF_NO_NOTE": "The café cancelled this order."
+    },
+    "points_one": "+{{count}} point earned",
+    "points_other": "+{{count}} points earned",
+    "readyTitle": "● Ready · #{{no}} — BrewLite",
+    "refund": {
+      "PENDING": "Refund on its way — {{amount}} goes back the way you paid, usually within 5–10 days.",
+      "REFUNDED": "Refunded {{amount}} the way you paid.",
+      "FAILED": "We couldn't refund this automatically. Show order #{{no}} at the counter and we'll sort it out."
+    },
+    "cancel": {
+      "button": "Cancel order",
+      "title": "Cancel this order?",
+      "body": "#{{no}} hasn't been paid yet. Cancelling releases it — your cart stays as it is.",
+      "confirm": "Cancel order",
+      "keep": "Keep my order",
+      "invalidState": "This order can't be cancelled any more."
+    },
+    "timeline": {
+      "heading": "Progress",
+      "status": {
+        "PENDING": "Placed",
+        "PAYMENT_FAILED": "Payment failed",
+        "PAID": "Paid",
+        "PREPARING": "Brewing",
+        "READY": "Ready",
+        "COMPLETED": "Collected",
+        "CANCELLED": "Cancelled"
+      },
+      "actor": {
+        "CUSTOMER": "you",
+        "PAYMENT": "payment",
+        "STAFF": "staff",
+        "SYSTEM": "system"
+      }
+    },
+    "notFound": {
+      "title": "We can't find this order",
+      "body": "The link may be wrong, or the order belongs to another account.",
+      "orders": "My orders",
+      "menu": "Back to menu"
+    },
+    "failed": {
+      "title": "We couldn't load this order",
+      "body": "Check your connection and try again.",
+      "retry": "Try again"
+    },
+    "deadline": {
+      "payBy_one": "Pay by {{time}} · {{count}} min left",
+      "payBy_other": "Pay by {{time}} · {{count}} min left",
+      "warning_one": "{{count}} min left — the order is held until then",
+      "warning_other": "{{count}} min left — the order is held until then",
+      "passed": "Time's up",
+      "announce": "{{count}} minutes left to pay this order."
+    },
+    "pay": {
+      "title": "Pay {{amount}}",
+      "secure": "Secure · Stripe",
+      "loading": "Getting your payment ready…",
+      "fakeNote": "Test mode — no real payment. For demos and tests only.",
+      "simulateSuccess": "Simulate success",
+      "simulateFailure": "Simulate failure",
+      "confirming": {
+        "title": "Confirming your payment…",
+        "body": "This usually takes a second. You can close this page — your order is safe, and it'll be here when you come back."
+      },
+      "failed": {
+        "body": "The payment didn't go through. You weren't charged.",
+        "retry": "Try again"
+      },
+      "unavailable": "Payments are unavailable right now — try again in a moment.",
+      "closed": "Your payment session closed. Nothing was charged — start it again.",
+      "notPayable": {
+        "body": "This order wasn't paid in time, so it was cancelled. Nothing was charged — your cart is still here.",
+        "action": "Back to cart"
+      },
+      "noStripeKey": "Card payments aren't set up on this device."
+    },
+    "placed": "Placed · {{date}}",
+    "yourOrder": "Your order",
+    "items_one": "{{count}} item",
+    "items_other": "{{count}} items"
   }
 }

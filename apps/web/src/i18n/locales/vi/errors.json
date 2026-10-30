@@ -44,5 +44,12 @@
   "UPSTREAM_UNAVAILABLE": "Hiện chúng tôi chưa kết nối được. Bạn thử lại sau giây lát nhé.",
   "PAYMENT_PROVIDER_UNAVAILABLE": "Hiện chưa thanh toán được. Bạn thử lại sau giây lát nhé.",
   "UPSTREAM_TIMEOUT": "Việc này mất quá lâu. Bạn thử lại nhé.",
-  "RATE_LIMITED_other": "Bạn thử quá nhiều lần. Thử lại sau {{count}} phút nhé."
+  "RATE_LIMITED_other": "Bạn thử quá nhiều lần. Thử lại sau {{count}} phút nhé.",
+  "PROMO_CODE_INVALID_NOT_FOUND": "Không tìm thấy mã này — kiểm tra lại chính tả nhé.",
+  "PROMO_CODE_INVALID_INACTIVE": "Mã này đang tạm ngưng.",
+  "PROMO_CODE_INVALID_NOT_STARTED": "Mã này chưa bắt đầu.",
+  "PROMO_CODE_INVALID_EXPIRED": "Mã này đã hết hạn.",
+  "PROMO_CODE_INVALID_MIN_SUBTOTAL": "Chi từ {{minSubtotalVnd}} để dùng mã này.",
+  "PROMO_CODE_INVALID_EXHAUSTED": "Mã này đã hết lượt dùng.",
+  "PROMO_CODE_INVALID_PER_USER_LIMIT": "Bạn đã dùng mã này rồi."
 }

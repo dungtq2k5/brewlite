@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { parseServerEnv } from '@/config/env.schema';
+import { parsePublicEnv, parseServerEnv } from '@/config/env.schema';
+import { buildCsp, newNonce } from '@/lib/csp';
 import { clientIp } from '@/lib/client-ip';
 import { ACCESS_COOKIE, REFRESH_COOKIE, cookieSecure, maxAgeSeconds } from '@/lib/cookies';
 import { decodeJwt, secondsUntilExpiry } from '@/lib/jwt';
@@ -20,7 +21,7 @@ function forwardedCookieHeader(request: NextRequest, accessToken: string | null)
 
 /**
  * In this order (architecture §4.2): refresh the access token, send guests to sign in, gate
- * `/staff` and `/admin`. The role check is a hint — the layouts re-check, the gateway decides.
+ * `/staff` and `/admin`, then set the Content-Security-Policy. The role check is a hint — the layouts re-check, the gateway decides.
  */
 export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
@@ -73,13 +74,33 @@ export async function proxy(request: NextRequest) {
   const target = redirect ?? guestOnPrivate;
   if (target) return finish(NextResponse.redirect(new URL(target, request.url)));
 
-  // Forward the new token so this very render is signed in.
+  // 4. The Content-Security-Policy. Next reads the nonce from the *request's* header while it
+  // renders, so the policy goes on the forwarded headers as well as on the response. Redirects
+  // above carry none: they have no body to protect.
+  const requestHeaders = new Headers(request.headers);
   if (refreshed || cleared) {
-    const requestHeaders = new Headers(request.headers);
+    // Forward the new token so this very render is signed in.
     requestHeaders.set('cookie', forwardedCookieHeader(request, refreshed?.token ?? null));
-    return finish(NextResponse.next({ request: { headers: requestHeaders } }));
   }
-  return NextResponse.next();
+  const nonce = newNonce();
+  const policy = contentSecurityPolicy(nonce);
+  requestHeaders.set('x-nonce', nonce);
+  requestHeaders.set('Content-Security-Policy', policy);
+  const response = finish(NextResponse.next({ request: { headers: requestHeaders } }));
+  response.headers.set('Content-Security-Policy', policy);
+  return response;
+}
+
+function contentSecurityPolicy(nonce: string): string {
+  const server = parseServerEnv();
+  const browser = parsePublicEnv();
+  return buildCsp({
+    nonce,
+    dev: server.NODE_ENV === 'development',
+    firebaseAuthDomain: browser.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+    authEmulatorUrl: browser.NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_URL,
+    storageBaseUrl: server.STORAGE_PUBLIC_BASE_URL,
+  });
 }
 
 export const config = {

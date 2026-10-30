@@ -1,0 +1,53 @@
+{
+  "title": "Checkout",
+  "subtitle": "Pickup at the counter · pay on the next step",
+  "back": "Cart",
+  "summary": {
+    "subtotal": "Subtotal",
+    "promo": "Promo · {{code}}",
+    "total": "Total",
+    "unpriced": "—",
+    "earn_one": "You'll earn {{count}} point",
+    "earn_other": "You'll earn {{count}} points",
+    "earnLater": "Points shown once your order is priced"
+  },
+  "place": {
+    "label": "Place order · {{price}}",
+    "labelUnpriced": "Place order",
+    "placing": "Placing order…",
+    "hold": "We hold your order for {{minutes}} minutes while you pay.",
+    "blocked": "Remove or change the drink above to continue."
+  },
+  "refusal": {
+    "products_one": "{{count}} item sold out since you added it. Remove it to continue.",
+    "products_other": "{{count}} items sold out since you added them. Remove them to continue.",
+    "option": "One drink needs a change. Fix it and we'll check your order again.",
+    "stockLeft": "Only {{available}} left — lower the quantity to {{available}} or remove it.",
+    "stockNone": "None left — remove it to continue.",
+    "stockAtPlace": "Someone just took the last {{name}}. Lower the quantity or remove it, then place your order.",
+    "contended": "Busy right now — try again.",
+    "tooLow": "The minimum order is {{min}} — add a little more to check out.",
+    "tooHigh": "The maximum order is {{max}} — split it into two orders.",
+    "backToMenu": "Back to menu"
+  },
+  "failed": {
+    "title": "We couldn't price your order",
+    "body": "Check your connection and try again. Nothing was ordered or charged.",
+    "retry": "Try again",
+    "back": "Back to cart"
+  },
+  "promo": {
+    "label": "Promo code",
+    "apply": "Apply",
+    "applying": "Applying…",
+    "applied": "{{code}} · −{{amount}}",
+    "remove": "Remove"
+  },
+  "note": {
+    "label": "Note for the barista",
+    "optional": "optional",
+    "placeholder": "e.g. Less ice, less sugar",
+    "counter": "{{count}} / {{max}}"
+  },
+  "yourOrder": "Your order"
+}

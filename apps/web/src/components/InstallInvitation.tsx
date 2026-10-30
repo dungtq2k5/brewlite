@@ -34,7 +34,9 @@ const remember = () => {
  * tracking page after the first `COMPLETED` order. Android defers
  * `beforeinstallprompt`; iOS gets the two-step Share instruction. One dismissal hides it for good.
  */
-export function InstallInvitation() {
+export function InstallInvitation({
+  variant = 'sheet',
+}: Readonly<{ variant?: 'sheet' | 'inline' }>) {
   const { t } = useTranslation('pwa');
   const [prompt, setPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [closed, setClosed] = useState(false);
@@ -66,7 +68,11 @@ export function InstallInvitation() {
   return (
     <section
       aria-labelledby="install-title"
-      className="bg-base-100 border-base-300 rounded-box fixed inset-x-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-40 border p-5 shadow-xl"
+      className={`bg-base-100 border-base-300 rounded-box border p-5 ${
+        variant === 'sheet'
+          ? 'fixed inset-x-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-40 shadow-xl'
+          : ''
+      }`}
     >
       <h2 id="install-title" className="text-lg font-semibold">
         {t(ios ? 'installIos.title' : 'install.title')}

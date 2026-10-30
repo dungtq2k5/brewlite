@@ -41,7 +41,8 @@ test('a guest at /checkout is sent to sign in and comes back', async ({ page }) 
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await expect(page).toHaveURL(/\/checkout$/); // the page itself arrives in a later doc: a 404 is fine
+  // An empty cart has nothing to check out, so the checkout sends it on to the cart.
+  await expect(page).toHaveURL(/\/(checkout|cart)$/);
 });
 
 test('a hostile next never leaves the site', async ({ page }) => {

@@ -37,7 +37,7 @@
       "label": "Thêm vào giỏ · {{price}}",
       "adding": "Đang thêm…",
       "soldOut": "Hôm nay hết món",
-      "full": "Giỏ hàng đã đầy — tối đa {{max}} món. Hãy thanh toán hoặc bỏ bớt một món."
+      "full": "Giỏ đã đầy — tối đa {{max}} món khác nhau. Hãy thanh toán hoặc bỏ bớt một món."
     },
     "soldOutNote": "Hôm nay hết món rồi — mai quay lại nhé.",
     "toast": {

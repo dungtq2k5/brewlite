@@ -9,6 +9,19 @@ test('the guest header: logo, language, cart, sign in', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Menu' })).toBeVisible();
 });
 
+test('every page carries a Content-Security-Policy with a fresh nonce', async ({ request }) => {
+  const nonce = async () => {
+    const res = await request.get('/');
+    const policy = res.headers()['content-security-policy'] ?? '';
+    expect(policy).toContain("script-src 'self' 'nonce-");
+    expect(policy).toContain("frame-ancestors 'none'");
+    return /'nonce-([^']+)'/.exec(policy)?.[1];
+  };
+  const first = await nonce();
+  expect(first).toBeTruthy();
+  expect(await nonce()).not.toBe(first);
+});
+
 test('the wordmark is gone below 380 px and the symbol keeps the home link', async ({
   page,
 }, info) => {
@@ -25,14 +38,32 @@ test('the wordmark is gone below 380 px and the symbol keeps the home link', asy
 test('every control is at least 44 px', async ({ page }) => {
   await page.goto('/');
   for (const locator of [
-    page.getByRole('button', { name: 'English' }),
-    page.getByRole('button', { name: 'Tiếng Việt' }),
     page.getByRole('link', { name: 'Cart', exact: true }),
     page.getByRole('link', { name: 'Sign in' }),
   ]) {
     const box = await locator.boundingBox();
     expect(box!.height).toBeGreaterThanOrEqual(43.5);
     expect(box!.width).toBeGreaterThanOrEqual(43.5);
+  }
+});
+
+test('the language switch is the compact pill of the design, with a 44 px hit area', async ({
+  page,
+}) => {
+  await page.goto('/');
+  const pill = page.getByRole('group', { name: 'Language' });
+  const box = (await pill.boundingBox())!;
+  expect(box.height).toBeLessThanOrEqual(40); // frame 55:4679: a 38 px pill
+  expect(box.width).toBeLessThanOrEqual(80);
+  const vi = page.getByRole('button', { name: 'Tiếng Việt' });
+  const target = (await vi.boundingBox())!;
+  // 22 px above and below the segment's centre is still the segment: a 44 px target.
+  for (const dy of [-21, 21]) {
+    const hit = await page.evaluate(
+      ([x, y]) => document.elementFromPoint(x!, y!)?.getAttribute('aria-label'),
+      [target.x + target.width / 2, target.y + target.height / 2 + dy],
+    );
+    expect(hit).toBe('Tiếng Việt');
   }
 });
 

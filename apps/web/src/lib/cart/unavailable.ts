@@ -35,10 +35,13 @@ export function unavailableText(
       if (reason.reason === 'TOO_MANY_TOPPINGS') {
         return t('cart:unavailable.OPTION_INVALID_TOO_MANY_TOPPINGS');
       }
-      // The API names no topping, so without one given the line's own toppings stand in.
-      return t('cart:unavailable.OPTION_INVALID_TOPPING', {
-        topping:
-          reason.toppingName ?? line.toppings.map((tp) => localized(tp.name, locale)).join(', '),
-      });
+      // The API names no topping. Name one only when it can only be that one — the reason's own
+      // `toppingName`, or the line's single topping; otherwise say so without a name.
+      if (reason.toppingName !== undefined || line.toppings.length === 1) {
+        return t('cart:unavailable.OPTION_INVALID_TOPPING', {
+          topping: reason.toppingName ?? localized(line.toppings[0]!.name, locale),
+        });
+      }
+      return t('cart:unavailable.OPTION_INVALID_TOPPING_UNNAMED');
   }
 }

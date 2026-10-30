@@ -143,7 +143,9 @@ test.describe('the 20-line limit', () => {
     const espresso = products.find((p) => p.name.en === 'Espresso')!;
     await page.goto(`/products/${espresso.id}`);
     await expect(
-      page.getByText('Your cart is full — 20 items is the most. Check out or remove one first.'),
+      page.getByText(
+        'Your cart is full — 20 different drinks is the most. Check out or remove one first.',
+      ),
     ).toBeVisible();
     await expect(page.getByRole('button', { name: /^Add to cart/ })).toBeDisabled();
 

@@ -2,37 +2,20 @@
 
 import { ChevronLeft, ShoppingBag } from 'lucide-react';
 import Link from 'next/link';
-import { Fragment, useCallback, useState } from 'react';
+import { Fragment } from 'react';
 import { useTranslation } from 'react-i18next';
-import { totalVnd, type CartLine as Line } from '@/lib/cart/cart';
+import { totalVnd } from '@/lib/cart/cart';
 import { useCart } from '@/lib/cart/CartProvider';
 import { CartLine } from './CartLine';
 import { CartSummary } from './CartSummary';
 import { UndoRow } from './UndoRow';
-
-interface Removed {
-  line: Line;
-  index: number;
-}
+import { useUndoableRemove } from './useUndoableRemove';
 
 /** `/cart`: the lines from the device, no API call (ADR 0029). The server only says who is looking. */
 export function CartView({ signedIn }: Readonly<{ signedIn: boolean }>) {
   const { t } = useTranslation(['cart', 'menu', 'common']);
-  const { cart, ready, itemCount, setQuantity, remove, restore } = useCart();
-  // One *Undo* at a time: removing a second line lets the first go for good.
-  const [removed, setRemoved] = useState<Removed | null>(null);
-
-  const expire = useCallback(() => setRemoved(null), []);
-
-  const onRemove = (key: string) => {
-    const result = remove(key);
-    if (result.removed) setRemoved(result.removed);
-  };
-  const onUndo = () => {
-    if (!removed) return;
-    restore(removed.line, removed.index);
-    setRemoved(null);
-  };
+  const { cart, ready, itemCount, setQuantity } = useCart();
+  const { removed, onRemove, onUndo, expire } = useUndoableRemove();
 
   const back = (
     <Link href="/" className="inline-flex min-h-11 items-center gap-1 text-sm font-medium">

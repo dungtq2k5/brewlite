@@ -6,6 +6,8 @@ export const publicEnvSchema = z.object({
   NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: z.string().min(1),
   NEXT_PUBLIC_FIREBASE_PROJECT_ID: z.string().min(1),
   NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_URL: z.string().optional(),
+  /** Optional: the fake payment provider needs none; only a `STRIPE` payment mounts Stripe's form. */
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().startsWith('pk_').optional(),
   NEXT_PUBLIC_APPLE_SIGN_IN_ENABLED: z
     .enum(['true', 'false'])
     .default('false')
@@ -15,6 +17,8 @@ export const publicEnvSchema = z.object({
 export const serverEnvSchema = z.object({
   /** The gateway's origin plus its prefix; server only (architecture §4.2). */
   API_URL: z.url(),
+  /** The origin product photos load from (the CSP's `img-src`) — the same value catalog serves. */
+  STORAGE_PUBLIC_BASE_URL: z.url(),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
 });
 
@@ -33,6 +37,7 @@ export function parsePublicEnv(): PublicEnv {
     NEXT_PUBLIC_FIREBASE_PROJECT_ID: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
     NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_URL:
       process.env.NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_URL || undefined,
+    NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || undefined,
     NEXT_PUBLIC_APPLE_SIGN_IN_ENABLED: process.env.NEXT_PUBLIC_APPLE_SIGN_IN_ENABLED || undefined,
   });
 }
@@ -40,6 +45,7 @@ export function parsePublicEnv(): PublicEnv {
 export function parseServerEnv(): ServerEnv {
   return serverEnvSchema.parse({
     API_URL: process.env.API_URL,
+    STORAGE_PUBLIC_BASE_URL: process.env.STORAGE_PUBLIC_BASE_URL,
     NODE_ENV: process.env.NODE_ENV,
   });
 }

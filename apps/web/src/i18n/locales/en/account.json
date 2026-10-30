@@ -1,0 +1,38 @@
+{
+  "title": "Account",
+  "profile": {
+    "heading": "Profile",
+    "name": "Full name",
+    "nameHelp": "Up to 100 characters",
+    "email": "Email",
+    "emailLocked": "Your email can't be changed",
+    "language": "Language",
+    "languageSaved": "Saved to your account",
+    "save": "Save changes",
+    "saved": "Saved",
+    "failed": "Couldn't save your name. Try again."
+  },
+  "points": {
+    "heading_one": "{{count}} point",
+    "heading_other": "{{count}} points",
+    "lifetime": "Lifetime earned",
+    "rule": "1 point for every {{step}} paid.",
+    "recent": "Recent",
+    "none": "No points yet — your first paid order starts them.",
+    "earned": "Earned on order #{{no}}",
+    "reversed": "Reversed — order #{{no}} refunded",
+    "redeemed": "Used on order #{{no}}",
+    "returned": "Returned — order #{{no}} cancelled"
+  },
+  "signIn": {
+    "heading": "Sign-in",
+    "google": "You sign in with Google",
+    "password": "Email and password",
+    "later": "Password changes are coming later."
+  },
+  "failed": {
+    "title": "We couldn't load your account",
+    "body": "Check your connection and try again.",
+    "retry": "Try again"
+  }
+}

@@ -47,7 +47,14 @@ export function parseCart(raw: string | null): Cart {
     const lines = parsed.lines;
     if (lines.length > MAX_LINES_PER_ORDER || !lines.every(isLine)) return EMPTY_CART;
     if (new Set(lines.map((l) => l.key)).size !== lines.length) return EMPTY_CART;
-    return { v: 1, lines };
+    if (parsed.placedOrderId !== undefined && typeof parsed.placedOrderId !== 'string') {
+      return EMPTY_CART;
+    }
+    return {
+      v: 1,
+      lines,
+      ...(parsed.placedOrderId !== undefined && { placedOrderId: parsed.placedOrderId }),
+    };
   } catch {
     return EMPTY_CART;
   }
@@ -88,6 +95,7 @@ export function createCartStorage(getStorage: () => StorageLike | null = browser
       try {
         const storage = getStorage();
         if (!storage) return false;
+        // An empty cart is no cart — even one that was marked as placed.
         if (cart.lines.length === 0) storage.removeItem(CART_STORAGE_KEY);
         else storage.setItem(CART_STORAGE_KEY, JSON.stringify(cart));
         return true;
