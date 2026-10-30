@@ -9,6 +9,7 @@ import { isZodDto, type ZodDto } from 'nestjs-zod/dto';
 import { map, type Observable } from 'rxjs';
 import { z, type ZodType } from 'zod';
 import { Paged } from './paged.js';
+import { WithMeta } from './with-meta.js';
 
 const ZOD_SERIALIZER_DTO_OPTIONS = 'ZOD_SERIALIZER_DTO_OPTIONS';
 
@@ -41,6 +42,9 @@ export class ResponseValidationInterceptor implements NestInterceptor {
       map((value) => {
         if (value instanceof Paged) {
           return value.withItems(this.validate(schema, value.items) as unknown[]);
+        }
+        if (value instanceof WithMeta) {
+          return WithMeta.of(this.validate(schema, value.data), value.meta);
         }
         return this.validate(schema, value);
       }),

@@ -14,6 +14,7 @@ export * from './grpc/caller.js';
 export * from './http/request-id.middleware.js';
 export * from './http/path-aware-helmet.js';
 export * from './http/paged.js';
+export * from './http/with-meta.js';
 export * from './http/response-envelope.interceptor.js';
 export * from './http/skip-envelope.decorator.js';
 export * from './http/response-validation.interceptor.js';

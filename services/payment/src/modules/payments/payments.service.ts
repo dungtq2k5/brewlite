@@ -16,6 +16,8 @@ import type {
   GetPaymentRequest,
   GetPaymentResponse,
   Payment,
+  ListPaymentsForOrderRequest,
+  ListPaymentsForOrderResponse,
 } from '@brewlite/contracts/generated/brewlite/payment/payment_service.js';
 import type { Env } from '../../config/env.schema.js';
 import type { Payment as PaymentRow } from '../../../generated/prisma/client.js';
@@ -30,6 +32,9 @@ import {
 } from '../../providers/payment/payment-provider.interface.js';
 
 const TRANSACTION_TIMEOUT_MS = 10_000;
+
+/** An order's payments, newest first: a ceiling, since an order has a handful of attempts. */
+const MAX_PAYMENTS_LISTED = 50;
 
 @Injectable()
 export class PaymentsService {
@@ -117,6 +122,23 @@ export class PaymentsService {
     const payment = await this.prisma.payment.findFirst({ where: { id: request.id, userId } });
     if (!payment) throw rpcError('RESOURCE_NOT_FOUND', { resource: 'PAYMENT' });
     return { payment: await this.present(payment) };
+  }
+
+  /**
+   * Every payment of one order, newest first — the admin's view, so no ownership scope (the
+   * gateway's `order.read.all` is the gate). `clientSecret` is always absent: an admin never
+   * mounts a checkout, and the secret is never read here (conventions §9.3). An order has a
+   * handful of attempts; the `take` is a ceiling, not a page.
+   */
+  async listPaymentsForOrder(
+    request: ListPaymentsForOrderRequest,
+  ): Promise<ListPaymentsForOrderResponse> {
+    const rows = await this.prisma.payment.findMany({
+      where: { orderId: request.orderId },
+      orderBy: { id: 'desc' },
+      take: MAX_PAYMENTS_LISTED,
+    });
+    return { payments: rows.map((row) => toProtoPayment(row)) };
   }
 
   /** A `PENDING` Stripe payment's client secret is re-read from the session, never stored (conventions §9.3). */

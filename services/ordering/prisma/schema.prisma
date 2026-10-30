@@ -41,6 +41,8 @@ model Order {
 
   @@unique([userId, idempotencyKey], map: "orders_user_idempotency_key")
   @@index([userId, id(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+  @@index([paidAt])
   @@map("orders")
 }
 
