@@ -88,6 +88,39 @@ async function check(files: string[]): Promise<Violation[]> {
   return violations;
 }
 
+/**
+ * Turbo's strict env mode hands a task only the variables `turbo.json` declares, and `next build`
+ * validates `serverEnvSchema` in its page-data step: a required web server variable missing from
+ * `globalPassThroughEnv` passes every test and breaks only the Docker build. Entries match exactly
+ * or by a trailing `*`.
+ */
+export function missingPassThrough(required: string[], passThrough: string[]): string[] {
+  const covers = (entry: string, key: string) =>
+    entry.endsWith('*') ? key.startsWith(entry.slice(0, -1)) : entry === key;
+  return required.filter((key) => !passThrough.some((entry) => covers(entry, key)));
+}
+
+const WEB_SCHEMA = 'apps/web/src/config/env.schema.ts';
+
+async function webBuildEnvViolations(passThrough: string[]): Promise<Violation[]> {
+  const mod = (await import(pathToFileURL(join(REPO_ROOT, WEB_SCHEMA)).href)) as {
+    serverEnvSchema: ZodObject;
+  };
+  // Required = no `.optional()`, no `.default()`: parsing `undefined` fails.
+  const required = Object.entries(mod.serverEnvSchema.shape)
+    .filter(([, schema]) => !schema.safeParse(undefined).success)
+    .map(([key]) => key);
+  return missingPassThrough(required, passThrough).map((key) => ({
+    file: WEB_SCHEMA,
+    line: 1,
+    message: `${key} is required by apps/web serverEnvSchema but not in turbo.json globalPassThroughEnv — next build would fail`,
+  }));
+}
+
+const turboPassThrough = (): string[] =>
+  (JSON.parse(readRepoFile('turbo.json')) as { globalPassThroughEnv?: string[] })
+    .globalPassThroughEnv ?? [];
+
 const written: string[] = [];
 
 afterEach(() => {
@@ -154,5 +187,35 @@ describe('env-contract', () => {
         (v) => v.message.includes('ONLY_IN_EXAMPLE') && v.message.includes('envSchema'),
       ),
     ).toBe(true);
+  });
+
+  it('every required web server variable reaches `next build` through turbo.json', async () => {
+    expect(await webBuildEnvViolations(turboPassThrough())).toEqual([]);
+  });
+
+  it('names the variable and turbo.json when one is not passed through', async () => {
+    const without = turboPassThrough().filter((entry) => entry !== 'STORAGE_PUBLIC_BASE_URL');
+    const violations = await webBuildEnvViolations(without);
+    expect(violations).toHaveLength(1);
+    expect(violations[0]!.message).toContain('STORAGE_PUBLIC_BASE_URL');
+    expect(violations[0]!.message).toContain('turbo.json');
+  });
+});
+
+describe('missingPassThrough', () => {
+  it('accepts an exact entry and a trailing-* wildcard', () => {
+    expect(
+      missingPassThrough(['API_URL', 'DATABASE_URL_TEST'], ['API_URL', 'DATABASE_URL*']),
+    ).toEqual([]);
+  });
+
+  it('returns what no entry covers', () => {
+    expect(missingPassThrough(['API_URL', 'OTHER'], ['API_URL', 'DATABASE_URL*'])).toEqual([
+      'OTHER',
+    ]);
+  });
+
+  it('does not treat a prefix without * as a match', () => {
+    expect(missingPassThrough(['API_URL_X'], ['API_URL'])).toEqual(['API_URL_X']);
   });
 });
