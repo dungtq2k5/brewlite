@@ -46,6 +46,8 @@ message OrderHistoryEntry {
   string actor_type = 3;
   optional string note = 4;
   string created_at = 5;
+  // O-3 `actor_user_id`: the customer or staff member. Only the admin detail route shows it.
+  optional string actor_user_id = 6;
 }
 
 message QuoteRequest {

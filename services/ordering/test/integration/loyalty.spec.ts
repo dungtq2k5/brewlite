@@ -107,4 +107,18 @@ describe('LoyaltyService — real DB', () => {
       points: 5,
     });
   });
+
+  it('GetLoyaltyForUser is the same ledger, read by any caller; an id with no rows is zeros', async () => {
+    const userId = newId();
+    const order = await seedOrder(userId, 52_200);
+    await prisma.$transaction((tx) => loyalty.earn(tx, order));
+
+    expect(await loyalty.getLoyaltyForUser(userId)).toEqual(await loyalty.getMyLoyalty(userId));
+    expect((await loyalty.getLoyaltyForUser(userId)).balance).toBe(5);
+    expect(await loyalty.getLoyaltyForUser(newId())).toEqual({
+      balance: 0,
+      lifetimeEarned: 0,
+      recent: [],
+    });
+  });
 });

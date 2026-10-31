@@ -3,6 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import { BaseGrpcClient, type Caller } from '@brewlite/nest-common';
 import { ORDERING_PROTO_FILES, PROTO_ROOT } from '@brewlite/contracts/proto-paths.js';
 import type {
+  GetStaffStatsRequest,
+  GetStaffStatsResponse,
   SalesReportRequest,
   SalesReportResponse,
 } from '@brewlite/contracts/generated/brewlite/ordering/report_service.js';
@@ -32,5 +34,13 @@ export class ReportGrpcClient extends BaseGrpcClient {
       caller,
       deadlineMs: SALES_REPORT_DEADLINE_MS,
     });
+  }
+
+  getStaffStats(
+    caller: Caller,
+    request: GetStaffStatsRequest,
+    requestId?: string,
+  ): Promise<GetStaffStatsResponse> {
+    return this.call('getStaffStats', request, { requestId, caller });
   }
 }

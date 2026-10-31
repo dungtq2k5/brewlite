@@ -3,6 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import { BaseGrpcClient, type Caller } from '@brewlite/nest-common';
 import { ORDERING_PROTO_FILES, PROTO_ROOT } from '@brewlite/contracts/proto-paths.js';
 import type {
+  GetLoyaltyForUserRequest,
+  GetLoyaltyForUserResponse,
   GetMyLoyaltyRequest,
   GetMyLoyaltyResponse,
 } from '@brewlite/contracts/generated/brewlite/ordering/promotion_service.js';
@@ -25,5 +27,13 @@ export class LoyaltyGrpcClient extends BaseGrpcClient {
     requestId?: string,
   ): Promise<GetMyLoyaltyResponse> {
     return this.call('getMyLoyalty', request, { requestId, caller });
+  }
+
+  getLoyaltyForUser(
+    caller: Caller,
+    request: GetLoyaltyForUserRequest,
+    requestId?: string,
+  ): Promise<GetLoyaltyForUserResponse> {
+    return this.call('getLoyaltyForUser', request, { requestId, caller });
   }
 }

@@ -31,6 +31,7 @@ export class AdminOrdersService {
       from: request.from,
       to: request.to,
       orderNo: request.orderNo,
+      userId: request.userId,
     });
     if (!parsed.success) {
       throw rpcError('VALIDATION_FAILED', {
@@ -48,6 +49,7 @@ export class AdminOrdersService {
     const where: Prisma.OrderWhereInput = {
       ...(q.status !== undefined && { status: q.status }),
       ...(q.orderNo !== undefined && { orderNo: BigInt(q.orderNo) }),
+      ...(q.userId !== undefined && { userId: q.userId }),
       ...(Object.keys(createdAt).length > 0 && { createdAt }),
     };
 

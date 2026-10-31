@@ -4,6 +4,7 @@ import {
   MAX_PAGE_SIZE,
   ORDER_STATUSES,
   zBusinessDay,
+  zUuidV7,
 } from '@brewlite/contracts';
 
 /** The columns an admin can sort the order list by (api-endpoints-plan §3.4). */
@@ -22,6 +23,7 @@ export interface RawListOrders {
   from?: string;
   to?: string;
   orderNo?: string;
+  userId?: string;
 }
 
 const zListOrders = z
@@ -37,6 +39,7 @@ const zListOrders = z
       .string()
       .regex(/^[1-9]\d{0,17}$/)
       .optional(),
+    userId: zUuidV7.optional(),
   })
   .refine((q) => q.from === undefined || q.to === undefined || q.from <= q.to, {
     message: 'from is after to',
@@ -58,6 +61,7 @@ export function parseListOrders(raw: RawListOrders) {
     from: raw.from,
     to: raw.to,
     orderNo: raw.orderNo,
+    userId: raw.userId,
   });
   if (!result.success) return result;
   const descending = result.data.sort.startsWith('-');

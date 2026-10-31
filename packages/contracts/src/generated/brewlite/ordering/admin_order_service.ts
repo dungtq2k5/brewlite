@@ -27,7 +27,11 @@ export interface ListOrdersRequest {
     | string
     | undefined;
   /** int64 as a string (conventions §5.1) */
-  orderNo?: string | undefined;
+  orderNo?:
+    | string
+    | undefined;
+  /** one customer's orders */
+  userId?: string | undefined;
 }
 
 /** Each order is the `Order` without `history`, as /orders/me returns it. */

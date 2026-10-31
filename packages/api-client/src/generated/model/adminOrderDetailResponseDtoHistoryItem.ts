@@ -13,4 +13,8 @@ export type AdminOrderDetailResponseDtoHistoryItem = {
   /** @nullable */
   note: string | null;
   createdAt: string;
+  /** @nullable */
+  actorUserId: string | null;
+  /** @nullable */
+  actorName: string | null;
 };

@@ -1226,6 +1226,14 @@
               "exclusiveMinimum": 0,
               "type": "integer"
             }
+          },
+          {
+            "name": "userId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -1325,7 +1333,7 @@
                           "type": "array",
                           "items": {
                             "type": "string",
-                            "enum": ["payment"]
+                            "enum": ["payment", "identity"]
                           }
                         }
                       }
@@ -1462,6 +1470,146 @@
           }
         ],
         "tags": ["AdminReports"]
+      }
+    },
+    "/admin/users/{id}/loyalty": {
+      "get": {
+        "operationId": "AdminUserActivityController_loyalty",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/LoyaltyResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "example": "VALIDATION_FAILED"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": ["AdminUserActivity"]
+      }
+    },
+    "/admin/users/{id}/staff-stats": {
+      "get": {
+        "operationId": "AdminUserActivityController_staffStats",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/StaffStatsResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "example": "VALIDATION_FAILED"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": ["AdminUserActivity"]
       }
     },
     "/categories": {
@@ -6113,9 +6261,23 @@
                 },
                 "createdAt": {
                   "type": "string"
+                },
+                "actorUserId": {
+                  "type": ["string", "null"]
+                },
+                "actorName": {
+                  "type": ["string", "null"]
                 }
               },
-              "required": ["fromStatus", "toStatus", "actorType", "note", "createdAt"]
+              "required": [
+                "fromStatus",
+                "toStatus",
+                "actorType",
+                "note",
+                "createdAt",
+                "actorUserId",
+                "actorName"
+              ]
             }
           },
           "payments": {
@@ -6262,6 +6424,86 @@
           }
         },
         "required": ["days", "topProducts"]
+      },
+      "LoyaltyResponseDto": {
+        "type": "object",
+        "properties": {
+          "balance": {
+            "type": "number"
+          },
+          "lifetimeEarned": {
+            "type": "number"
+          },
+          "recent": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "orderId": {
+                  "type": "string"
+                },
+                "orderNo": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": ["EARN", "EARN_REVERSED", "REDEEM", "REDEEM_RETURNED"]
+                },
+                "points": {
+                  "type": "number"
+                },
+                "at": {
+                  "type": "string"
+                }
+              },
+              "required": ["orderId", "orderNo", "kind", "points", "at"]
+            }
+          }
+        },
+        "required": ["balance", "lifetimeEarned", "recent"]
+      },
+      "StaffStatsResponseDto": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          },
+          "ordersHandled": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "transitions": {
+            "type": "object",
+            "properties": {
+              "PREPARING": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "READY": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "COMPLETED": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "CANCELLED": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": ["PREPARING", "READY", "COMPLETED", "CANCELLED"]
+          }
+        },
+        "required": ["from", "to", "ordersHandled", "transitions"]
       },
       "CategoryResponseDto": {
         "type": "object",
@@ -7579,43 +7821,6 @@
           }
         },
         "additionalProperties": false
-      },
-      "LoyaltyResponseDto": {
-        "type": "object",
-        "properties": {
-          "balance": {
-            "type": "number"
-          },
-          "lifetimeEarned": {
-            "type": "number"
-          },
-          "recent": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "orderId": {
-                  "type": "string"
-                },
-                "orderNo": {
-                  "type": "string"
-                },
-                "kind": {
-                  "type": "string",
-                  "enum": ["EARN", "EARN_REVERSED", "REDEEM", "REDEEM_RETURNED"]
-                },
-                "points": {
-                  "type": "number"
-                },
-                "at": {
-                  "type": "string"
-                }
-              },
-              "required": ["orderId", "orderNo", "kind", "points", "at"]
-            }
-          }
-        },
-        "required": ["balance", "lifetimeEarned", "recent"]
       },
       "AdvanceStatusDto": {
         "type": "object",

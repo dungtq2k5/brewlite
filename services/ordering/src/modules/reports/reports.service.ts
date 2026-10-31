@@ -1,12 +1,19 @@
 import { Injectable } from '@nestjs/common';
-import { businessDayRange, listBusinessDays } from '@brewlite/contracts';
+import {
+  businessDayRange,
+  listBusinessDays,
+  OrderActorType,
+  OrderStatus,
+} from '@brewlite/contracts';
 import { rpcError } from '@brewlite/nest-common';
 import type {
+  GetStaffStatsRequest,
+  GetStaffStatsResponse,
   SalesReportRequest,
   SalesReportResponse,
 } from '@brewlite/contracts/generated/brewlite/ordering/report_service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { parseSalesRange } from './domain/sales-range.js';
+import { parseSalesRange, parseStaffStats } from './domain/sales-range.js';
 
 /** The report shows this many products (api-endpoints-plan §3.4; the MVP's answer to "top N"). */
 const TOP_PRODUCTS = 10;
@@ -80,6 +87,42 @@ export class ReportsService {
         qty: row.qty,
         revenueVnd: row.revenue_vnd.toString(),
       })),
+    };
+  }
+
+  /**
+   * What O-3 answers exactly: the `STAFF` rows of one user in the range — orders handled (distinct)
+   * and the transitions by status. Anyone who moved an order has numbers (an admin at the counter
+   * is recorded as `STAFF` too); a customer, or a user who moved nothing, has zeros.
+   */
+  async getStaffStats(request: GetStaffStatsRequest): Promise<GetStaffStatsResponse> {
+    const parsed = parseStaffStats(request);
+    if (!parsed.ok) throw rpcError('VALIDATION_FAILED', { issues: parsed.issues });
+    const { from, to } = parsed.range;
+    const { start, end } = businessDayRange(from, to);
+    const where = {
+      actorType: OrderActorType.STAFF,
+      actorUserId: parsed.userId,
+      createdAt: { gte: start, lt: end },
+    };
+
+    const [byStatus, orders] = await Promise.all([
+      this.prisma.orderStatusHistory.groupBy({ by: ['toStatus'], where, _count: { _all: true } }),
+      // ponytail: one row per handled order; a counter's volume, switch to COUNT(DISTINCT) in SQL if it grows
+      this.prisma.orderStatusHistory.groupBy({ by: ['orderId'], where }),
+    ]);
+    const count = (status: OrderStatus) =>
+      byStatus.find((row) => row.toStatus === status)?._count._all ?? 0;
+    return {
+      from,
+      to,
+      ordersHandled: orders.length,
+      transitions: {
+        preparing: count(OrderStatus.PREPARING),
+        ready: count(OrderStatus.READY),
+        completed: count(OrderStatus.COMPLETED),
+        cancelled: count(OrderStatus.CANCELLED),
+      },
     };
   }
 }

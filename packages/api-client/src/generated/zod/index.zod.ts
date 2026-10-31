@@ -3,6 +3,7 @@ export * from './admin-orders/admin-orders.zod.js';
 export * from './admin-products/admin-products.zod.js';
 export * from './admin-reports/admin-reports.zod.js';
 export * from './admin-toppings/admin-toppings.zod.js';
+export * from './admin-user-activity/admin-user-activity.zod.js';
 export * from './admin-users/admin-users.zod.js';
 export * from './auth/auth.zod.js';
 export * from './categories/categories.zod.js';
