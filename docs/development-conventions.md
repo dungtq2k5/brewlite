@@ -515,9 +515,9 @@ Every durable consumer is a `JetStreamConsumer` subclass, started from the servi
 
 [ADR 0014](./decisions/0014-the-web-server-is-the-gateways-only-client.md) · [ADR 0015](./decisions/0015-nextjs-server-features-replace-client-data-libraries.md).
 
-- Data is read in **Server Components** and written in **Server Actions**, through the Orval-generated client in `packages/api-client`. **MUST NOT** hand-write a `fetch` to the API — the one exception is the SSE Route Handlers, which stream a body the generated client cannot — and **MUST NOT** import the client into a Client Component — its mutator imports `server-only`, so doing so fails the build.
-- The mutator reads `bl_at` from `cookies()`, sets `Authorization`, `X-Request-Id` and `X-Forwarded-For`, and prefixes `API_URL`.
-- Every API read is `cache: 'no-store'`. The web app caches no API data (architecture §2.6).
+- Data is read in **Server Components** and written in **Server Actions**, through the Orval-generated client in `packages/api-client`. **MUST NOT** hand-write a `fetch` to the API — three exceptions: the SSE Route Handlers, which stream a body the generated client cannot; `proxy.ts`'s session refresh, which runs before the request scope the client reads its headers from; and the development-only `fake-confirm` Server Action, whose route is left out of OpenAPI on purpose so the generated client never offers it. The two in the request scope share the client's headers (`lib/request-headers.ts`) — and **MUST NOT** import the client into a Client Component — its mutator imports `server-only`, so doing so fails the build.
+- `configureApiClient`'s headers read `bl_at` from `cookies()` and set `Authorization`, `X-Request-Id` and `X-Forwarded-For` — the **rightmost** incoming entry, which only Caddy can have written ([ADR 0033](./decisions/0033-browsers-reach-the-web-app-only-through-caddy-which-sets-the-client-address.md)) — and the base URL is `API_URL`.
+- Every API read is `cache: 'no-store'`. The web app caches no API data (architecture §2.6). A list of links to pages that call the gateway (the menu's product cards) uses `prefetch={false}`: Next would otherwise prefetch every one, one public gateway call each, against `PUBLIC_READ`'s 120 per minute per address.
 - A Server Action returns `{ ok: true, data } | { ok: false, code, details }` — never throws an API error into the UI. The page renders `code` through `t('errors:<CODE>', details)` (§11.6).
 - **Cookies are set only** in `proxy.ts` (refresh) and in the sign-in / sign-out Server Actions — never in a Server Component, where setting one silently does nothing.
 - A Server Action that places an order or starts a payment receives the idempotency key **from the client** (generated with `newId()` when the button is tapped, kept in component state across retries) — never generates it itself, or every retry is a new intent.
@@ -527,7 +527,7 @@ Every durable consumer is a `JetStreamConsumer` subclass, started from the servi
 - The cart is the only client state that outlives a page: `CartProvider` in the `(customer)` layout, persisted to `localStorage` behind `try/catch`.
 - **MUST NOT** copy server data into client state "to cache it". Need it again? Render it on the server again.
 - The cart's total is a preview. The checkout page **MUST** display the server's quote.
-- The cart is cleared only when the order is seen `PAID`.
+- The cart is cleared only when the order it was placed as is seen paid — and only if it was not edited since (architecture §4.3).
 
 ### 11.3 Pages and components
 
@@ -535,6 +535,7 @@ Every durable consumer is a `JetStreamConsumer` subclass, started from the servi
 - Every page that loads data has a `loading.tsx` and an `error.tsx`; every list has an empty state.
 - Role-gated sections check the role in their `layout.tsx` on the server. `proxy.ts` redirects early, but the layout is the gate, and the gateway is the real authorization.
 - DaisyUI classes first; custom CSS only when DaisyUI and Tailwind utilities cannot express it.
+- **MUST NOT** pre-render a page statically under the proxy's matcher: its scripts would carry no CSP nonce and be blocked (architecture §4.2). The web e2e suite fails a test on any CSP violation, so a new third-party script or host shows up there first.
 
 ### 11.4 Accessibility
 
@@ -668,7 +669,7 @@ When `NODE_ENV === 'production'`: the error filter returns a generic message for
 | **Contract** | a gRPC server and a real client over the generated code | in-process server, `_test` | `services/<svc>/test/contract/` |
 | **Gateway e2e** | markers, validation, envelope, error mapping, raw webhook body | gRPC peers, the rate limiter's Redis client and the SSE event source stubbed by `createE2eApp` — **no infrastructure**, so it runs in `pnpm test` before anything is started | `services/gateway/test/e2e/` |
 | **Gateway integration** | real rate limiting, the real ordered consumer behind SSE | Redis database 14, the test broker | `services/gateway/test/integration/`, run by `test:integration` |
-| **Web e2e** *(P1)* | J1 end to end | Playwright against Compose, fake payments | `apps/web/e2e/` |
+| **Web e2e** | each web screen's behaviour and states; J1 end to end once checkout exists | Playwright against the running stack, fake payments; selectors by role and accessible name, never CSS classes | `apps/web/e2e/` |
 
 ### 16.2 Rules
 
@@ -701,12 +702,12 @@ A guard spec turns a repo-wide rule into a failing test. Guards live in `package
 | `adr-structure.spec.ts` | every ADR matches `docs/decisions/TEMPLATE.md` and has a row in `docs/README.md` |
 | `archive-references.spec.ts` | no markdown file links into `docs/archive/`; no other tracked file names it or cites an implementation doc |
 | `module-files.spec.ts` | every file under `services/*/src/modules/` has a known role; `domain/` imports no Nest or Prisma; no `*.repository.ts` |
-| `env-contract.spec.ts` | the env schema, `.env.example` and architecture §10 list the same variables |
+| `env-contract.spec.ts` | the env schema, `.env.example` and architecture §10 list the same variables — every service, and `apps/web`; and every **required** variable of `apps/web`'s `serverEnvSchema` is in `turbo.json`'s `globalPassThroughEnv` (exactly or by a trailing `*`) — otherwise `next build` fails its env validation, and only the image build would show it |
 | `rdm-contract-sync.spec.ts` | every enumerated column in rdm-spec §3 (a leading backticked `A \| B` span) equals its enum in `packages/contracts`, and every `…_MAX_LENGTH` constant equals its column's `VARCHAR(n)` |
 | `i18n-keys.spec.ts` | once the web app exists: `apps/web/src/i18n/locales/en` and `vi` have the same namespaces and the same keys (plural suffixes normalised), and every code in `ERRORS` has an `errors` key |
 | `api-contract-sync.spec.ts` | api-endpoints-plan §7, §10 and §0.8 agree with `ERRORS` (codes and HTTP status), `PERMISSIONS` / `ROLE_PERMISSIONS` and `RATE_LIMITS`; §8 against the event registry once it exists · and api-endpoints-plan §1–§4's routes (P1 rows skipped) against the committed `openapi.json`, both ways, with a named exclusion list: ops, `/docs`, the SSE streams, the Stripe webhook, `fake-confirm` |
 | `task10-proofs.spec.ts` | every graded proof name of §16.3 — including `creates ONE payment for two requests with the same Idempotency-Key` — appears in a service's integration specs; a rename or deletion fails and is named |
-| `contract-ports.spec.ts` | every contract spec's fixed gRPC port belongs to one spec file, and is never a port a running service owns (ADR 0027: web 23000, gateway 23100, ops 23101–23104, gRPC 25051–25054) — a collision fails with `EADDRINUSE` only when the timing or the running stack lines up |
+| `contract-ports.spec.ts` | every contract spec's fixed gRPC port belongs to one spec file, and is never a port a running service owns (ADR 0027: web 23000, gateway 23100, ops 23101–23104, gRPC 25051–25054) — a collision fails with `EADDRINUSE` only when the timing or the running stack lines up. The services' e2e and integration specs are read too: one that dials a **closed** port must not pick a service's port or a contract spec's |
 
 ---
 

@@ -462,7 +462,7 @@ Everything Prisma cannot declare — partial unique indexes, `CHECK` constraints
 | **from_status** | VARCHAR(16) | Nullable | NULL only on the first row (creation). |
 | **to_status** | VARCHAR(16) | NOT NULL | — |
 | **actor_type** | VARCHAR(16) | NOT NULL | `CUSTOMER \| STAFF \| SYSTEM \| PAYMENT` |
-| **actor_user_id** | UUID | Nullable | ref ➔ identity.users.id. Set for `CUSTOMER` and `STAFF`. `CHECK ((actor_type IN ('CUSTOMER','STAFF')) = (actor_user_id IS NOT NULL))`. |
+| **actor_user_id** | UUID | Nullable | ref ➔ identity.users.id. Set for `CUSTOMER` and `STAFF`. `CHECK ((actor_type IN ('CUSTOMER','STAFF')) = (actor_user_id IS NOT NULL))`. Index `(actor_user_id, created_at)` — a staff member's activity over a range. |
 | **note** | VARCHAR(200) | Nullable | The staff cancel reason; the payment failure reason. |
 | **created_at** | TIMESTAMPTZ(3) | NOT NULL, now() | — |
 

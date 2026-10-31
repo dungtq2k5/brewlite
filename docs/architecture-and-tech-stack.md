@@ -24,9 +24,9 @@ BrewLite is one **TypeScript monorepo**: a Next.js web app, a NestJS gateway, fo
 - **Language:** **TypeScript**, `strict: true` everywhere, no `any` in merged code.
 - **Runtime:** **Node.js 24 LTS**, pinned at **24.14.0** in `.nvmrc`, `engines`, every Dockerfile and every CI job.
 - **Package manager:** **pnpm 10** with workspaces, version pinned by `packageManager` in the root `package.json` and enabled through `corepack`.
-  - ⚠️ pnpm 10 skips dependency build scripts unless allowed. Set `strictDepBuilds: true` and list what may build (`@swc/core`, `prisma`, `@prisma/engines`, `esbuild`, `protobufjs`, `@bufbuild/buf`, `simple-git-hooks`, `@scarf/scarf`, `@firebase/util`) so a skipped native build fails the install instead of failing at runtime. Both settings live in **`pnpm-workspace.yaml`**. ⚠️ `ignoredBuiltDependencies` only silences the prompt — under `strictDepBuilds` an unlisted package still fails the install, so a package is either allowed or the install fails.
+  - ⚠️ pnpm 10 skips dependency build scripts unless allowed. Set `strictDepBuilds: true` and list what may build (`@swc/core`, `prisma`, `@prisma/engines`, `esbuild`, `protobufjs`, `@bufbuild/buf`, `simple-git-hooks`, `@scarf/scarf`, `@firebase/util`, `unrs-resolver`) so a skipped native build fails the install instead of failing at runtime. Both settings live in **`pnpm-workspace.yaml`**. ⚠️ `ignoredBuiltDependencies` only silences the prompt — under `strictDepBuilds` an unlisted package still fails the install, so a package is either allowed or the install fails.
 - **Monorepo tooling:** **Turborepo 2** — task graph and output caching (`build`, `typecheck`, `test`, `db:generate`). 📌 [ADR 0003](./decisions/0003-one-pnpm-turborepo-monorepo-with-a-fixed-layout.md).
-  - ⚠️ Turbo's strict env mode hides variables from tasks: `turbo.json` lists `DATABASE_URL*`, `PRISMA_DB` and `NODE_ENV` in `globalPassThroughEnv`, or Prisma tasks see them unset.
+  - ⚠️ Turbo's strict env mode hides variables from tasks: `turbo.json` lists `DATABASE_URL*`, `PRISMA_DB` and `NODE_ENV` in `globalPassThroughEnv`, or Prisma tasks see them unset — and the web app's **required server variables** (`API_URL`, `STORAGE_PUBLIC_BASE_URL`), or `next build`'s page-data step fails its env validation. A new required web variable goes in that list too.
 - **Compiler:** **SWC everywhere** — the Nest CLI's SWC builder with `typeCheck: true` for every Nest service, Next.js's own SWC-based compiler for the web app, `unplugin-swc` inside Vitest. 📌 [ADR 0012](./decisions/0012-swc-compiles-everything-and-nest-packages-are-commonjs.md).
   - ⚠️ SWC strips types without checking them. `typeCheck: true` and a separate `pnpm typecheck` in CI are what stop a broken signature from shipping.
 - **Module format:** Nest services and the shared packages they import are **CommonJS**; the web app is ESM, which imports CommonJS packages without trouble.
@@ -62,7 +62,7 @@ brewlite/
 │  ├─ api-client/          # Orval-generated fetch client + zod schemas, from the gateway's OpenAPI
 │  └─ config/              # tsconfig, eslint, nest-cli (SWC), vitest presets; markdownlint rule; guard specs
 ├─ infra/
-│  └─ docker/              # compose.yaml, Dockerfile.service, Dockerfile.web, postgres-init/, firebase/
+│  └─ docker/              # compose.yaml, Dockerfile.service, Dockerfile.web, postgres-init/, firebase/, caddy/
 └─ docs/
 ```
 
@@ -76,7 +76,8 @@ brewlite/
 
 | Component | Host port | In-network |
 | :---- | :---- | :---- |
-| `web` (Next.js) | 23000 | `web:23000` |
+| `caddy` — the only way into the web app ([ADR 0033](./decisions/0033-browsers-reach-the-web-app-only-through-caddy-which-sets-the-client-address.md)) | 23000 | `caddy:23000` |
+| `web` (Next.js) | none in the `apps` profile — reached through Caddy; `next dev` on the host uses 23000 | `web:23000` |
 | `gateway` HTTP | 23100 | `gateway:23100` |
 | `identity` / `catalog` / `ordering` / `payment` ops HTTP (`/health*`) | 23101 / 23102 / 23103 / 23104 | same |
 | `identity` / `catalog` / `ordering` / `payment` gRPC | 25051 / 25052 / 25053 / 25054 | same |
@@ -110,6 +111,7 @@ The full event and RPC contracts are in [`api-endpoints-plan.md`](./api-endpoint
 
 - **Framework:** **NestJS 11**. Backend services are **hybrid apps**: a gRPC microservice plus a small HTTP listener on `OPS_PORT` for `/health`, `/health/ready` and `/version`.
 - **Gateway:** the only process reachable from outside the Compose network. It verifies the access token, checks the role's permission, validates the request with zod, applies rate limits, calls one service over gRPC, and maps the answer to a response DTO. **It holds no business rule and no database.**
+- **In front of the web app:** Caddy ([ADR 0033](./decisions/0033-browsers-reach-the-web-app-only-through-caddy-which-sets-the-client-address.md)). It drops a browser's own `X-Forwarded-For` and sets the socket address, so the address the web server forwards to the gateway — the rightmost entry — is one a browser cannot choose. Next.js alone cannot know it.
 - **Clients of the gateway:** the Next.js server, and Stripe's webhook. **Browsers never call the gateway directly** ([ADR 0014](./decisions/0014-the-web-server-is-the-gateways-only-client.md)) — so the gateway needs no CORS configuration and no cookies; it speaks bearer tokens only.
 
 ### 2.2 Synchronous calls — gRPC
@@ -283,7 +285,7 @@ One Redis 8 container, `maxmemory-policy noeviction` (BullMQ requires it). Key p
 📌 [ADR 0025](./decisions/0025-product-images-live-in-firebase-storage.md).
 
 - An admin uploads through the gateway (`multipart/form-data`, ≤ `PRODUCT_IMAGE_MAX_BYTES`); the gateway passes the bytes to catalog over gRPC; catalog **checks the magic bytes** (JPEG, PNG or WebP — never the extension or the declared type), writes `products/<productId>/<newId>.<ext>` with `firebase-admin`, stores the path, and deletes the previous image — **in that order**: the new object exists before the row points at it, and the old object is deleted only after the row commits, so no moment has the row pointing at nothing. A crash between the upload and the write, or a failed old-object delete, leaves an accepted orphan object — never a broken image; a bucket sweep is P2.
-- Clients read images at `${STORAGE_PUBLIC_BASE_URL}/v0/b/<bucket>/o/<encoded path>?alt=media`. Storage security rules **allow public read of `products/**` and deny every write** — the Admin SDK bypasses rules, so only catalog can write.
+- Clients read images at `${STORAGE_PUBLIC_BASE_URL}/v0/b/<bucket>/o/<encoded path>?alt=media`. Storage security rules **allow public read of `products/**` and deny every write** — the Admin SDK bypasses rules, so only catalog can write. The web app shows them with a plain lazy `<img>` in a fixed-aspect frame, **not** `next/image`: its optimiser would fetch the image from the web server, and the address the browser uses is not reachable from inside the `web` container.
 - Locally the **Firebase Storage emulator** stands in for the bucket (`FIREBASE_STORAGE_EMULATOR_HOST`); the same code runs against both.
 - ⚠️ A user-supplied filename never becomes an object name.
 
@@ -297,17 +299,17 @@ One Redis 8 container, `maxmemory-policy noeviction` (BullMQ requires it). Key p
 
 - **Next.js 16, App Router, React 19**, TypeScript strict. Compiled by Next's SWC toolchain.
 - **Server Components** fetch data through the generated client, **Server Actions** perform mutations, **Route Handlers** proxy the SSE streams. **No TanStack Query, no Zustand.**
-- **Styling:** **Tailwind CSS 4 + DaisyUI 5** — themed components (`btn`, `card`, `badge`, `modal`, `drawer`, `steps`) cover every screen of the wireframe without a component library dependency. One BrewLite theme.
+- **Styling:** **Tailwind CSS 4 + DaisyUI 5** — themed components (`btn`, `card`, `badge`, `modal`, `drawer`, `steps`) cover every screen without a component library dependency. **One BrewLite theme, generated** from `apps/web/src/styles/tokens.json` — the Designer's export, DaisyUI's variable names — into a committed `theme.css` (`pnpm --filter @brewlite/web theme`, drift-checked in CI); never a hand-edited colour. Outside the tokens only two overrides: input borders at `base-content` 50 % and the 3 px `:focus-visible` ring. Type: **Be Vietnam Pro** through `next/font` (its `vietnamese` subset). Icons: **Lucide** (`lucide-react`).
 - **Forms:** plain `<form action={serverAction}>` with `useActionState`; the Orval-generated zod schema validates on the server (and optionally on the client for instant feedback). No form library.
 - **Languages:** the UI speaks **English (default) and Vietnamese** through **i18next** (§4.7); the code and the docs are English.
 - **Routes:** route groups `(customer)`, `staff/`, `admin/`, each with its own layout; see product-overview §3.
-- **Installable PWA** ([ADR 0032](./decisions/0032-the-web-app-is-an-installable-pwa-whose-service-worker-caches-no-data.md)): `app/manifest.ts`, and one hand-written `public/sw.js` that caches **only** content-hashed `/_next/static/*`, icons and fonts, and serves an offline page when a navigation fails. Documents, Server Actions, Route Handlers (the event streams) and cross-origin requests always go to the network.
+- **Installable PWA** ([ADR 0032](./decisions/0032-the-web-app-is-an-installable-pwa-whose-service-worker-caches-no-data.md)): `app/manifest.ts`, and one hand-written `public/sw.js` that caches **only** content-hashed `/_next/static/*`, icons and fonts, and serves an offline page when a navigation fails. Documents, Server Actions, Route Handlers (the event streams) and cross-origin requests always go to the network. The offline page is **force-static** — it cannot read the locale cookie on the server — so its language is settled in the browser, and its language switch writes `bl_locale` client-side (no Server Action can run offline).
 
 ### 4.2 The web server is the BFF
 
 ```text
 browser ──cookies──▶ Next.js server ──Bearer + X-Request-Id──▶ gateway ──gRPC──▶ services
-                        │ proxy.ts: refresh the access token; send guests to sign in; gate /staff and /admin
+                        │ proxy.ts: refresh the access token; send guests to sign in; gate /staff and /admin; set the CSP
                         │ Server Components: GET through the generated client
                         │ Server Actions: POST/PATCH/DELETE through the generated client
                         └ Route Handlers: /api/events/* — proxy the SSE streams
@@ -315,10 +317,13 @@ browser ──cookies──▶ Next.js server ──Bearer + X-Request-Id──�
 
 - Tokens live in **`httpOnly`, `SameSite=Lax`** cookies on the web origin — `bl_at` (access, 15 min) and `bl_rt` (refresh, 30 days), `Secure` outside development. **Browser JavaScript never sees a token.**
 - The generated client runs **only on the server** (`@brewlite/api-client` imports `server-only`). `API_URL` is a server-only variable, never `NEXT_PUBLIC_`.
-- **`proxy.ts`** (Next 16's name for middleware) does three things, in order:
+- **`proxy.ts`** (Next 16's name for middleware) does four things, in order:
   1. **Refresh:** when `bl_at` is missing or expired and `bl_rt` exists, call `POST /auth/refresh` and set fresh cookies. A refresh answered `401` (expired session, locked or deactivated account) clears both cookies — the visitor is a guest again.
   2. **Guests to sign-in** ([ADR 0029](./decisions/0029-guests-browse-and-build-a-cart-and-sign-in-only-to-order.md)): with no session, a request for `/checkout`, `/orders*` or `/account` is redirected to `/login?next=<path>`. Everything else — the menu, product pages, the cart, sign-in and registration — renders for a guest. After sign-in the Server Action redirects to `next` only if it is a **relative path** (starts with one `/`, not `//`, no `\`); anything else goes to `/`, so the parameter cannot become an open redirect.
   3. **Roles:** a request for `/staff*` or `/admin*` whose token role lacks access is redirected to `/`.
+  4. **Content-Security-Policy:** every request it lets through gets a fresh nonce, and the policy goes on both the forwarded request headers (where Next finds the nonce and puts it on every script it renders) and the response. `script-src` is `'self' 'nonce-…' 'strict-dynamic'` (plus `https://js.stripe.com` and `https://apis.google.com` as the fallback for browsers without `strict-dynamic`, and `'unsafe-eval'` under `next dev` only), so an injected `<script>` never runs. The other sources come from env, never typed: `STORAGE_PUBLIC_BASE_URL`'s origin in `img-src`; the Firebase auth domain and, when set, the Auth emulator's origin in `frame-src` (the emulator also in `connect-src`); `https://*.stripe.com` in `img-src`, `connect-src` and `frame-src`; Firebase Auth's two REST hosts in `connect-src`. `object-src 'none'`, `frame-ancestors 'none'`, `form-action 'self'`. The policy is built by a pure function (`lib/csp.ts`). Redirects carry none.
+     - **Every page under the proxy's matcher renders dynamically** — a pre-rendered page's scripts carry no nonce and would be blocked. The force-static `/offline` page sits outside the matcher and gets no policy.
+     - zod 4 probes `Function("")` to decide whether to compile parsers, which a CSP without `unsafe-eval` reports as a violation; `packages/contracts` therefore switches zod to `jitless` **in the browser** (`zod-browser.ts`, imported first by its barrel). Servers keep the JIT.
 
   The layouts re-check server-side — the proxy is the fast path, not the guard.
 - ⚠️ **A Server Component cannot set cookies.** Refreshing inside a page render silently does nothing; refresh belongs in `proxy.ts`, and sign-in and sign-out in Server Actions.
@@ -327,9 +332,9 @@ browser ──cookies──▶ Next.js server ──Bearer + X-Request-Id──�
 
 ### 4.3 Client state — the cart
 
-- The cart is a React Context provider in the `(customer)` layout, persisted to `localStorage` (wrapped in `try/catch`; a blocked storage degrades to an in-memory cart). It holds lines only — `productId`, size, `toppingIds`, quantity — plus the price snapshot shown in the preview.
+- The cart is a React Context provider in the `(customer)` layout, persisted to `localStorage` (wrapped in `try/catch`; a blocked storage degrades to an in-memory cart). It holds lines only — `productId`, size, `toppingIds`, quantity — plus the price snapshot shown in the preview. Stored as `{ v: 1, lines }`; each line keeps a snapshot — the product's name in **both** languages, its image or no-photo variant, size, base price, size delta, toppings with names and prices, and `quantity` — so the cart renders instantly, in either language, with no API call. Lines with the same product, size and set of toppings merge (key: product id, size and the topping ids sorted with `compareStrings`). **The badge and "N items" count quantities; the 20-line limit (`MAX_LINES_PER_ORDER`) counts lines.** A value that does not parse becomes an empty cart.
 - The preview total uses `computeUnitPrice` from `packages/contracts`, the same function catalog uses. **The checkout page shows the server's quote, never the preview.**
-- The cart is cleared when the confirmation page sees `PAID` — not when payment starts — so a failed payment keeps it (product-overview F2).
+- The cart is cleared when the order's page sees it paid — not when payment starts — so a failed payment keeps it (product-overview F2). *Place order* marks the cart with that order's id (`placedOrderId` in the stored value); **any edit drops the mark**, and the order's page empties the cart only if the mark still names that order — viewing an old paid order never empties a new cart, and a cart changed after placing is kept.
 - **The cart belongs to the browser, not the account** (product-overview §6.8): a guest's cart survives the sign-in round trip untouched. **Sign-out clears it** — the sign-out button is a Client Component that clears the cart, then calls the sign-out Server Action (a Server Action cannot reach `localStorage`).
 
 ### 4.4 Sign-in with Google and Apple
@@ -345,18 +350,22 @@ Locally the SDK talks to the **Firebase Auth emulator**, which offers fake Googl
 
 ### 4.5 Payment UI
 
-- Checkout calls a Server Action → `POST /payments` → the response says which provider:
+- *Place order* navigates to the order's page, `/orders/[id]`; **paying is a step of that page** while the order is `PENDING` or `PAYMENT_FAILED`. A reload, a return from another app and Stripe's `return_url` all land there, and the page remounts the payment from the order's `currentPaymentId`.
+- A fresh `PENDING` order with no payment yet **starts one on arrival** (a Server Action → `POST /payments`, with a key made on mount): an arrival is not a tap, but `POST /payments` returns the order's open `PENDING` payment whatever the key, so a reload or a second tab never starts a second one. After `PAYMENT_FAILED` a new payment waits for *Try again*, a tap with a new key. The response says which provider:
   - **`STRIPE`** → a Client Component mounts Stripe's **embedded Checkout** with the returned `clientSecret` (`@stripe/stripe-js`, `@stripe/react-stripe-js`). Card and wallet choice happen inside Stripe's UI. On completion Stripe returns to `/orders/[id]?payment=<paymentId>`.
   - **`FAKE`** → the page shows *Simulate success* / *Simulate failure*, which call `POST /payments/:id/fake-confirm`.
-- The confirmation page **never decides the outcome.** It reads the order and follows the SSE stream until the webhook-driven status arrives.
-- ⚠️ The Stripe **publishable** key is the only Stripe value in the web app (`NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`). Pages that load Stripe.js need `https://*.stripe.com` in the CSP's `script-src`, `frame-src` and `connect-src`.
+- The order's page **never decides the outcome.** It shows *Confirming your payment…* while the order is still unpaid and the URL carries `?payment=`, the current payment is `SUCCEEDED`, or *Simulate success* was just tapped — and follows the SSE stream until the webhook-driven status arrives.
+- ⚠️ The Stripe **publishable** key is the only Stripe value in the web app (`NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, optional — the fake provider needs none). Stripe.js, its frame and its API are allowed by the CSP (§4.2).
 
 ### 4.6 Live order status
 
 📌 [ADR 0022](./decisions/0022-order-updates-reach-browsers-as-server-sent-events.md).
 
 - The tracking page and the staff board open an `EventSource` to a Route Handler (`/api/events/orders/[id]`, `/api/events/staff`), which reads the cookie and streams the gateway's SSE response through (`dynamic = 'force-dynamic'`).
-- Each event only says *order X is now status Y*. The page applies it, and on every (re)connect calls `router.refresh()` to re-read the truth — a dropped connection loses latency, never state.
+- The order's Route Handler writes a `: connected` comment first, so the browser's `open` fires at once rather than at the gateway's first 25 s ping; anything but a `200` from the gateway goes back as the same bare status (a `204` is final to an `EventSource`).
+- Each event only says *order X is now status Y*. The page re-reads the order (`router.refresh()`) on every event and on every (re)connect — history, refunds and points always come from the API, and a dropped connection loses latency, never state.
+- When the browser gives up on a stream, the page asks the Route Handler once more and refreshes **only** for `204`, `401` or `404` (the order went final, the session ended, the order is gone); otherwise it retries quietly with backoff (5 s → 30 s). A refresh while the API is down would fail in the layout and replace the page with the error screen. *Reconnecting…* shows after 3 s without a stream.
+- A final order (`COMPLETED`, `CANCELLED`) opens no stream: a refund's progress on a cancelled order shows on the next load.
 
 ### 4.7 Internationalisation — English and Vietnamese
 
@@ -441,7 +450,7 @@ Locally the SDK talks to the **Firebase Auth emulator**, which offers fake Googl
 | **Contract** | `_test` | one real gRPC round trip per RPC |
 | **Gateway e2e** | none — gRPC peers, Redis and the event source stubbed | auth markers, validation, envelope, error mapping, the webhook's raw body |
 | **Gateway integration** | Redis database 14, the test broker | real rate limiting, the SSE source's ordered consumer |
-| **Web e2e** *(P1)* | Compose stack, fake payment provider | J1 with Playwright |
+| **Web e2e** | the running stack, seeded, fake payment provider — through Caddy in CI | **Playwright** (`apps/web/e2e/`), from the first web screen: every web feature's screens and states, by role and accessible name. Run with `pnpm --filter @brewlite/web e2e`, never in `pnpm test`; a CI job after the `apps` images are up. Each spec clears the gateway's `AUTH` rate-limit keys first, so the specs need Docker. The Playwright MCP is for building against the Figma frames, for what a spec cannot hold (the Google emulator popup, the install prompt) and for debugging a spec |
 | **Latency** (`pnpm perf`) | the `apps` stack, seeded, `PAYMENT_PROVIDER=fake` | p95 of every P0 route < 500 ms — autocannon, **by hand, never in CI**. It stays under the rate limits instead of disabling them: a distinct `X-Forwarded-For` per request for IP-keyed classes (the gateway trusts one hop), user-keyed classes paced below their limit |
 
 **The Task 10 proofs** (product-overview F10), each its own integration test, named for what it proves:
@@ -506,7 +515,7 @@ Every Nest service declares its variables in `src/config/env.schema.ts` (zod), l
 | `FIREBASE_AUTH_EMULATOR_HOST` | identity | `localhost:29099` locally; **unset** against a real project — identity refuses to boot if this is set with `NODE_ENV=production`. The `apps` Compose profile runs identity alone with `NODE_ENV=development` so its local demo can still use the emulator |
 | `FIREBASE_STORAGE_BUCKET` | catalog | `demo-brewlite.appspot.com` locally |
 | `FIREBASE_STORAGE_EMULATOR_HOST` | catalog | `localhost:29199` locally; unset against a real project |
-| `STORAGE_PUBLIC_BASE_URL` | catalog | `http://localhost:29199` locally, `https://firebasestorage.googleapis.com` for real |
+| `STORAGE_PUBLIC_BASE_URL` | catalog, web | `http://localhost:29199` locally, `https://firebasestorage.googleapis.com` for real |
 | `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_PASSWORD` | identity's `bootstrap:admin` script only | the first `ADMIN` outside development; set for the one run, then removed |
 | `SEED_ACCOUNT_PASSWORD` | identity's `seed:dev` only | password of `admin@`, `staff@`, `customer@brewlite.test`; unset → not created. Never set in a deployed environment |
 | `PAYMENT_PROVIDER` | payment | `stripe` or `fake`; `fake` refused when `NODE_ENV=production` |
@@ -516,7 +525,7 @@ Every Nest service declares its variables in `src/config/env.schema.ts` (zod), l
 | `API_URL` | web (server only) | `http://localhost:23100/api/v1` |
 | `NEXT_PUBLIC_FIREBASE_API_KEY`, `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`, `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | web | Firebase web config — public by design |
 | `NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_URL` | web | `http://localhost:29099` locally; unset for real |
-| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | web | `pk_test_…` |
-| `IMAGE_REMOTE_HOSTS` | web (build time) | hosts `next/image` may load from — `localhost:29199` locally |
+| `NEXT_PUBLIC_APPLE_SIGN_IN_ENABLED` | web | `false` — *Continue with Apple* is hidden; it stays `false` until the team has a paid Apple Developer account (product-overview §12) |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | web | `pk_test_…`; optional — only a `STRIPE` payment needs it |
 
 ⚠️ Anything prefixed `NEXT_PUBLIC_` is compiled into the browser bundle. A secret there is a secret on the internet.
