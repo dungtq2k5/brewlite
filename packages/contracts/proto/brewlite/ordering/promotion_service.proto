@@ -15,6 +15,8 @@ service PromotionAdminService {
 
 service LoyaltyService {
   rpc GetMyLoyalty(GetMyLoyaltyRequest) returns (GetMyLoyaltyResponse);
+  // The same ledger for any user — the gateway's `user.manage` is the gate.
+  rpc GetLoyaltyForUser(GetLoyaltyForUserRequest) returns (GetLoyaltyForUserResponse);
 }
 
 message Promotion {
@@ -90,6 +92,13 @@ message LoyaltyTransactionEntry {
 
 message GetMyLoyaltyRequest {}
 message GetMyLoyaltyResponse {
+  int32 balance = 1;
+  int32 lifetime_earned = 2;
+  repeated LoyaltyTransactionEntry recent = 3;
+}
+
+message GetLoyaltyForUserRequest { string user_id = 1; }
+message GetLoyaltyForUserResponse {
   int32 balance = 1;
   int32 lifetime_earned = 2;
   repeated LoyaltyTransactionEntry recent = 3;

@@ -41,6 +41,8 @@ export interface OrderHistoryEntry {
   actorType: string;
   note?: string | undefined;
   createdAt: string;
+  /** O-3 `actor_user_id`: the customer or staff member. Only the admin detail route shows it. */
+  actorUserId?: string | undefined;
 }
 
 export interface QuoteRequest {

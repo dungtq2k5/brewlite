@@ -6,6 +6,7 @@ import "brewlite/common/localized_text.proto";
 
 service ReportService {
   rpc SalesReport(SalesReportRequest) returns (SalesReportResponse);
+  rpc GetStaffStats(GetStaffStatsRequest) returns (GetStaffStatsResponse);
 }
 
 message SalesReportRequest {
@@ -29,4 +30,23 @@ message TopProduct {
 message SalesReportResponse {
   repeated SalesDay days = 1; // one per business day of the range, zero days included
   repeated TopProduct top_products = 2; // by revenue, at most 10
+}
+
+// What O-3 can answer exactly: the STAFF rows of one user over a range of business days.
+message GetStaffStatsRequest {
+  string user_id = 1;
+  string from = 2; // business day, YYYY-MM-DD, inclusive
+  string to = 3; // business day, YYYY-MM-DD, inclusive; to − from ≤ 92 days
+}
+message StaffTransitions {
+  int32 preparing = 1;
+  int32 ready = 2;
+  int32 completed = 3;
+  int32 cancelled = 4;
+}
+message GetStaffStatsResponse {
+  string from = 1;
+  string to = 2;
+  int32 orders_handled = 3; // distinct orders
+  StaffTransitions transitions = 4; // count per to_status, zeros included
 }

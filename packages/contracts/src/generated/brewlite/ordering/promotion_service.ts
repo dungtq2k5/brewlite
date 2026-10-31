@@ -114,6 +114,16 @@ export interface GetMyLoyaltyResponse {
   recent: LoyaltyTransactionEntry[];
 }
 
+export interface GetLoyaltyForUserRequest {
+  userId: string;
+}
+
+export interface GetLoyaltyForUserResponse {
+  balance: number;
+  lifetimeEarned: number;
+  recent: LoyaltyTransactionEntry[];
+}
+
 export const BREWLITE_ORDERING_PACKAGE_NAME = "brewlite.ordering";
 
 export interface PromotionAdminServiceClient {
@@ -190,6 +200,10 @@ export const PROMOTION_ADMIN_SERVICE_NAME = "PromotionAdminService";
 
 export interface LoyaltyServiceClient {
   getMyLoyalty(request: GetMyLoyaltyRequest, metadata?: Metadata): Observable<GetMyLoyaltyResponse>;
+
+  /** The same ledger for any user — the gateway's `user.manage` is the gate. */
+
+  getLoyaltyForUser(request: GetLoyaltyForUserRequest, metadata?: Metadata): Observable<GetLoyaltyForUserResponse>;
 }
 
 export interface LoyaltyServiceController {
@@ -197,11 +211,18 @@ export interface LoyaltyServiceController {
     request: GetMyLoyaltyRequest,
     metadata?: Metadata,
   ): Promise<GetMyLoyaltyResponse> | Observable<GetMyLoyaltyResponse> | GetMyLoyaltyResponse;
+
+  /** The same ledger for any user — the gateway's `user.manage` is the gate. */
+
+  getLoyaltyForUser(
+    request: GetLoyaltyForUserRequest,
+    metadata?: Metadata,
+  ): Promise<GetLoyaltyForUserResponse> | Observable<GetLoyaltyForUserResponse> | GetLoyaltyForUserResponse;
 }
 
 export function LoyaltyServiceControllerMethods() {
   return function (constructor: Function) {
-    const grpcMethods: string[] = ["getMyLoyalty"];
+    const grpcMethods: string[] = ["getMyLoyalty", "getLoyaltyForUser"];
     for (const method of grpcMethods) {
       const descriptor: any = Reflect.getOwnPropertyDescriptor(constructor.prototype, method);
       GrpcMethod("LoyaltyService", method)(constructor.prototype[method], method, descriptor);

@@ -19,12 +19,19 @@ import type {
   ListOrdersResponse,
 } from '@brewlite/contracts/generated/brewlite/ordering/admin_order_service.js';
 import type {
+  GetLoyaltyForUserRequest,
+  GetLoyaltyForUserResponse,
+} from '@brewlite/contracts/generated/brewlite/ordering/promotion_service.js';
+import type {
+  GetStaffStatsRequest,
+  GetStaffStatsResponse,
   SalesReportRequest,
   SalesReportResponse,
 } from '@brewlite/contracts/generated/brewlite/ordering/report_service.js';
 import { envSchema } from '../../src/config/env.schema.js';
 import { AdminOrderGrpcController } from '../../src/modules/admin-orders/admin-order-grpc.controller.js';
 import { AdminOrdersService } from '../../src/modules/admin-orders/admin-orders.service.js';
+import { LoyaltyGrpcController } from '../../src/modules/loyalty/loyalty-grpc.controller.js';
 import { LoyaltyModule } from '../../src/modules/loyalty/loyalty.module.js';
 import { CatalogMenuGrpcClient } from '../../src/modules/orders/catalog-menu-grpc.client.js';
 import { CatalogStockGrpcClient } from '../../src/modules/orders/catalog-stock-grpc.client.js';
@@ -44,7 +51,7 @@ const configModule = ConfigModule.forRoot({
 // The admin services never call catalog; these only satisfy OrdersService's constructor.
 @Module({
   imports: [configModule, PrismaModule, PromotionsModule, LoyaltyModule],
-  controllers: [AdminOrderGrpcController, ReportGrpcController],
+  controllers: [AdminOrderGrpcController, ReportGrpcController, LoyaltyGrpcController],
   providers: [
     OrdersService,
     OutboxService,
@@ -87,6 +94,23 @@ class TestReportClient extends BaseGrpcClient {
   salesReport(request: SalesReportRequest): Promise<SalesReportResponse> {
     return this.call('salesReport', request, { caller });
   }
+  getStaffStats(request: GetStaffStatsRequest): Promise<GetStaffStatsResponse> {
+    return this.call('getStaffStats', request, { caller });
+  }
+}
+
+class TestLoyaltyClient extends BaseGrpcClient {
+  constructor(url: string) {
+    super({
+      serviceName: 'brewlite.ordering.LoyaltyService',
+      protoFiles: ORDERING_PROTO_FILES,
+      includeDirs: [PROTO_ROOT],
+      url,
+    });
+  }
+  getLoyaltyForUser(request: GetLoyaltyForUserRequest): Promise<GetLoyaltyForUserResponse> {
+    return this.call('getLoyaltyForUser', request, { caller });
+  }
 }
 
 const codeOf = (error: unknown) =>
@@ -97,6 +121,7 @@ describe('AdminOrderService and ReportService gRPC contract', () => {
   let app: Awaited<ReturnType<typeof NestFactory.createMicroservice>>;
   let orders: TestAdminOrderClient;
   let reports: TestReportClient;
+  let loyalty: TestLoyaltyClient;
 
   const seedOrder = (overrides: Record<string, unknown> = {}) =>
     app.get(PrismaService).order.create({
@@ -125,6 +150,7 @@ describe('AdminOrderService and ReportService gRPC contract', () => {
     await app.listen();
     orders = new TestAdminOrderClient(url);
     reports = new TestReportClient(url);
+    loyalty = new TestLoyaltyClient(url);
   });
 
   afterAll(async () => {
@@ -179,5 +205,65 @@ describe('AdminOrderService and ReportService gRPC contract', () => {
     await expect(reports.salesReport({ from: '2026-01-01', to: '2026-12-31' })).rejects.toSatisfy(
       (error) => codeOf(error) === 'VALIDATION_FAILED',
     );
+  });
+
+  it('filters ListOrders by user over the wire, and refuses a malformed user id', async () => {
+    const mine = await seedOrder();
+    await seedOrder();
+    const res = await orders.listOrders({
+      page: { page: 1, pageSize: 20, sort: '-createdAt' },
+      userId: mine.userId,
+    });
+    expect(res.orders.map((o) => o.id)).toEqual([mine.id]);
+    await expect(
+      orders.listOrders({ page: { page: 1, pageSize: 20, sort: '-createdAt' }, userId: 'nope' }),
+    ).rejects.toSatisfy((error) => codeOf(error) === 'VALIDATION_FAILED');
+  });
+
+  it('carries each history row’s actorUserId over the wire', async () => {
+    const order = await seedOrder();
+    const staffId = newId();
+    await app.get(PrismaService).orderStatusHistory.createMany({
+      data: [
+        { id: newId(), orderId: order.id, toStatus: 'PAID', actorType: 'PAYMENT' },
+        {
+          id: newId(),
+          orderId: order.id,
+          toStatus: 'PREPARING',
+          actorType: 'STAFF',
+          actorUserId: staffId,
+        },
+      ],
+    });
+    const { order: found } = await orders.getAdminOrder({ id: order.id });
+    expect(found!.history.map((h) => h.actorUserId)).toEqual([undefined, staffId]);
+  });
+
+  it('completes a real GetLoyaltyForUser round trip: zeros for a user with no ledger', async () => {
+    expect(await loyalty.getLoyaltyForUser({ userId: newId() })).toEqual({
+      balance: 0,
+      lifetimeEarned: 0,
+      recent: [],
+    });
+    await expect(loyalty.getLoyaltyForUser({ userId: 'nope' })).rejects.toSatisfy(
+      (error) => codeOf(error) === 'VALIDATION_FAILED',
+    );
+  });
+
+  it('completes a real GetStaffStats round trip: transitions with zeros, and a bad range', async () => {
+    const res = await reports.getStaffStats({
+      userId: newId(),
+      from: '2026-01-01',
+      to: '2026-01-03',
+    });
+    expect(res).toEqual({
+      from: '2026-01-01',
+      to: '2026-01-03',
+      ordersHandled: 0,
+      transitions: { preparing: 0, ready: 0, completed: 0, cancelled: 0 },
+    });
+    await expect(
+      reports.getStaffStats({ userId: newId(), from: '2026-01-01', to: '2026-12-31' }),
+    ).rejects.toSatisfy((error) => codeOf(error) === 'VALIDATION_FAILED');
   });
 });

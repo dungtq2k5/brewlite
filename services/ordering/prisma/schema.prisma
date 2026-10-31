@@ -130,6 +130,7 @@ model OrderStatusHistory {
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId, id])
+  @@index([actorUserId, createdAt])
   @@map("order_status_history")
 }
 

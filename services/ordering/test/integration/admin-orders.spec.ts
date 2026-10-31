@@ -178,6 +178,26 @@ describe('AdminOrdersService', () => {
       expect(await ids({ page: page({ sort: '-totalVnd' }) })).toEqual([first, second, cheap.id]);
     });
 
+    it('filters by user alone and combined with the other filters', async () => {
+      const alice = newId();
+      const bob = newId();
+      const a1 = await seedOrder({ userId: alice, createdAt: new Date('2026-10-01T05:00:00Z') });
+      const a2 = await seedOrder({
+        userId: alice,
+        status: OrderStatus.PAID,
+        paidAt: new Date(),
+        createdAt: new Date('2026-10-02T05:00:00Z'),
+      });
+      await seedOrder({ userId: bob });
+
+      expect(await ids({ page: page(), userId: alice })).toEqual([a2.id, a1.id]);
+      expect(await ids({ page: page(), userId: alice, status: OrderStatus.PAID })).toEqual([a2.id]);
+      expect(
+        await ids({ page: page(), userId: alice, from: '2026-10-02', to: '2026-10-02' }),
+      ).toEqual([a2.id]);
+      expect(await ids({ page: page(), userId: newId() })).toEqual([]);
+    });
+
     it('pages: page 2 holds the rest, total counts them all', async () => {
       for (let i = 0; i < 5; i++) {
         await seedOrder({ createdAt: new Date(`2026-10-0${i + 1}T05:00:00Z`) });
@@ -197,6 +217,7 @@ describe('AdminOrdersService', () => {
       ['from after to', { page: page(), from: '2026-10-02', to: '2026-10-01' }],
       ['an order number that is not a number', { page: page(), orderNo: 'abc' }],
       ['a zero order number', { page: page(), orderNo: '0' }],
+      ['a user id that is not an id', { page: page(), userId: 'nope' }],
     ])('refuses %s with VALIDATION_FAILED', async (_name, request) => {
       const error = await admin.listOrders(request).catch((e: unknown) => e);
       expect(errorCode(error)).toBe('VALIDATION_FAILED');
@@ -218,6 +239,27 @@ describe('AdminOrdersService', () => {
       const { order: found } = await admin.getAdminOrder({ id: order.id });
       expect(found!.id).toBe(order.id);
       expect(found!.history).toHaveLength(1);
+    });
+
+    it('maps each history row’s actor user, and leaves it out for SYSTEM and PAYMENT rows', async () => {
+      const order = await seedOrder();
+      const staffId = newId();
+      const row = (toStatus: string, actorType: string, actorUserId?: string) =>
+        prisma.orderStatusHistory.create({
+          data: { id: newId(), orderId: order.id, toStatus, actorType, actorUserId },
+        });
+      await row('PENDING', 'CUSTOMER', order.userId);
+      await row('PAID', 'PAYMENT');
+      await row('PREPARING', 'STAFF', staffId);
+      await row('CANCELLED', 'SYSTEM');
+
+      const { order: found } = await admin.getAdminOrder({ id: order.id });
+      expect(found!.history.map((h) => [h.actorType, h.actorUserId])).toEqual([
+        ['CUSTOMER', order.userId],
+        ['PAYMENT', undefined],
+        ['STAFF', staffId],
+        ['SYSTEM', undefined],
+      ]);
     });
 
     it('is RESOURCE_NOT_FOUND for an unknown id', async () => {
