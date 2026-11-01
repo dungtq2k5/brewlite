@@ -159,6 +159,8 @@ export const AdminOrdersControllerListResponse = zod.object({
             createdAt: zod.string(),
           }),
         ),
+        userId: zod.string(),
+        customerName: zod.string().nullable(),
       }),
     )
     .optional(),
@@ -167,6 +169,7 @@ export const AdminOrdersControllerListResponse = zod.object({
       page: zod.int(),
       pageSize: zod.int(),
       total: zod.int(),
+      degraded: zod.array(zod.enum(['identity'])).optional(),
     })
     .optional(),
 });
@@ -295,6 +298,8 @@ export const AdminOrdersControllerGetResponse = zod.object({
           actorName: zod.string().nullable(),
         }),
       ),
+      userId: zod.string(),
+      customerName: zod.string().nullable(),
       payments: zod.union([
         zod.array(
           zod.object({

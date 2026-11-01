@@ -49,6 +49,23 @@ export interface GetUserResponse {
   user: AdminUser | undefined;
 }
 
+/**
+ * `ids`: distinct, 1…100 (MAX_PAGE_SIZE), each a UUIDv7. Deactivated users are included; an unknown
+ * id is simply absent from the answer.
+ */
+export interface ListUserNamesRequest {
+  ids: string[];
+}
+
+export interface UserName {
+  id: string;
+  fullName: string;
+}
+
+export interface ListUserNamesResponse {
+  users: UserName[];
+}
+
 export interface ChangeRoleRequest {
   id: string;
   role: string;
@@ -104,6 +121,10 @@ export interface AdminUserServiceClient {
 
   getUser(request: GetUserRequest, metadata?: Metadata): Observable<GetUserResponse>;
 
+  /** Names for a set of ids, in one read — the gateway composes them into admin order screens. */
+
+  listUserNames(request: ListUserNamesRequest, metadata?: Metadata): Observable<ListUserNamesResponse>;
+
   changeRole(request: ChangeRoleRequest, metadata?: Metadata): Observable<ChangeRoleResponse>;
 
   lockUser(request: LockUserRequest, metadata?: Metadata): Observable<LockUserResponse>;
@@ -130,6 +151,13 @@ export interface AdminUserServiceController {
     request: GetUserRequest,
     metadata?: Metadata,
   ): Promise<GetUserResponse> | Observable<GetUserResponse> | GetUserResponse;
+
+  /** Names for a set of ids, in one read — the gateway composes them into admin order screens. */
+
+  listUserNames(
+    request: ListUserNamesRequest,
+    metadata?: Metadata,
+  ): Promise<ListUserNamesResponse> | Observable<ListUserNamesResponse> | ListUserNamesResponse;
 
   changeRole(
     request: ChangeRoleRequest,
@@ -162,6 +190,7 @@ export function AdminUserServiceControllerMethods() {
     const grpcMethods: string[] = [
       "listUsers",
       "getUser",
+      "listUserNames",
       "changeRole",
       "lockUser",
       "unlockUser",

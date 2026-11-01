@@ -47,6 +47,7 @@ function orderProto(overrides: Partial<Record<string, unknown>> = {}) {
     pointsEarned: 0,
     currentPaymentId: undefined,
     history: [],
+    userId: newId(), // ordering sends it; the customer's routes must not pass it on
     ...overrides,
   };
 }
@@ -133,6 +134,24 @@ describe('gateway e2e — /orders routes', () => {
     expect(res.status).toBe(200);
     expect(orderingClientStub.listMyOrders).toHaveBeenCalledTimes(1);
     expect(orderingClientStub.getOrder).not.toHaveBeenCalled();
+  });
+
+  it('the customer’s own routes never carry their owner (userId is admin-only)', async () => {
+    const auth = { Authorization: `Bearer ${e2e.tokenFor('CUSTOMER')}` };
+    orderingClientStub.listMyOrders.mockResolvedValueOnce({
+      orders: [orderProto()],
+      nextCursor: undefined,
+    });
+    const list = await request(app.getHttpServer()).get('/api/v1/orders/me').set(auth);
+    expect(list.status).toBe(200);
+    expect(list.body.data[0]).not.toHaveProperty('userId');
+    expect(list.body.data[0]).not.toHaveProperty('customerName');
+
+    orderingClientStub.getOrder.mockResolvedValueOnce({ order: orderProto() });
+    const one = await request(app.getHttpServer()).get(`/api/v1/orders/${newId()}`).set(auth);
+    expect(one.status).toBe(200);
+    expect(one.body.data).not.toHaveProperty('userId');
+    expect(one.body.data).not.toHaveProperty('customerName');
   });
 
   it('GET /orders/:id carries currentPaymentId — null before a payment, the id after', async () => {

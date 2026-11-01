@@ -9,6 +9,8 @@ import "brewlite/common/paging.proto";
 service AdminUserService {
   rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
   rpc GetUser(GetUserRequest) returns (GetUserResponse);
+  // Names for a set of ids, in one read — the gateway composes them into admin order screens.
+  rpc ListUserNames(ListUserNamesRequest) returns (ListUserNamesResponse);
   rpc ChangeRole(ChangeRoleRequest) returns (ChangeRoleResponse);
   rpc LockUser(LockUserRequest) returns (LockUserResponse);
   rpc UnlockUser(UnlockUserRequest) returns (UnlockUserResponse);
@@ -46,6 +48,15 @@ message ListUsersResponse {
 
 message GetUserRequest { string id = 1; }
 message GetUserResponse { AdminUser user = 1; }
+
+// `ids`: distinct, 1…100 (MAX_PAGE_SIZE), each a UUIDv7. Deactivated users are included; an unknown
+// id is simply absent from the answer.
+message ListUserNamesRequest { repeated string ids = 1; }
+message UserName {
+  string id = 1;
+  string full_name = 2;
+}
+message ListUserNamesResponse { repeated UserName users = 1; }
 
 message ChangeRoleRequest {
   string id = 1;

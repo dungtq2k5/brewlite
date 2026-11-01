@@ -22,7 +22,11 @@ export class Paged<T, M = PageMeta> {
     public readonly meta: M,
   ) {}
 
-  static page<T>(items: T[], meta: PageMeta): Paged<T, PageMeta> {
+  /** `extra` rides beside `page`, `pageSize`, `total` — e.g. `degraded` (documented by `ApiEnvelope`'s `meta`). */
+  static page<T, E extends object = object>(
+    items: T[],
+    meta: PageMeta & E,
+  ): Paged<T, PageMeta & E> {
     return new Paged(items, meta);
   }
 
