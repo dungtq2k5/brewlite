@@ -25,6 +25,13 @@ export const listPromotionsQuerySchema = zPageQuery(['createdAt', 'code', 'endsA
   .strict();
 export class ListPromotionsQueryDto extends createZodDto(listPromotionsQuerySchema) {}
 
+/**
+ * A usage limit: a count of at least 1, or `null` for unlimited. Omitted is the default on create
+ * (1 per customer, no total cap) and *unchanged* on update. `0` is refused — it would mean "no use
+ * allowed", which `isActive: false` already says, and is what an empty field typed by accident sends.
+ */
+const zLimit = z.number().int().min(1).nullable().optional();
+
 export const createPromotionSchema = z
   .object({
     code: zPromoCode,
@@ -35,8 +42,8 @@ export const createPromotionSchema = z
     minSubtotalVnd: zMoney.default(0),
     startsAt: z.iso.datetime(),
     endsAt: z.iso.datetime(),
-    maxUses: z.number().int().nonnegative().optional(),
-    perUserLimit: z.number().int().nonnegative().optional(),
+    maxUses: zLimit,
+    perUserLimit: zLimit,
     isActive: z.boolean().optional(),
   })
   .strict();
@@ -47,8 +54,8 @@ export const updatePromotionSchema = z
     description: zText(PROMO_DESCRIPTION_MAX_LENGTH).optional(),
     clearDescription: z.boolean().optional(),
     endsAt: z.iso.datetime().optional(),
-    maxUses: z.number().int().nonnegative().optional(),
-    perUserLimit: z.number().int().nonnegative().optional(),
+    maxUses: zLimit,
+    perUserLimit: zLimit,
     isActive: z.boolean().optional(),
   })
   .strict();

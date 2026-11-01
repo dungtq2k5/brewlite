@@ -324,9 +324,9 @@ Promotion = { id; code; description: string | null; discountType: 'PERCENT' | 'F
 | Method | Path | Description | Auth |
 | :---- | :---- | :---- | :---- |
 | GET | `/admin/promotions` | `?active=&deleted=&q=`, page style — `active` is the `is_active` column, `q` a code prefix (upper-cased). Sort `createdAt`, `code`, `endsAt`, default `-createdAt`. | perm:`promotion.manage` |
-| POST | `/admin/promotions` | Everything but `id`, `usedCount`, `createdAt`. Code normalised to upper case. `perUserLimit` defaults to `1`; `null` is unlimited. `maxUses: null` is unlimited, `0` a code that can no longer be used. `409 PROMO_CODE_TAKEN` — deleted codes included, since a code is never reused. | perm:`promotion.manage` |
+| POST | `/admin/promotions` | Everything but `id`, `usedCount`, `createdAt`. Code normalised to upper case. `perUserLimit` defaults to `1`; `null` is unlimited. `maxUses` omitted or `null` is unlimited. Both limits are an integer ≥ 1 or `null` — `0` is `400` (switching a code off is `isActive: false`). `409 PROMO_CODE_TAKEN` — deleted codes included, since a code is never reused. | perm:`promotion.manage` |
 | GET | `/admin/promotions/:id` | `Promotion`. | perm:`promotion.manage` |
-| PATCH | `/admin/promotions/:id` | `{ description?, endsAt?, maxUses?, perUserLimit?, isActive? }`. `maxUses` below `usedCount` is `422 PROMO_MAX_USES_BELOW_USED`. The discount itself never changes (rdm-spec O-4). | perm:`promotion.manage` |
+| PATCH | `/admin/promotions/:id` | `{ description?, endsAt?, maxUses?, perUserLimit?, isActive? }`. Omitted = unchanged; `maxUses: null` / `perUserLimit: null` removes the limit (always allowed, even on a used-up code); numbers ≥ 1. `maxUses` below `usedCount` is `422 PROMO_MAX_USES_BELOW_USED`. The discount itself never changes (rdm-spec O-4). | perm:`promotion.manage` |
 | DELETE | `/admin/promotions/:id` | Soft delete → `204`. The code stops working at once (`PROMO_CODE_INVALID`, `NOT_FOUND`); orders that used it are unaffected. | perm:`promotion.manage` |
 | POST | `/admin/promotions/:id/restore` | `204`. | perm:`promotion.manage` |
 

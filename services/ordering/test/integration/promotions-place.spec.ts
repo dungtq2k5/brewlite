@@ -110,6 +110,15 @@ describe('promotions applied in quote and placeOrder — real DB, catalog stubbe
     expect(readError(error).details?.reason).toBe('PER_USER_LIMIT');
   });
 
+  it('an unlimited per-customer code (NULL) is accepted again and again for the same customer', async () => {
+    const caller: Caller = { kind: 'USER', userId: newId(), role: Role.CUSTOMER };
+    await seedPromotion({ code: 'REPEAT', perUserLimit: null });
+    for (let i = 0; i < 3; i += 1) {
+      const placed = await orders.placeOrder(request({ promoCode: 'REPEAT' }), caller);
+      expect(placed.order?.promoCode).toBe('REPEAT');
+    }
+  });
+
   it('place counts a use; cancelling gives it back and a second order succeeds', async () => {
     const caller: Caller = { kind: 'USER', userId: newId(), role: Role.CUSTOMER };
     const promo = await seedPromotion();
