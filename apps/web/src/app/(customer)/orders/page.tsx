@@ -2,8 +2,9 @@ import { ordersControllerListMyOrders } from '@brewlite/api-client';
 import { OrderList } from '@/components/orders/OrderList';
 import { getT } from '@/i18n/server';
 import { withRequestId } from '@/lib/with-request-id';
+import type { Metadata } from 'next';
 
-export async function generateMetadata() {
+export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getT('orders');
   return { title: t('title') };
 }

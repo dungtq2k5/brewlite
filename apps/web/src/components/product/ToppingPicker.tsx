@@ -53,7 +53,7 @@ export function ToppingPicker({
           return (
             <li key={topping.id}>
               <label
-                className={`rounded-box flex min-h-[3.25rem] items-center gap-3 border px-3 has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-primary ${
+                className={`rounded-box flex min-h-13 items-center gap-3 border px-3 has-focus-visible:outline-3 has-focus-visible:outline-offset-2 has-focus-visible:outline-primary ${
                   checked
                     ? 'bg-secondary/60 border-primary/40 font-semibold'
                     : 'border-base-300 bg-base-100'

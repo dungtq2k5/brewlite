@@ -22,7 +22,7 @@ export function BoardColumn({
   return (
     <section
       aria-labelledby={`col-${status}`}
-      className={`bg-base-200 rounded-box min-h-0 flex-col max-sm:w-full sm:flex sm:w-[280px] sm:shrink-0 sm:snap-start lg:w-auto lg:shrink ${
+      className={`bg-base-200 rounded-box min-h-0 flex-col max-sm:w-full sm:flex sm:w-70 sm:shrink-0 sm:snap-start lg:w-auto lg:shrink ${
         hidden ? 'max-sm:hidden' : 'flex'
       }`}
     >

@@ -4,8 +4,9 @@ import { ProductCard } from '@/components/menu/ProductCard';
 import { getLocale, getT } from '@/i18n/server';
 import { localized } from '@/i18n/format';
 import { groupMenu, noPhotoVariant } from '@/lib/menu';
+import type { Metadata } from 'next';
 
-export async function generateMetadata() {
+export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getT('menu');
   return { title: t('title') };
 }

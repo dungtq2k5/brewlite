@@ -25,7 +25,7 @@ export function LanguageToggle({
       <div
         role="group"
         aria-label={groupLabel}
-        className="bg-base-200 border-base-300 inline-flex h-[38px] items-center rounded-full border p-[3px]"
+        className="bg-base-200 border-base-300 inline-flex h-9.5 items-center rounded-full border p-0.75"
       >
         {SUPPORTED_LOCALES.map((l) => (
           <button
@@ -36,7 +36,7 @@ export function LanguageToggle({
             aria-pressed={l === locale}
             disabled={disabled}
             onClick={() => onChoose(l)}
-            className={`relative h-[30px] w-[34px] rounded-full text-xs font-semibold after:absolute after:-inset-y-[7px] after:inset-x-0 after:content-[''] ${
+            className={`relative h-7.5 w-8.5 rounded-full text-xs font-semibold after:absolute after:-inset-y-1.75 after:inset-x-0 after:content-[''] ${
               l === locale ? 'bg-primary text-primary-content' : 'text-base-content'
             }`}
           >

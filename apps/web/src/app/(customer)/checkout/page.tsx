@@ -1,7 +1,8 @@
 import { CheckoutView } from '@/components/checkout/CheckoutView';
 import { getT } from '@/i18n/server';
+import type { Metadata } from 'next';
 
-export async function generateMetadata() {
+export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getT('checkout');
   return { title: t('title') };
 }

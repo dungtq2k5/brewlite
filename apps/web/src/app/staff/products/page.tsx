@@ -6,8 +6,9 @@ import {
 import { StockTabs } from '@/components/staff/StockTabs';
 import { getT } from '@/i18n/server';
 import { withRequestId } from '@/lib/with-request-id';
+import type { Metadata } from 'next';
 
-export async function generateMetadata() {
+export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getT('staff');
   return { title: t('stock.title') };
 }

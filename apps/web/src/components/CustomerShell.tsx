@@ -16,7 +16,7 @@ export async function CustomerShell({ children }: Readonly<{ children: ReactNode
       <ToastProvider>
         <PathTracker>
           <Header me={me} />
-          <main className="mx-auto w-full max-w-[70rem] px-4 py-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+          <main className="mx-auto w-full max-w-280 px-4 py-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
             {children}
           </main>
         </PathTracker>

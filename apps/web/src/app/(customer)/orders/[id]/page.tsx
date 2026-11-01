@@ -10,6 +10,7 @@ import {
 import { OrderView } from '@/components/order/OrderView';
 import { getT } from '@/i18n/server';
 import { withRequestId } from '@/lib/with-request-id';
+import type { Metadata } from 'next';
 
 const loadOrder = cache(async (id: string): Promise<OrderResponseDto> => {
   try {
@@ -41,7 +42,9 @@ async function loadPayment(order: OrderResponseDto): Promise<PaymentResponseDto 
   }
 }
 
-export async function generateMetadata({ params }: Readonly<{ params: Promise<{ id: string }> }>) {
+export async function generateMetadata({
+  params,
+}: Readonly<{ params: Promise<{ id: string }> }>): Promise<Metadata> {
   const [{ id }, { t }] = await Promise.all([params, getT('orders')]);
   const order = await loadOrder(id);
   return { title: t('order.ticket', { no: `#${order.orderNo}` }) };

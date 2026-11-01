@@ -9,7 +9,7 @@ export default async function Loading() {
       aria-label={t('loading')}
       className="flex flex-col gap-4 lg:grid lg:grid-cols-2 lg:gap-12"
     >
-      <div className="skeleton rounded-box aspect-[16/10] w-full lg:aspect-[4/3]" />
+      <div className="skeleton rounded-box aspect-16/10 w-full lg:aspect-4/3" />
       <div className="flex flex-col gap-4">
         <div className="skeleton h-9 w-3/4" />
         <div className="skeleton h-5 w-full" />

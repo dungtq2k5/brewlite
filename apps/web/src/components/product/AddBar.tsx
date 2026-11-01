@@ -61,7 +61,7 @@ export function AddBar({
           {hint}
         </p>
       )}
-      <div className="mx-auto flex max-w-[70rem] items-center gap-3 lg:max-w-none">
+      <div className="mx-auto flex max-w-280 items-center gap-3 lg:max-w-none">
         <QuantityStepper
           value={quantity}
           onChange={onQuantity}

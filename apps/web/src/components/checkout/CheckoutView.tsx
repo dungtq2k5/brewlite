@@ -183,7 +183,7 @@ export function CheckoutView() {
 
   if (!ready) {
     return (
-      <div className="mx-auto max-w-[30rem]" role="status" aria-label={t('common:loading')}>
+      <div className="mx-auto max-w-120" role="status" aria-label={t('common:loading')}>
         <div className="skeleton h-9 w-40" />
         <div className="skeleton rounded-box mt-4 h-24 w-full" />
         <div className="skeleton rounded-box mt-3 h-24 w-full" />
@@ -223,7 +223,7 @@ export function CheckoutView() {
   }
 
   return (
-    <div className="mx-auto max-w-[30rem] pb-44 lg:max-w-5xl lg:pb-0">
+    <div className="mx-auto max-w-120 pb-44 lg:max-w-5xl lg:pb-0">
       <Link href="/cart" className="inline-flex min-h-11 items-center gap-1 text-sm font-medium">
         <ChevronLeft aria-hidden size={18} />
         {t('back')}
@@ -312,7 +312,7 @@ export function CheckoutView() {
           </div>
 
           <div className="border-base-300 bg-base-100 fixed inset-x-0 bottom-0 z-30 border-t px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:static lg:border-0 lg:bg-transparent lg:p-0">
-            <div className="mx-auto max-w-[30rem] lg:max-w-none">
+            <div className="mx-auto max-w-120 lg:max-w-none">
               <button
                 type="button"
                 onClick={onPlace}

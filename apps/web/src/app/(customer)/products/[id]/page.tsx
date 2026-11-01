@@ -12,6 +12,7 @@ import { getLocale, getT } from '@/i18n/server';
 import { localized } from '@/i18n/format';
 import { noPhotoVariant } from '@/lib/menu';
 import { withRequestId } from '@/lib/with-request-id';
+import type { Metadata } from 'next';
 
 async function loadProduct(id: string): Promise<ProductDetailResponseDto> {
   try {
@@ -31,7 +32,9 @@ async function loadProduct(id: string): Promise<ProductDetailResponseDto> {
 }
 
 /** `generateMetadata` and the page both read the product; this keeps it to one call per request. */
-export async function generateMetadata({ params }: Readonly<{ params: Promise<{ id: string }> }>) {
+export async function generateMetadata({
+  params,
+}: Readonly<{ params: Promise<{ id: string }> }>): Promise<Metadata> {
   const { id } = await params;
   const [product, locale] = await Promise.all([loadProduct(id), getLocale()]);
   return { title: localized(product.name, locale) };
@@ -62,7 +65,7 @@ export default async function ProductPage({
       <BackToMenu label={t('product.back')} />
       <div className="mt-3 lg:grid lg:grid-cols-2 lg:gap-12">
         <div>
-          <div className="rounded-box relative aspect-[16/10] overflow-hidden lg:aspect-[4/3]">
+          <div className="rounded-box relative aspect-16/10 overflow-hidden lg:aspect-4/3">
             <ProductImage imageUrl={product.imageUrl} name={name} variant={variant} iconSize={64} />
             {product.isSoldOut && (
               <span className="bg-neutral text-neutral-content absolute top-3 left-3 rounded-full px-3 py-1 text-xs font-bold">

@@ -114,9 +114,9 @@ export function CategoryNav({
       <nav
         ref={bar}
         aria-label={t('nav.label')}
-        className="bg-base-100 border-base-300 sticky top-[var(--bl-header-h,3.5rem)] z-20 -mx-4 -mt-6 border-b px-4 lg:static lg:mx-0 lg:mt-0 lg:border-0 lg:px-0"
+        className="bg-base-100 border-base-300 sticky top-(--bl-header-h,3.5rem) z-20 -mx-4 -mt-6 border-b px-4 lg:static lg:mx-0 lg:mt-0 lg:border-0 lg:px-0"
       >
-        <ul className="flex gap-2 overflow-x-auto py-3 [scrollbar-width:none] lg:flex-col lg:gap-1 lg:overflow-visible lg:py-0">
+        <ul className="flex gap-2 overflow-x-auto py-3 scrollbar-none lg:flex-col lg:gap-1 lg:overflow-visible lg:py-0">
           {items.map((item) => {
             const active = item.id === current;
             return (
