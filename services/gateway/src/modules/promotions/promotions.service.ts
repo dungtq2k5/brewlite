@@ -10,6 +10,24 @@ import type {
   UpdatePromotionDto,
 } from './dto/promotion.dto.js';
 
+type LimitFields = {
+  maxUses?: number;
+  perUserLimit?: number;
+  unlimitedMaxUses?: true;
+  unlimitedPerUserLimit?: true;
+};
+
+/** The API's limit — a number, `null` (unlimited) or absent — as the wire's number or `unlimited_*` flag. */
+function limitFields(
+  field: 'maxUses' | 'perUserLimit',
+  value: number | null | undefined,
+): LimitFields {
+  if (value === null) {
+    return field === 'maxUses' ? { unlimitedMaxUses: true } : { unlimitedPerUserLimit: true };
+  }
+  return value === undefined ? {} : { [field]: value };
+}
+
 function toCaller(ctx: UserContext): Caller {
   return { kind: 'USER', userId: ctx.userId, role: ctx.role };
 }
@@ -35,7 +53,11 @@ export class PromotionsService {
   }
 
   async create(dto: CreatePromotionDto, requestId?: string): Promise<PromotionResponseDto> {
-    const response = await this.promotions.createPromotion(dto, requestId);
+    const { maxUses, perUserLimit, ...rest } = dto;
+    const response = await this.promotions.createPromotion(
+      { ...rest, ...limitFields('maxUses', maxUses), ...limitFields('perUserLimit', perUserLimit) },
+      requestId,
+    );
     return toPromotionResponseDto(response.promotion!);
   }
 
@@ -55,8 +77,8 @@ export class PromotionsService {
         description: dto.description,
         clearDescription: dto.clearDescription,
         endsAt: dto.endsAt,
-        maxUses: dto.maxUses,
-        perUserLimit: dto.perUserLimit,
+        ...limitFields('maxUses', dto.maxUses),
+        ...limitFields('perUserLimit', dto.perUserLimit),
         isActive: dto.isActive,
       },
       requestId,

@@ -52,7 +52,15 @@ export interface CreatePromotionRequest {
   endsAt: string;
   maxUses?: number | undefined;
   perUserLimit?: number | undefined;
-  isActive?: boolean | undefined;
+  isActive?:
+    | boolean
+    | undefined;
+  /**
+   * proto3 `optional` cannot tell `null` from absent: these say "unlimited" (the gateway sets them for
+   * `null`). With a number they are refused; absent means the default (1 per customer, no total cap).
+   */
+  unlimitedMaxUses?: boolean | undefined;
+  unlimitedPerUserLimit?: boolean | undefined;
 }
 
 export interface CreatePromotionResponse {
@@ -74,7 +82,12 @@ export interface UpdatePromotionRequest {
   endsAt?: string | undefined;
   maxUses?: number | undefined;
   perUserLimit?: number | undefined;
-  isActive?: boolean | undefined;
+  isActive?:
+    | boolean
+    | undefined;
+  /** As on create: set a cap back to unlimited (`NULL`). Absent with no number leaves it unchanged. */
+  unlimitedMaxUses?: boolean | undefined;
+  unlimitedPerUserLimit?: boolean | undefined;
 }
 
 export interface UpdatePromotionResponse {

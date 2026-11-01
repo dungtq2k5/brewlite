@@ -34,6 +34,24 @@ function validationFailed(path: string): never {
   throw rpcError('VALIDATION_FAILED', { issues: [{ path, code: 'invalid_value' }] });
 }
 
+/**
+ * One usage limit from its three-way wire form: a number (≥ 1), the `unlimited_*` flag, or neither.
+ * A flag together with a number, or a number under 1, is refused — the gateway never sends either.
+ */
+function readLimit(
+  path: string,
+  value: number | undefined,
+  unlimited: boolean | undefined,
+): { kind: 'unchanged' } | { kind: 'unlimited' } | { kind: 'set'; value: number } {
+  if (unlimited === true) {
+    if (value !== undefined) validationFailed(path);
+    return { kind: 'unlimited' };
+  }
+  if (value === undefined) return { kind: 'unchanged' };
+  if (!Number.isInteger(value) || value < 1) validationFailed(path);
+  return { kind: 'set', value };
+}
+
 @Injectable()
 export class PromotionAdminService {
   constructor(private readonly prisma: PrismaService) {}
@@ -66,6 +84,13 @@ export class PromotionAdminService {
     const startsAt = new Date(request.startsAt);
     const endsAt = new Date(request.endsAt);
     if (endsAt <= startsAt) validationFailed('/endsAt');
+    // Create: absent is the default (no total cap, one use per customer); the flag is explicit unlimited.
+    const maxUses = readLimit('/maxUses', request.maxUses, request.unlimitedMaxUses);
+    const perUserLimit = readLimit(
+      '/perUserLimit',
+      request.perUserLimit,
+      request.unlimitedPerUserLimit,
+    );
 
     let created;
     try {
@@ -80,8 +105,13 @@ export class PromotionAdminService {
           minSubtotalVnd: request.minSubtotalVnd ?? 0,
           startsAt,
           endsAt,
-          maxUses: request.maxUses,
-          perUserLimit: request.perUserLimit ?? 1,
+          maxUses: maxUses.kind === 'set' ? maxUses.value : null,
+          perUserLimit:
+            perUserLimit.kind === 'set'
+              ? perUserLimit.value
+              : perUserLimit.kind === 'unlimited'
+                ? null
+                : 1,
           isActive: request.isActive ?? true,
         },
       });
@@ -108,10 +138,19 @@ export class PromotionAdminService {
       if (endsAt <= target.startsAt) validationFailed('/endsAt');
     }
 
-    if (request.maxUses !== undefined) {
+    const maxUses = readLimit('/maxUses', request.maxUses, request.unlimitedMaxUses);
+    const perUserLimit = readLimit(
+      '/perUserLimit',
+      request.perUserLimit,
+      request.unlimitedPerUserLimit,
+    );
+
+    if (maxUses.kind === 'unlimited') {
+      await this.prisma.promotion.update({ where: { id: request.id }, data: { maxUses: null } });
+    } else if (maxUses.kind === 'set') {
       const { count } = await this.prisma.promotion.updateMany({
-        where: { id: request.id, usedCount: { lte: request.maxUses } },
-        data: { maxUses: request.maxUses },
+        where: { id: request.id, usedCount: { lte: maxUses.value } },
+        data: { maxUses: maxUses.value },
       });
       if (count === 0) {
         const fresh = await this.findByIdIncludingDeleted(request.id);
@@ -125,7 +164,8 @@ export class PromotionAdminService {
         ...(request.description !== undefined && { description: request.description }),
         ...(request.clearDescription === true && { description: null }),
         ...(endsAt !== undefined && { endsAt }),
-        ...(request.perUserLimit !== undefined && { perUserLimit: request.perUserLimit }),
+        ...(perUserLimit.kind === 'set' && { perUserLimit: perUserLimit.value }),
+        ...(perUserLimit.kind === 'unlimited' && { perUserLimit: null }),
         ...(request.isActive !== undefined && { isActive: request.isActive }),
       },
     });
