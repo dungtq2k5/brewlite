@@ -361,10 +361,11 @@ Locally the SDK talks to the **Firebase Auth emulator**, which offers fake Googl
 
 📌 [ADR 0022](./decisions/0022-order-updates-reach-browsers-as-server-sent-events.md).
 
-- The tracking page and the staff board open an `EventSource` to a Route Handler (`/api/events/orders/[id]`, `/api/events/staff`), which reads the cookie and streams the gateway's SSE response through (`dynamic = 'force-dynamic'`).
+- The tracking page and the staff board open an `EventSource` to a Route Handler (`/api/events/orders/[id]`, `/api/events/staff`), which reads the cookie and streams the gateway's SSE response through (`dynamic = 'force-dynamic'`). Both use one pass-through and one client hook.
+- The staff stream carries every order's changes; the board re-reads itself only for a frame that concerns it — a board status, or an order already on the board — so a customer placing an order or starting a payment does not refresh every tablet. The board keeps its own moves in progress (in flight, inside the undo window) as local state over the server's data, so a re-read never undoes them; a move still inside its undo window is sent at once when the page is left or hidden.
 - The order's Route Handler writes a `: connected` comment first, so the browser's `open` fires at once rather than at the gateway's first 25 s ping; anything but a `200` from the gateway goes back as the same bare status (a `204` is final to an `EventSource`).
 - Each event only says *order X is now status Y*. The page re-reads the order (`router.refresh()`) on every event and on every (re)connect — history, refunds and points always come from the API, and a dropped connection loses latency, never state.
-- When the browser gives up on a stream, the page asks the Route Handler once more and refreshes **only** for `204`, `401` or `404` (the order went final, the session ended, the order is gone); otherwise it retries quietly with backoff (5 s → 30 s). A refresh while the API is down would fail in the layout and replace the page with the error screen. *Reconnecting…* shows after 3 s without a stream.
+- When the browser gives up on a stream, the page asks the Route Handler once more and refreshes **only** for `204`, `401`, `403` or `404` (the order went final, the session ended, the permission was taken away, the order is gone); otherwise it retries quietly with backoff (5 s → 30 s). A refresh while the API is down would fail in the layout and replace the page with the error screen. *Reconnecting…* shows after 3 s without a stream.
 - A final order (`COMPLETED`, `CANCELLED`) opens no stream: a refund's progress on a cancelled order shows on the next load.
 
 ### 4.7 Internationalisation — English and Vietnamese

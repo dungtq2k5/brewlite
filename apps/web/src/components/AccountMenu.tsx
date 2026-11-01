@@ -4,6 +4,7 @@ import { ChevronDown, ChevronRight, LayoutGrid, Receipt, Shield, User } from 'lu
 import Link from 'next/link';
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { LanguageSwitch } from './LanguageSwitch';
 import { SignOutButton } from './SignOutButton';
 
 export interface AccountMenuUser {
@@ -21,7 +22,14 @@ const initials = (name: string) =>
     .join('');
 
 /** A bottom sheet under 640 px, a dropdown above; role links come from `Me.permissions`. */
-export function AccountMenu({ user }: Readonly<{ user: AccountMenuUser }>) {
+export function AccountMenu({
+  user,
+  withLanguage = false,
+}: Readonly<{
+  user: AccountMenuUser;
+  /** The staff shell hides its header language switch on a phone; the sheet carries it instead. */
+  withLanguage?: boolean;
+}>) {
   const { t } = useTranslation('common');
   const [open, setOpen] = useState(false);
   const panelId = useId();
@@ -86,6 +94,12 @@ export function AccountMenu({ user }: Readonly<{ user: AccountMenuUser }>) {
                 <p className="truncate text-sm">{user.email}</p>
               </div>
             </div>
+            {withLanguage && (
+              <div className="flex items-center justify-between px-6 py-2 sm:hidden">
+                <span className="font-medium">{t('language.label')}</span>
+                <LanguageSwitch />
+              </div>
+            )}
             <nav className="flex flex-col">
               <Link href="/orders" className={item} onClick={close}>
                 <Receipt aria-hidden size={20} />

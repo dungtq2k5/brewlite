@@ -88,7 +88,7 @@ Every page's header carries the **language switch** (EN / VI), the cart badge, a
 | Route | Screen |
 | :---- | :---- |
 | `/staff` | **Order board** — three live columns: *Paid* → *Preparing* → *Ready*; one tap moves an order forward; cancel-with-refund on a paid order |
-| `/staff/products` | Sold-out toggle and stock count per product; availability toggle per topping |
+| `/staff/products` | Two tabs. **Products:** sold-out toggle and stock count per product, each saying what the customer sees and why (switched off, or the count reached 0). **Toppings:** an availability toggle each |
 
 ### 3.3 Admin pages (A4)
 
@@ -193,7 +193,8 @@ Use these words in code, tickets and commit messages.
 ### F7 — Staff order board (P0)
 
 - Live board of `PAID`, `PREPARING` and `READY` orders, oldest first, each with its lines, toppings and note.
-- One tap moves an order `PAID → PREPARING → READY → COMPLETED`. Any other move is refused.
+- One tap moves an order `PAID → PREPARING → READY → COMPLETED`. Any other move is refused. *Ready* and *Collected* can be taken back for **5 seconds** — the move is sent only when that ends (there is no move back once it reaches the customer); *Start* is sent at once.
+- Each card shows how long the customer has waited since paying, flagged after `STAFF_ORDER_WAIT_WARN_MINUTES`. A new paid order is marked for a minute and announced, with an optional chime while the board is open.
 - Cancel a paid order (e.g. an ingredient ran out) with a reason; the customer is refunded automatically.
 - Sold-out toggle and stock count per product.
 
@@ -415,6 +416,7 @@ Product decisions, not implementation details. Each is one constant in `packages
 | `MENU_CACHE_TTL_MS` | 5 min | Backstop only — every menu write invalidates at once. |
 | `PRODUCT_IMAGE_MAX_BYTES` | 2 MB | JPEG, PNG or WebP. |
 | `STAFF_BOARD_STATUSES` | `PAID`, `PREPARING`, `READY` | What the counter works on. |
+| `STAFF_ORDER_WAIT_WARN_MINUTES` | 10 min | A paid order waiting this long since payment is flagged on the board. |
 | `SUPPORTED_LOCALES` / `DEFAULT_LOCALE` | `en`, `vi` / `en` | §F11. |
 | `LOCK_REASON_MAX_LENGTH` | 255 chars | A sentence for the next admin, not an essay. |
 | `MAX_LOCK_DURATION_DAYS` | 365 | A longer lock is a deactivation. |

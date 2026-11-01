@@ -48,7 +48,8 @@
       "board": "Board",
       "stock": "Stock",
       "shop": "Shop"
-    }
+    },
+    "titleShort": "Orders"
   },
   "admin": {
     "title": "Admin",

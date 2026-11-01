@@ -1,0 +1,125 @@
+{
+  "live": "Live",
+  "reconnecting": "Reconnecting…",
+  "sound": {
+    "enable": "Enable sound",
+    "on": "Sound on"
+  },
+  "column": {
+    "PAID": "Paid",
+    "PREPARING": "Preparing",
+    "READY": "Ready"
+  },
+  "action": {
+    "PAID": "Start",
+    "PREPARING": "Ready",
+    "READY": "Collected"
+  },
+  "aria": {
+    "PAID": "Start #{{no}}",
+    "PREPARING": "Ready #{{no}}",
+    "READY": "Collected #{{no}}",
+    "cancel": "Cancel #{{no}}…"
+  },
+  "inFlight": {
+    "PREPARING": "Starting…",
+    "READY": "Marking ready…",
+    "COMPLETED": "Completing…"
+  },
+  "wait": {
+    "now": "now",
+    "min_one": "{{count}} min",
+    "min_other": "{{count}} min"
+  },
+  "new": {
+    "chip": "New",
+    "announce": "New order #{{no}}"
+  },
+  "undo": {
+    "READY": "#{{no}} marked Ready",
+    "COMPLETED": "#{{no}} marked Collected",
+    "action": "Undo",
+    "label": "Undo, sent in {{count}} seconds"
+  },
+  "moved": "Already moved by someone else",
+  "moveFailed": "Couldn't move #{{no}}. It's back where it was.",
+  "empty": {
+    "board": "New paid orders appear here",
+    "column": "Nothing here yet"
+  },
+  "failed": {
+    "title": "We couldn't load the board",
+    "body": "Check the tablet's connection and try again.",
+    "retry": "Try again"
+  },
+  "tabs": {
+    "label": "Columns"
+  },
+  "line": {
+    "qty": "{{count}} ×",
+    "note": "Note"
+  },
+  "cancel": {
+    "button": "Cancel…",
+    "title": "Cancel #{{no}} and refund the customer?",
+    "body": "The customer gets their money back and sees your reason word for word.",
+    "reason": "Reason",
+    "required": "required · shown to the customer",
+    "placeholder": "e.g. Out of oat milk",
+    "counter": "{{count}} / {{max}}",
+    "picks": {
+      "label": "Quick reasons",
+      "ingredient": "Out of an ingredient",
+      "machine": "Machine broken",
+      "closing": "Closing early",
+      "customer": "Customer asked to cancel"
+    },
+    "keep": "Keep order",
+    "confirm": "Cancel and refund",
+    "sending": "Cancelling…",
+    "refused": "It's being made now — it can't be cancelled.",
+    "close": "Close",
+    "done": "#{{no}} cancelled — the refund is on its way."
+  },
+  "stock": {
+    "title": "Stock",
+    "tabs": {
+      "products": "Products · {{count}}",
+      "toppings": "Toppings · {{count}}"
+    },
+    "sees": {
+      "onSale": "On sale",
+      "switchedOff": "Sold out · switched off",
+      "countZero": "Sold out · count is 0",
+      "label": "Customer sees"
+    },
+    "count": {
+      "none": "Not counted",
+      "start": "Count stock",
+      "edit": "Edit",
+      "stop": "Stop counting",
+      "save": "Save",
+      "cancel": "Cancel",
+      "saving": "Saving…",
+      "value": "Stock of {{name}}",
+      "dec": "One less, {{name}}",
+      "inc": "One more, {{name}}"
+    },
+    "available": "Available",
+    "availableFor": "Available, {{name}}",
+    "conflict": "The count changed while you were editing — it's {{count}} now. Enter your count again.",
+    "conflictNone": "The count changed while you were editing — it isn't counted now. Enter your count again.",
+    "saveFailed": "Couldn't save the count. Try again.",
+    "toggleFailed": {
+      "off": "Couldn't switch it off. Try again.",
+      "on": "Couldn't switch it back on. Try again."
+    },
+    "failed": {
+      "title": "We couldn't load the stock list",
+      "body": "Check the tablet's connection and try again.",
+      "retry": "Try again"
+    },
+    "empty": "Nothing to show here yet",
+    "price": "Price"
+  }
+}

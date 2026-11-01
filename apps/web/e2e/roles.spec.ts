@@ -9,6 +9,15 @@ test('a customer is sent home from /staff and /admin', async ({ page }) => {
   }
 });
 
+test('a customer on the staff board and stock pages is sent to the menu', async ({ page }) => {
+  await signIn(page, 'customer@brewlite.test', seedPassword());
+  await expect(page.getByRole('button', { name: 'Open account menu' })).toBeVisible();
+  for (const path of ['/staff', '/staff/products']) {
+    await page.goto(path);
+    await expect(page).toHaveURL(/localhost:\d+\/$/);
+  }
+});
+
 test('a guest is sent home from /staff and /admin', async ({ page }) => {
   for (const path of ['/staff', '/admin']) {
     await page.goto(path);
@@ -20,10 +29,11 @@ test('staff reach /staff but not /admin', async ({ page }) => {
   await signIn(page, 'staff@brewlite.test', seedPassword());
   await expect(page.getByRole('button', { name: 'Open account menu' })).toBeVisible();
   await page.goto('/staff');
-  await expect(page.getByRole('heading', { name: 'Orders board' })).toBeVisible();
+  // The phone frame's title is the short one.
+  await expect(page.getByRole('heading', { name: 'Orders', exact: true })).toBeVisible();
   await page.goto('/admin');
   await expect(page).toHaveURL(/localhost:\d+\/$/);
-  await expect(page.getByRole('heading', { name: 'Orders board' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Orders', exact: true })).toHaveCount(0);
 });
 
 // The admin frame is the desktop one (1280 × 800, frame 15:658).

@@ -1,0 +1,124 @@
+{
+  "live": "Trực tiếp",
+  "reconnecting": "Đang kết nối lại…",
+  "sound": {
+    "enable": "Bật âm báo",
+    "on": "Âm báo bật"
+  },
+  "column": {
+    "PAID": "Đã thanh toán",
+    "PREPARING": "Đang pha",
+    "READY": "Sẵn sàng"
+  },
+  "action": {
+    "PAID": "Bắt đầu",
+    "PREPARING": "Xong",
+    "READY": "Đã giao"
+  },
+  "aria": {
+    "PAID": "Bắt đầu #{{no}}",
+    "PREPARING": "Xong #{{no}}",
+    "READY": "Đã giao #{{no}}",
+    "cancel": "Hủy #{{no}}…"
+  },
+  "inFlight": {
+    "PREPARING": "Đang bắt đầu…",
+    "READY": "Đang báo xong…",
+    "COMPLETED": "Đang hoàn tất…"
+  },
+  "wait": {
+    "now": "vừa xong",
+    "min_other": "{{count}} phút"
+  },
+  "new": {
+    "chip": "Mới",
+    "announce": "Đơn mới #{{no}}"
+  },
+  "undo": {
+    "READY": "Đã báo xong #{{no}}",
+    "COMPLETED": "Đã giao #{{no}}",
+    "action": "Hoàn tác",
+    "label": "Hoàn tác, gửi sau {{count}} giây"
+  },
+  "moved": "Người khác đã chuyển đơn này",
+  "moveFailed": "Không chuyển được #{{no}}. Đơn vẫn ở chỗ cũ.",
+  "empty": {
+    "board": "Đơn mới đã thanh toán sẽ hiện ở đây",
+    "column": "Chưa có đơn"
+  },
+  "failed": {
+    "title": "Không tải được bảng đơn",
+    "body": "Kiểm tra kết nối của máy rồi thử lại.",
+    "retry": "Thử lại"
+  },
+  "tabs": {
+    "label": "Các cột"
+  },
+  "line": {
+    "qty": "{{count}} ×",
+    "note": "Ghi chú"
+  },
+  "cancel": {
+    "button": "Hủy…",
+    "title": "Hủy #{{no}} và hoàn tiền cho khách?",
+    "body": "Khách được hoàn tiền và thấy đúng lý do bạn ghi.",
+    "reason": "Lý do",
+    "required": "bắt buộc · khách sẽ thấy",
+    "placeholder": "vd. Hết sữa yến mạch",
+    "counter": "{{count}} / {{max}}",
+    "picks": {
+      "label": "Lý do nhanh",
+      "ingredient": "Hết nguyên liệu",
+      "machine": "Máy hỏng",
+      "closing": "Đóng cửa sớm",
+      "customer": "Khách yêu cầu hủy"
+    },
+    "keep": "Giữ đơn",
+    "confirm": "Hủy và hoàn tiền",
+    "sending": "Đang hủy…",
+    "refused": "Đơn đang được pha — không thể hủy.",
+    "close": "Đóng",
+    "done": "Đã hủy #{{no}} — tiền đang được hoàn."
+  },
+  "stock": {
+    "title": "Kho",
+    "tabs": {
+      "products": "Món · {{count}}",
+      "toppings": "Topping · {{count}}"
+    },
+    "sees": {
+      "onSale": "Đang bán",
+      "switchedOff": "Hết món · đã tắt",
+      "countZero": "Hết món · số lượng 0",
+      "label": "Khách thấy"
+    },
+    "count": {
+      "none": "Không đếm",
+      "start": "Đếm số lượng",
+      "edit": "Sửa",
+      "stop": "Ngừng đếm",
+      "save": "Lưu",
+      "cancel": "Hủy",
+      "saving": "Đang lưu…",
+      "value": "Số lượng {{name}}",
+      "dec": "Bớt một, {{name}}",
+      "inc": "Thêm một, {{name}}"
+    },
+    "available": "Mở bán",
+    "availableFor": "Mở bán, {{name}}",
+    "conflict": "Số lượng đã thay đổi trong lúc bạn sửa — giờ còn {{count}}. Nhập lại số lượng nhé.",
+    "conflictNone": "Số lượng đã thay đổi trong lúc bạn sửa — giờ không đếm nữa. Nhập lại số lượng nhé.",
+    "saveFailed": "Không lưu được số lượng. Thử lại nhé.",
+    "toggleFailed": {
+      "off": "Không tắt được. Thử lại nhé.",
+      "on": "Không bật lại được. Thử lại nhé."
+    },
+    "failed": {
+      "title": "Không tải được danh sách kho",
+      "body": "Kiểm tra kết nối của máy rồi thử lại.",
+      "retry": "Thử lại"
+    },
+    "empty": "Chưa có gì để hiện",
+    "price": "Giá"
+  }
+}

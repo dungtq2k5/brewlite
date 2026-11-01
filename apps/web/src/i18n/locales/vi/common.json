@@ -47,7 +47,8 @@
       "board": "Bảng",
       "stock": "Kho",
       "shop": "Cửa hàng"
-    }
+    },
+    "titleShort": "Đơn"
   },
   "admin": {
     "title": "Quản trị",

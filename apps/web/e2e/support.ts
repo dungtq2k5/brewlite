@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { expect, test as base, type Page } from '@playwright/test';
+import { expect, test as base, type Browser, type Page } from '@playwright/test';
 
 export const GATEWAY = process.env.E2E_GATEWAY_URL ?? 'http://localhost:23100/api/v1';
 
@@ -269,4 +269,79 @@ export async function fakeProviderIsOn(page: Page): Promise<boolean> {
   const other = page.getByText(/Secure · Stripe|unavailable right now|aren.t set up/).first();
   await fake.or(other).waitFor({ timeout: 15_000 });
   return fake.isVisible();
+}
+
+/** The customer pays the open order with the fake provider and waits for the page to say so. */
+export async function payWithFake(page: Page) {
+  await page.getByRole('button', { name: 'Simulate success' }).click();
+  await expect(page.getByRole('heading', { name: "Paid — we've got it." })).toBeVisible();
+}
+
+/** `1042` of the order the page shows — the ticket's accessible name is *Order 1042*. */
+export async function orderNoOn(page: Page): Promise<string> {
+  const label = await page
+    .getByRole('img', { name: /^Order \d+$/ })
+    .first()
+    .getAttribute('aria-label');
+  return label!.replace('Order ', '');
+}
+
+/** An order's status as the customer's API says it. */
+export async function statusOf(orderId: string, token: string) {
+  const { body } = await api<{
+    data: { status: string; cancelNote: string | null; refundStatus: string };
+  }>(`/orders/${orderId}`, { token });
+  return body.data;
+}
+
+export interface StaffProduct {
+  id: string;
+  name: { en: string; vi: string };
+  isAvailable: boolean;
+  stockQty: number | null;
+  version: number;
+}
+
+export async function staffProducts(): Promise<StaffProduct[]> {
+  const { body } = await api<{ data: StaffProduct[] }>('/staff/products', {
+    token: await staffToken(),
+  });
+  return body.data;
+}
+
+/** Puts a product's stock and availability back as it was found — call from `finally`. */
+export async function restoreProduct(original: StaffProduct) {
+  const token = await staffToken();
+  const [now] = (await staffProducts()).filter((p) => p.id === original.id);
+  await api(`/staff/products/${original.id}/stock`, {
+    method: 'PATCH',
+    token,
+    body: JSON.stringify({ stockQty: original.stockQty, expectedVersion: now!.version }),
+  });
+  await api(`/staff/products/${original.id}/availability`, {
+    method: 'PATCH',
+    token,
+    body: JSON.stringify({ isAvailable: original.isAvailable }),
+  });
+}
+
+/** A second, tablet-sized browser context signed in as `staff@` — the other tablet. */
+export async function staffTablet(browser: Browser) {
+  const context = await browser.newContext({ viewport: { width: 1024, height: 768 } });
+  const page = await context.newPage();
+  await signIn(page, 'staff@brewlite.test', seedPassword());
+  await expect(page.getByRole('button', { name: 'Open account menu' })).toBeVisible();
+  await page.goto('/staff');
+  await expect(page.getByRole('heading', { name: 'Orders board' })).toBeVisible();
+  return { context, page };
+}
+
+/** Sets a product's count through the API (`null` = not counted), whatever its current version. */
+export async function setStock(productId: string, stockQty: number | null) {
+  const current = (await staffProducts()).find((p) => p.id === productId)!;
+  await api(`/staff/products/${productId}/stock`, {
+    method: 'PATCH',
+    token: await staffToken(),
+    body: JSON.stringify({ stockQty, expectedVersion: current.version }),
+  });
 }

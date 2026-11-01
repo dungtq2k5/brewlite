@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 
 const SIZE = {
   large: { box: 'h-[88px] w-80', hash: 'text-3xl', no: 'text-6xl' },
-  medium: { box: 'h-[76px] w-64', hash: 'text-2xl', no: 'text-5xl' },
+  medium: { box: 'h-16 w-[220px]', hash: 'text-2xl', no: 'text-4xl' },
   small: { box: 'h-[52px] w-[136px]', hash: 'text-lg', no: 'text-3xl' },
 } as const;
 
@@ -15,14 +15,21 @@ export function OrderTicket({
   orderNo,
   size,
   tone = 'plain',
-}: Readonly<{ orderNo: string; size: keyof typeof SIZE; tone?: 'plain' | 'ready' }>) {
+  align = 'center',
+}: Readonly<{
+  orderNo: string;
+  size: keyof typeof SIZE;
+  tone?: 'plain' | 'ready';
+  /** `start` for a ticket inside a card (the board); `center` on a page. */
+  align?: 'center' | 'start';
+}>) {
   const { t } = useTranslation('orders');
   const s = SIZE[size];
   return (
     <div
       role="img"
       aria-label={t('order.ticket', { no: orderNo })}
-      className={`bg-secondary text-primary relative mx-auto flex items-center rounded-2xl ${s.box} ${
+      className={`bg-secondary text-primary relative flex items-center rounded-2xl ${align === 'center' ? 'mx-auto' : ''} ${s.box} ${
         tone === 'ready' ? 'ring-success ring-2' : ''
       }`}
     >
