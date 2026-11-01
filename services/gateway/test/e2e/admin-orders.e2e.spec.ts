@@ -1,7 +1,7 @@
 import { status as GrpcStatus } from '@grpc/grpc-js';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import request from 'supertest';
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { compareStrings, newId } from '@brewlite/contracts';
 import { rpcError } from '@brewlite/nest-common';
 import { AdminOrderGrpcClient } from '../../src/modules/admin-orders/admin-order-grpc.client.js';
@@ -14,12 +14,13 @@ import { createE2eApp, type E2eApp } from './support/e2e-app.js';
 const ordersStub = { listOrders: vi.fn(), getAdminOrder: vi.fn() };
 const paymentsStub = { listPaymentsForOrder: vi.fn() };
 const reportStub = { salesReport: vi.fn(), getStaffStats: vi.fn() };
-const identityStub = { getUser: vi.fn() };
+const identityStub = { listUserNames: vi.fn() };
 const loyaltyStub = { getLoyaltyForUser: vi.fn() };
 
 function orderProto(overrides: Record<string, unknown> = {}) {
   return {
     id: newId(),
+    userId: newId(),
     orderNo: '1042',
     status: 'COMPLETED',
     lines: [],
@@ -71,6 +72,18 @@ describe('gateway e2e — /admin/orders, /admin/reports and /admin/users/:id act
       [LoyaltyGrpcClient, loyaltyStub],
     ]);
     app = e2e.app;
+  });
+
+  /** What identity answers: a name for each id it knows, nothing for the others. */
+  const identityKnows = (names: Record<string, string>) =>
+    identityStub.listUserNames.mockImplementation((_caller: unknown, { ids }: { ids: string[] }) =>
+      Promise.resolve({
+        users: ids.filter((id) => id in names).map((id) => ({ id, fullName: names[id] })),
+      }),
+    );
+
+  beforeEach(() => {
+    identityStub.listUserNames.mockResolvedValue({ users: [] });
   });
 
   afterEach(() => {
@@ -187,6 +200,84 @@ describe('gateway e2e — /admin/orders, /admin/reports and /admin/users/:id act
     });
   });
 
+  describe('GET /admin/orders — who ordered', () => {
+    const [lan, minh, ghost] = [newId(), newId(), newId()];
+    const page = { page: 1, pageSize: 20, total: 3 };
+    const three = () => [
+      orderProto({ userId: lan }),
+      orderProto({ userId: minh }),
+      orderProto({ userId: lan }),
+    ];
+    const list = () => request(app.getHttpServer()).get('/api/v1/admin/orders').set(as('ADMIN'));
+
+    it('puts userId and customerName on every row from ONE lookup of the distinct customers', async () => {
+      ordersStub.listOrders.mockResolvedValueOnce({ orders: three(), meta: page });
+      identityKnows({ [lan]: 'Lan Anh', [minh]: 'Minh Chau' });
+      const res = await list();
+      expect(res.status).toBe(200);
+      expect(res.body.meta).toEqual(page);
+      expect(res.body.data.map((o: Record<string, unknown>) => [o.userId, o.customerName])).toEqual(
+        [
+          [lan, 'Lan Anh'],
+          [minh, 'Minh Chau'],
+          [lan, 'Lan Anh'],
+        ],
+      );
+      expect(identityStub.listUserNames).toHaveBeenCalledTimes(1);
+      const ids = (identityStub.listUserNames.mock.calls[0]![1] as { ids: string[] }).ids;
+      expect([...ids].sort(compareStrings)).toEqual([lan, minh].sort(compareStrings));
+    });
+
+    it('an owner identity does not return is null; the page still answers', async () => {
+      ordersStub.listOrders.mockResolvedValueOnce({
+        orders: [orderProto({ userId: ghost }), orderProto({ userId: lan })],
+        meta: page,
+      });
+      identityKnows({ [lan]: 'Lan Anh' });
+      const res = await list();
+      expect(res.status).toBe(200);
+      expect(res.body.meta).toEqual(page);
+      expect(res.body.data.map((o: { customerName: unknown }) => o.customerName)).toEqual([
+        null,
+        'Lan Anh',
+      ]);
+    });
+
+    it('an empty page asks identity for nothing', async () => {
+      ordersStub.listOrders.mockResolvedValueOnce({ orders: [], meta: { ...page, total: 0 } });
+      const res = await list();
+      expect(res.status).toBe(200);
+      expect(identityStub.listUserNames).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['UNAVAILABLE', GrpcStatus.UNAVAILABLE],
+      ['DEADLINE_EXCEEDED', GrpcStatus.DEADLINE_EXCEEDED],
+    ])(
+      'identity %s: 200, every customerName null, ids kept, meta.degraded beside the page',
+      async (_n, code) => {
+        ordersStub.listOrders.mockResolvedValueOnce({ orders: three(), meta: page });
+        identityStub.listUserNames.mockRejectedValue(Object.assign(new Error('down'), { code }));
+        const res = await list();
+        expect(res.status).toBe(200);
+        expect(res.body.meta).toEqual({ ...page, degraded: ['identity'] });
+        expect(res.body.data.every((o: { customerName: unknown }) => o.customerName === null)).toBe(
+          true,
+        );
+        expect(res.body.data.map((o: { userId: string }) => o.userId)).toEqual([lan, minh, lan]);
+      },
+    );
+
+    it('any other identity error is a real error', async () => {
+      ordersStub.listOrders.mockResolvedValueOnce({ orders: three(), meta: page });
+      identityStub.listUserNames.mockRejectedValue(
+        Object.assign(new Error('bad'), { code: GrpcStatus.INVALID_ARGUMENT }),
+      );
+      const res = await list();
+      expect(res.status).toBeGreaterThanOrEqual(400);
+    });
+  });
+
   describe('GET /admin/orders/:id', () => {
     it('composes the order with its payments', async () => {
       const order = orderProto();
@@ -234,7 +325,7 @@ describe('gateway e2e — /admin/orders, /admin/reports and /admin/users/:id act
       expect(res.body.meta).toBeUndefined();
     });
 
-    describe('who did it', () => {
+    describe('who ordered and who did it', () => {
       const customer = newId();
       const staff = newId();
       const history = [
@@ -260,7 +351,7 @@ describe('gateway e2e — /admin/orders, /admin/reports and /admin/users/:id act
         { toStatus: 'CANCELLED', actorType: 'SYSTEM', createdAt: '2026-10-01T05:04:00Z' },
       ];
       const names: Record<string, string> = { [customer]: 'Lan Anh', [staff]: 'Minh Chau' };
-      const get = async (order = orderProto({ history })) => {
+      const get = async (order = orderProto({ userId: customer, history })) => {
         ordersStub.getAdminOrder.mockResolvedValueOnce({ order });
         return request(app.getHttpServer())
           .get(`/api/v1/admin/orders/${order.id}`)
@@ -270,14 +361,13 @@ describe('gateway e2e — /admin/orders, /admin/reports and /admin/users/:id act
         paymentsStub.listPaymentsForOrder.mockResolvedValue({ payments: [] });
       const down = (code: number) => Object.assign(new Error('down'), { code });
 
-      it('gives each row its actor’s id and name, null for SYSTEM and PAYMENT, one lookup per user', async () => {
+      it('names the customer and every actor from ONE lookup, null for SYSTEM and PAYMENT rows', async () => {
         paymentsOk();
-        identityStub.getUser.mockImplementation((_caller: unknown, { id }: { id: string }) =>
-          Promise.resolve({ user: { id, fullName: names[id] } }),
-        );
+        identityKnows(names);
         const res = await get();
         expect(res.status).toBe(200);
         expect(res.body.meta).toBeUndefined();
+        expect(res.body.data).toMatchObject({ userId: customer, customerName: 'Lan Anh' });
         expect(
           res.body.data.history.map((h: Record<string, unknown>) => [
             h.actorType,
@@ -291,43 +381,55 @@ describe('gateway e2e — /admin/orders, /admin/reports and /admin/users/:id act
           ['STAFF', staff, 'Minh Chau'],
           ['SYSTEM', null, null],
         ]);
-        expect(identityStub.getUser).toHaveBeenCalledTimes(2); // the staff member once
+        expect(identityStub.listUserNames).toHaveBeenCalledTimes(1);
+        const ids = (identityStub.listUserNames.mock.calls[0]![1] as { ids: string[] }).ids;
+        expect([...ids].sort(compareStrings)).toEqual([customer, staff].sort(compareStrings));
+      });
+
+      it('asks once with the customer alone when no row has a user', async () => {
+        paymentsOk();
+        identityKnows(names);
+        const res = await get(orderProto({ userId: customer, history: [history[1], history[4]] }));
+        expect(res.status).toBe(200);
+        expect(res.body.data.customerName).toBe('Lan Anh');
+        expect(identityStub.listUserNames.mock.calls[0]![1]).toEqual({ ids: [customer] });
       });
 
       it.each([
         ['UNAVAILABLE', GrpcStatus.UNAVAILABLE],
         ['DEADLINE_EXCEEDED', GrpcStatus.DEADLINE_EXCEEDED],
-      ])('identity %s: 200, every actorName null, meta.degraded has identity', async (_n, code) => {
-        paymentsOk();
-        identityStub.getUser.mockRejectedValue(down(code));
-        const res = await get();
-        expect(res.status).toBe(200);
-        expect(res.body.meta).toEqual({ degraded: ['identity'] });
-        expect(
-          res.body.data.history.every((h: { actorName: unknown }) => h.actorName === null),
-        ).toBe(true);
-        expect(res.body.data.history[0].actorUserId).toBe(customer); // the id still shows
-      });
+      ])(
+        'identity %s: 200, every name null, ids kept, meta.degraded has identity',
+        async (_n, code) => {
+          paymentsOk();
+          identityStub.listUserNames.mockRejectedValue(down(code));
+          const res = await get();
+          expect(res.status).toBe(200);
+          expect(res.body.meta).toEqual({ degraded: ['identity'] });
+          expect(res.body.data).toMatchObject({ userId: customer, customerName: null });
+          expect(
+            res.body.data.history.every((h: { actorName: unknown }) => h.actorName === null),
+          ).toBe(true);
+          expect(res.body.data.history[0].actorUserId).toBe(customer);
+        },
+      );
 
       it('identity and payment both down: both are named', async () => {
         paymentsStub.listPaymentsForOrder.mockRejectedValue(down(GrpcStatus.UNAVAILABLE));
-        identityStub.getUser.mockRejectedValue(down(GrpcStatus.UNAVAILABLE));
+        identityStub.listUserNames.mockRejectedValue(down(GrpcStatus.UNAVAILABLE));
         const res = await get();
         expect(res.status).toBe(200);
         expect(res.body.data.payments).toBeNull();
         expect([...res.body.meta.degraded].sort(compareStrings)).toEqual(['identity', 'payment']);
       });
 
-      it('a user identity no longer finds is null for that id only', async () => {
+      it('a user identity does not return is null for that id only', async () => {
         paymentsOk();
-        identityStub.getUser.mockImplementation((_caller: unknown, { id }: { id: string }) =>
-          id === staff
-            ? Promise.reject(down(GrpcStatus.NOT_FOUND))
-            : Promise.resolve({ user: { id, fullName: names[id] } }),
-        );
+        identityKnows({ [customer]: 'Lan Anh' }); // the staff member is absent
         const res = await get();
         expect(res.status).toBe(200);
         expect(res.body.meta).toBeUndefined();
+        expect(res.body.data.customerName).toBe('Lan Anh');
         expect(res.body.data.history.map((h: { actorName: unknown }) => h.actorName)).toEqual([
           'Lan Anh',
           null,
@@ -339,17 +441,10 @@ describe('gateway e2e — /admin/orders, /admin/reports and /admin/users/:id act
 
       it('any other identity error is a real error', async () => {
         paymentsOk();
-        identityStub.getUser.mockRejectedValue(down(GrpcStatus.INVALID_ARGUMENT));
+        identityStub.listUserNames.mockRejectedValue(down(GrpcStatus.INVALID_ARGUMENT));
         const res = await get();
         expect(res.status).toBeGreaterThanOrEqual(400);
         expect(res.body.meta).toBeUndefined();
-      });
-
-      it('asks identity for nothing when no row has a user', async () => {
-        paymentsOk();
-        const res = await get(orderProto({ history: [history[1], history[4]] }));
-        expect(res.status).toBe(200);
-        expect(identityStub.getUser).not.toHaveBeenCalled();
       });
     });
 
@@ -445,7 +540,7 @@ describe('gateway e2e — /admin/orders, /admin/reports and /admin/users/:id act
       expect(res.body.data).toMatchObject({ balance: 12, lifetimeEarned: 30 });
       expect(res.body.data.recent[0]).toMatchObject({ orderNo: '1042', kind: 'EARN', points: 5 });
       expect(loyaltyStub.getLoyaltyForUser.mock.calls[0]![1]).toEqual({ userId });
-      expect(identityStub.getUser).not.toHaveBeenCalled(); // the gateway does not check the user exists
+      expect(identityStub.listUserNames).not.toHaveBeenCalled(); // the gateway does not check the user exists
     });
 
     it('a malformed id is 400', async () => {

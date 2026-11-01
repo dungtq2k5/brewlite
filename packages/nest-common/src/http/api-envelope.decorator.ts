@@ -14,7 +14,8 @@ export interface ApiEnvelopeOptions {
   paged?: boolean;
   /**
    * Properties of an optional `meta` object beside `data` on a single resource — what a
-   * handler returns with `WithMeta.of(data, meta)`. For lists, `paged`/`cursor` already say it.
+   * handler returns with `WithMeta.of(data, meta)`. On a `paged` list they are added to the page
+   * block (`page`, `pageSize`, `total`) as optional properties — `Paged.page(items, { …, degraded })`.
    */
   meta?: Record<string, unknown>;
   /** The handler returns a `Paged.cursor` — `data` is a list, plus a `meta.nextCursor` block. */
@@ -57,11 +58,12 @@ export function ApiEnvelope(
                   page: { type: 'integer' },
                   pageSize: { type: 'integer' },
                   total: { type: 'integer' },
+                  ...(meta as object),
                 },
                 required: ['page', 'pageSize', 'total'],
               },
             }),
-            ...(meta && { meta: { type: 'object', properties: meta as never } }),
+            ...(!paged && meta && { meta: { type: 'object', properties: meta as never } }),
             ...(cursor && {
               meta: {
                 type: 'object',

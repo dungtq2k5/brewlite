@@ -164,6 +164,7 @@ describe('AdminOrderService and ReportService gRPC contract', () => {
       orderNo: order.orderNo.toString(),
     });
     expect(res.orders.map((o) => o.id)).toEqual([order.id]);
+    expect(res.orders[0]?.userId).toBe(order.userId); // the owner rides on the wire
     expect(res.meta).toEqual({ page: 1, pageSize: 20, total: 1 });
   });
 

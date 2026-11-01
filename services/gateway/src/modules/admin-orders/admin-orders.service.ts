@@ -1,15 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { status as GrpcStatus } from '@grpc/grpc-js';
-import { Paged, WithMeta, type Caller } from '@brewlite/nest-common';
+import { Paged, WithMeta, type Caller, type PageMeta } from '@brewlite/nest-common';
 import type { UserContext } from '../../auth/request-context.js';
 import { toOrderResponseDto } from '../orders/order.mapper.js';
-import type { OrderResponseDto } from '../orders/dto/order.dto.js';
 import { toPaymentResponseDto } from '../payments/payment.mapper.js';
 import { IdentityServiceGrpcClient } from '../auth/identity-service-grpc.client.js';
 import { PaymentServiceGrpcClient } from '../payments/payment-service-grpc.client.js';
 import { AdminOrderGrpcClient } from './admin-order-grpc.client.js';
 import type {
   AdminOrderDetailResponseDto,
+  AdminOrderListItemResponseDto,
   AdminOrderMeta,
   ListAdminOrdersQueryDto,
 } from './dto/admin-order.dto.js';
@@ -25,9 +25,6 @@ function isDown(error: unknown): boolean {
   const code = (error as { code?: unknown } | null)?.code;
   return code === GrpcStatus.UNAVAILABLE || code === GrpcStatus.DEADLINE_EXCEEDED;
 }
-
-const isNotFound = (error: unknown) =>
-  (error as { code?: unknown } | null)?.code === GrpcStatus.NOT_FOUND;
 
 type Settled<T> = { ok: true; value: T } | { ok: false; error: unknown };
 const settle = <T>(promise: Promise<T>): Promise<Settled<T>> =>
@@ -46,13 +43,19 @@ export class AdminOrdersService {
     private readonly identity: IdentityServiceGrpcClient,
   ) {}
 
+  /**
+   * Each row carries its owner. The page's distinct customers are named by **one** identity
+   * lookup; if identity is down or slow the list still shows — every `customerName` `null`, the
+   * ids kept, `meta.degraded: ['identity']` beside the page fields. Any other error is real.
+   */
   async list(
     ctx: UserContext,
     query: ListAdminOrdersQueryDto,
     requestId?: string,
-  ): Promise<Paged<OrderResponseDto>> {
+  ): Promise<Paged<AdminOrderListItemResponseDto, PageMeta & { degraded?: 'identity'[] }>> {
+    const caller = toCaller(ctx);
     const response = await this.orders.listOrders(
-      toCaller(ctx),
+      caller,
       {
         page: { page: query.page, pageSize: query.pageSize, sort: query.sort },
         status: query.status,
@@ -63,14 +66,33 @@ export class AdminOrdersService {
       },
       requestId,
     );
-    return Paged.page(response.orders.map(toOrderResponseDto), response.meta!);
+    const names = await settle(
+      this.namesOf(
+        caller,
+        response.orders.map((o) => o.userId),
+        requestId,
+      ),
+    );
+    if (!names.ok && !isDown(names.error)) throw names.error;
+    if (!names.ok) {
+      this.logger.warn({ requestId }, 'identity unreachable; serving the list without names');
+    }
+    const nameOf = names.ok ? names.value : new Map<string, string>();
+
+    const items = response.orders.map((order) => ({
+      ...toOrderResponseDto(order),
+      userId: order.userId,
+      customerName: nameOf.get(order.userId) ?? null,
+    }));
+    const meta = response.meta!;
+    return Paged.page(items, names.ok ? meta : { ...meta, degraded: ['identity' as const] });
   }
 
   /**
    * The order first (a missing one is `404`), then — in parallel — its payments and the names of
-   * the users behind its history. If payment or identity is down the order still shows
-   * (`payments: null` / every `actorName: null`) and `meta.degraded` says which. Any other error
-   * from either is a real error.
+   * its customer and of the users behind its history, from **one** identity lookup. If payment or
+   * identity is down the order still shows (`payments: null` / every name `null`) and
+   * `meta.degraded` says which. Any other error from either is a real error.
    */
   async get(
     ctx: UserContext,
@@ -83,7 +105,13 @@ export class AdminOrdersService {
 
     const [payments, names] = await Promise.all([
       settle(this.payments.listPaymentsForOrder(caller, { orderId: id }, requestId)),
-      settle(this.namesOf(caller, order!.history, requestId)),
+      settle(
+        this.namesOf(
+          caller,
+          [order!.userId, ...order!.history.map((h) => h.actorUserId ?? '')],
+          requestId,
+        ),
+      ),
     ]);
 
     const degraded: AdminOrderMeta['degraded'] = [];
@@ -94,13 +122,15 @@ export class AdminOrdersService {
     }
     if (!names.ok) {
       if (!isDown(names.error)) throw names.error;
-      this.logger.warn({ orderId: id, requestId }, 'identity unreachable; no actor names');
+      this.logger.warn({ orderId: id, requestId }, 'identity unreachable; no names');
       degraded.push('identity');
     }
-    const nameOf = names.ok ? names.value : new Map<string, string | null>();
+    const nameOf = names.ok ? names.value : new Map<string, string>();
 
     const detail: AdminOrderDetailResponseDto = {
       ...base,
+      userId: order!.userId,
+      customerName: nameOf.get(order!.userId) ?? null,
       history: base.history.map((entry, index) => {
         const actorUserId = order!.history[index]!.actorUserId ?? null;
         return {
@@ -115,27 +145,18 @@ export class AdminOrdersService {
   }
 
   /**
-   * The distinct users in a history (a handful: the customer, one or two staff), looked up in
-   * parallel — no batch RPC for ≤ 3 ids. A user that no longer resolves is `null`; a deactivated
-   * one still does.
+   * Names for the distinct, non-empty ids — **one** `ListUserNames` call, nothing for none. An id
+   * identity no longer knows is simply absent (the caller shows `null`); a deactivated user still
+   * has a name.
    */
   private async namesOf(
     caller: Caller,
-    history: readonly { actorUserId?: string }[],
+    ids: readonly string[],
     requestId?: string,
-  ): Promise<Map<string, string | null>> {
-    const ids = [...new Set(history.flatMap((h) => (h.actorUserId ? [h.actorUserId] : [])))];
-    const entries = await Promise.all(
-      ids.map(async (userId): Promise<[string, string | null]> => {
-        try {
-          const { user } = await this.identity.getUser(caller, { id: userId }, requestId);
-          return [userId, user?.fullName ?? null];
-        } catch (error) {
-          if (isNotFound(error)) return [userId, null];
-          throw error;
-        }
-      }),
-    );
-    return new Map(entries);
+  ): Promise<Map<string, string>> {
+    const distinct = [...new Set(ids.filter(Boolean))];
+    if (distinct.length === 0) return new Map();
+    const { users } = await this.identity.listUserNames(caller, { ids: distinct }, requestId);
+    return new Map(users.map((u) => [u.id, u.fullName]));
   }
 }

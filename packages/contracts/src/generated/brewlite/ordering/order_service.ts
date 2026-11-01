@@ -83,7 +83,11 @@ export interface Order {
   history: OrderHistoryEntry[];
   /** The payment in progress, or the one that paid the order — `GET /payments/:id` reads it. */
   currentPaymentId?: string | undefined;
-  cancelledAt?: string | undefined;
+  cancelledAt?:
+    | string
+    | undefined;
+  /** O-1 `user_id`, always set. Only the admin routes expose it; the customer's `Order` never does. */
+  userId: string;
 }
 
 export interface PlaceOrderRequest {

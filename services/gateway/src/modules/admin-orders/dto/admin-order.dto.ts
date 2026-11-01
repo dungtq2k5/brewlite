@@ -32,11 +32,19 @@ export const adminHistoryEntrySchema = orderHistoryEntryResponseSchema.extend({
   actorName: z.string().nullable(),
 });
 
+/** The admin's view adds who ordered: the owner's id and name (`null` when identity could not say). */
+const ownerFields = { userId: zUuidV7, customerName: z.string().nullable() };
+
+/** A row of `GET /admin/orders` — the `Order` (no history) and its owner. */
+export const adminOrderListItemSchema = orderResponseSchema.extend(ownerFields);
+export class AdminOrderListItemResponseDto extends createZodDto(adminOrderListItemSchema) {}
+
 /**
  * `Order & { payments }` — `null` when payment could not be reached (`meta.degraded`); `history`
  * rows carry `actorUserId` and `actorName` (`null` names when identity could not be reached).
  */
 export const adminOrderDetailSchema = orderResponseSchema.extend({
+  ...ownerFields,
   history: z.array(adminHistoryEntrySchema),
   payments: z.array(paymentResponseSchema).nullable(),
 });
@@ -47,3 +55,8 @@ export const ADMIN_ORDER_META_PROPERTIES = {
   degraded: { type: 'array', items: { type: 'string', enum: ['payment', 'identity'] } },
 } as const;
 export type AdminOrderMeta = { degraded: ('payment' | 'identity')[] };
+
+/** On the list the page fields come first; `degraded` appears only when identity was down. */
+export const ADMIN_ORDER_LIST_META_PROPERTIES = {
+  degraded: { type: 'array', items: { type: 'string', enum: ['identity'] } },
+} as const;

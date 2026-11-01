@@ -87,6 +87,8 @@ message Order {
   // The payment in progress, or the one that paid the order — `GET /payments/:id` reads it.
   optional string current_payment_id = 20;
   optional string cancelled_at = 21;
+  // O-1 `user_id`, always set. Only the admin routes expose it; the customer's `Order` never does.
+  string user_id = 22;
 }
 
 message PlaceOrderRequest {

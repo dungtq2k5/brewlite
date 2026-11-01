@@ -4,9 +4,11 @@
  * BrewLite API
  * OpenAPI spec version: 1
  */
+import type { AdminOrdersControllerList200MetaDegradedItem } from './adminOrdersControllerList200MetaDegradedItem.js';
 
 export type AdminOrdersControllerList200Meta = {
   page: number;
   pageSize: number;
   total: number;
+  degraded?: AdminOrdersControllerList200MetaDegradedItem[];
 };

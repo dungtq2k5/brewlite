@@ -10,6 +10,8 @@ import {
   type DeactivateUserResponse,
   type GetUserRequest,
   type GetUserResponse,
+  type ListUserNamesRequest,
+  type ListUserNamesResponse,
   type ListUsersRequest,
   type ListUsersResponse,
   type LockUserRequest,
@@ -33,6 +35,10 @@ export class AdminUsersGrpcController implements AdminUserServiceController {
 
   getUser(request: GetUserRequest): Promise<GetUserResponse> {
     return this.adminUsers.getUser(request);
+  }
+
+  listUserNames(request: ListUserNamesRequest): Promise<ListUserNamesResponse> {
+    return this.adminUsers.listUserNames(request);
   }
 
   changeRole(request: ChangeRoleRequest, metadata?: Metadata): Promise<ChangeRoleResponse> {

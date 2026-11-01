@@ -268,6 +268,18 @@ describe('AdminOrdersService', () => {
     });
   });
 
+  describe('user_id', () => {
+    it('is on every Order ordering builds: the admin list and detail, and the customer’s own read', async () => {
+      const order = await seedOrder();
+      const caller: Caller = { kind: 'USER', userId: order.userId, role: Role.CUSTOMER };
+
+      const listed = await admin.listOrders({ page: page() });
+      expect(listed.orders.find((o) => o.id === order.id)?.userId).toBe(order.userId);
+      expect((await admin.getAdminOrder({ id: order.id })).order?.userId).toBe(order.userId);
+      expect((await orders.getOrder({ id: order.id }, caller)).order?.userId).toBe(order.userId);
+    });
+  });
+
   describe('cancelledAt', () => {
     it('is set by a cancel and absent on any other order', async () => {
       const order = await seedOrder();

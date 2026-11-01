@@ -1246,7 +1246,7 @@
                     "data": {
                       "type": "array",
                       "items": {
-                        "$ref": "#/components/schemas/OrderResponseDto"
+                        "$ref": "#/components/schemas/AdminOrderListItemResponseDto"
                       }
                     },
                     "meta": {
@@ -1260,6 +1260,13 @@
                         },
                         "total": {
                           "type": "integer"
+                        },
+                        "degraded": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": ["identity"]
+                          }
                         }
                       },
                       "required": ["page", "pageSize", "total"]
@@ -5889,7 +5896,7 @@
         "required": ["reason"],
         "additionalProperties": false
       },
-      "OrderResponseDto": {
+      "AdminOrderListItemResponseDto": {
         "type": "object",
         "properties": {
           "lines": {
@@ -6064,6 +6071,12 @@
               },
               "required": ["fromStatus", "toStatus", "actorType", "note", "createdAt"]
             }
+          },
+          "userId": {
+            "type": "string"
+          },
+          "customerName": {
+            "type": ["string", "null"]
           }
         },
         "required": [
@@ -6087,7 +6100,9 @@
           "refundStatus",
           "pointsEarned",
           "currentPaymentId",
-          "history"
+          "history",
+          "userId",
+          "customerName"
         ]
       },
       "AdminOrderDetailResponseDto": {
@@ -6280,6 +6295,12 @@
               ]
             }
           },
+          "userId": {
+            "type": "string"
+          },
+          "customerName": {
+            "type": ["string", "null"]
+          },
           "payments": {
             "anyOf": [
               {
@@ -6360,6 +6381,8 @@
           "pointsEarned",
           "currentPaymentId",
           "history",
+          "userId",
+          "customerName",
           "payments"
         ]
       },
@@ -7559,6 +7582,207 @@
         },
         "required": ["items"],
         "additionalProperties": false
+      },
+      "OrderResponseDto": {
+        "type": "object",
+        "properties": {
+          "lines": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "productId": {
+                  "type": "string"
+                },
+                "productName": {
+                  "type": "object",
+                  "properties": {
+                    "en": {
+                      "type": "string"
+                    },
+                    "vi": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["en", "vi"]
+                },
+                "size": {
+                  "type": "string",
+                  "enum": ["S", "M", "L"]
+                },
+                "toppings": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "toppingId": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "object",
+                        "properties": {
+                          "en": {
+                            "type": "string"
+                          },
+                          "vi": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["en", "vi"]
+                      },
+                      "priceVnd": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": ["toppingId", "name", "priceVnd"]
+                  }
+                },
+                "unitPriceVnd": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "qty": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "lineTotalVnd": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "productId",
+                "productName",
+                "size",
+                "toppings",
+                "unitPriceVnd",
+                "qty",
+                "lineTotalVnd"
+              ]
+            }
+          },
+          "subtotalVnd": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "promoDiscountVnd": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "pointsDiscountVnd": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "totalVnd": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "promoCode": {
+            "type": ["string", "null"]
+          },
+          "pointsEarnable": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "id": {
+            "type": "string"
+          },
+          "orderNo": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "note": {
+            "type": ["string", "null"]
+          },
+          "expiresAt": {
+            "type": ["string", "null"]
+          },
+          "paidAt": {
+            "type": ["string", "null"]
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "cancelReason": {
+            "type": ["string", "null"]
+          },
+          "cancelNote": {
+            "type": ["string", "null"]
+          },
+          "cancelledAt": {
+            "type": ["string", "null"]
+          },
+          "refundStatus": {
+            "type": "string"
+          },
+          "pointsEarned": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "currentPaymentId": {
+            "type": ["string", "null"]
+          },
+          "history": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "fromStatus": {
+                  "type": ["string", "null"]
+                },
+                "toStatus": {
+                  "type": "string"
+                },
+                "actorType": {
+                  "type": "string"
+                },
+                "note": {
+                  "type": ["string", "null"]
+                },
+                "createdAt": {
+                  "type": "string"
+                }
+              },
+              "required": ["fromStatus", "toStatus", "actorType", "note", "createdAt"]
+            }
+          }
+        },
+        "required": [
+          "lines",
+          "subtotalVnd",
+          "promoDiscountVnd",
+          "pointsDiscountVnd",
+          "totalVnd",
+          "promoCode",
+          "pointsEarnable",
+          "id",
+          "orderNo",
+          "status",
+          "note",
+          "expiresAt",
+          "paidAt",
+          "createdAt",
+          "cancelReason",
+          "cancelNote",
+          "cancelledAt",
+          "refundStatus",
+          "pointsEarned",
+          "currentPaymentId",
+          "history"
+        ]
       },
       "PlaceOrderDto": {
         "type": "object",
