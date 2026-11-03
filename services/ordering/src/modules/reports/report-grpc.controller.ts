@@ -2,6 +2,8 @@ import { Controller, UseInterceptors } from '@nestjs/common';
 import { GrpcRequestContextInterceptor } from '@brewlite/nest-common';
 import {
   ReportServiceControllerMethods,
+  type GetStaffStatsRequest,
+  type GetStaffStatsResponse,
   type ReportServiceController,
   type SalesReportRequest,
   type SalesReportResponse,
@@ -16,5 +18,9 @@ export class ReportGrpcController implements ReportServiceController {
 
   salesReport(request: SalesReportRequest): Promise<SalesReportResponse> {
     return this.reports.salesReport(request);
+  }
+
+  getStaffStats(request: GetStaffStatsRequest): Promise<GetStaffStatsResponse> {
+    return this.reports.getStaffStats(request);
   }
 }

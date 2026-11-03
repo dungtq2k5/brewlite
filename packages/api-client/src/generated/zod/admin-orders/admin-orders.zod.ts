@@ -40,6 +40,7 @@ export const AdminOrdersControllerListQueryParams = zod.object({
     .gt(adminOrdersControllerListQueryOrderNoExclusiveMin)
     .max(adminOrdersControllerListQueryOrderNoMax)
     .optional(),
+  userId: zod.string().optional(),
 });
 
 export const adminOrdersControllerListResponseDataItemLinesItemToppingsItemPriceVndMin =
@@ -158,6 +159,8 @@ export const AdminOrdersControllerListResponse = zod.object({
             createdAt: zod.string(),
           }),
         ),
+        userId: zod.string(),
+        customerName: zod.string().nullable(),
       }),
     )
     .optional(),
@@ -166,6 +169,7 @@ export const AdminOrdersControllerListResponse = zod.object({
       page: zod.int(),
       pageSize: zod.int(),
       total: zod.int(),
+      degraded: zod.array(zod.enum(['identity'])).optional(),
     })
     .optional(),
 });
@@ -290,8 +294,12 @@ export const AdminOrdersControllerGetResponse = zod.object({
           actorType: zod.string(),
           note: zod.string().nullable(),
           createdAt: zod.string(),
+          actorUserId: zod.string().nullable(),
+          actorName: zod.string().nullable(),
         }),
       ),
+      userId: zod.string(),
+      customerName: zod.string().nullable(),
       payments: zod.union([
         zod.array(
           zod.object({
@@ -315,7 +323,7 @@ export const AdminOrdersControllerGetResponse = zod.object({
     .optional(),
   meta: zod
     .object({
-      degraded: zod.array(zod.enum(['payment'])).optional(),
+      degraded: zod.array(zod.enum(['payment', 'identity'])).optional(),
     })
     .optional(),
 });

@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { LoyaltyKind, newId, pointsEarnable } from '@brewlite/contracts';
 import { isUniqueConstraintViolation } from '@brewlite/nest-common';
-import type { GetMyLoyaltyResponse } from '@brewlite/contracts/generated/brewlite/ordering/promotion_service.js';
+import type {
+  GetLoyaltyForUserResponse,
+  GetMyLoyaltyResponse,
+} from '@brewlite/contracts/generated/brewlite/ordering/promotion_service.js';
 import type { Prisma } from '../../../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
@@ -108,5 +111,10 @@ export class LoyaltyService {
         at: row.createdAt.toISOString(),
       })),
     };
+  }
+
+  /** The same ledger for any user (an admin's view); a user with no rows has zeros, as above. */
+  getLoyaltyForUser(userId: string): Promise<GetLoyaltyForUserResponse> {
+    return this.getMyLoyalty(userId);
   }
 }

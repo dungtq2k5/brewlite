@@ -278,8 +278,9 @@ Order = Quote & {
   cancelledAt: string | null; cancelReason: 'CUSTOMER' | 'EXPIRED' | 'STAFF' | null; cancelNote: string | null;
   refundStatus: 'NONE' | 'PENDING' | 'REFUNDED' | 'FAILED';
   pointsEarned: number;
-  history: { fromStatus: string | null; toStatus; actorType; note: string | null; at }[];
+  history: { fromStatus: string | null; toStatus; actorType; note: string | null; at }[];   // never who — `actorUserId` / `actorName` are on the admin detail only (§3.4)
 }
+// The customer's Order never carries its owner: `userId` and `customerName` exist on the admin routes only (§3.4).
 ```
 
 ### 3.2 Customer orders
@@ -306,8 +307,10 @@ Order = Quote & {
 
 | Method | Path | Description | Auth |
 | :---- | :---- | :---- | :---- |
-| GET | `/admin/orders` | `?status=&from=&to=&orderNo=` — any status; `from`/`to` are Vietnam business days (`businessDay()`), inclusive, on `created_at`; `orderNo` exact. Page style, sort `createdAt`, `totalVnd`, default `-createdAt`. Each item is the `Order` without `history`. | perm:`order.read.all` |
-| GET | `/admin/orders/:id` | `Order` with `history`, plus `payments` from payment (`payment.PaymentService.ListPaymentsForOrder`). If payment is down: `payments: null`, `meta.degraded: ["payment"]` — the order still shows. | perm:`order.read.all` The response is `{ data: Order & { payments }, meta?: { degraded } }` — the one single-resource response with `meta`. |
+| GET | `/admin/orders` | `?status=&from=&to=&orderNo=&userId=` — any status; `userId` narrows to one customer's orders; `from`/`to` are Vietnam business days (`businessDay()`), inclusive, on `created_at`; `orderNo` exact. Page style, sort `createdAt`, `totalVnd`, default `-createdAt`. Each item is the `Order` without `history`, plus **`userId`** and **`customerName`** — the page's distinct customers named by **one** identity call (`AdminUserService.ListUserNames`). If identity is down: every `customerName` `null` (the ids stay) and `meta.degraded: ["identity"]` beside `page`, `pageSize`, `total`. | perm:`order.read.all` |
+| GET | `/admin/orders/:id` | `Order` with `history`, plus **`userId`** and **`customerName`**, plus `payments` from payment (`payment.PaymentService.ListPaymentsForOrder`). Each history row also carries **`actorUserId`** and **`actorName`** (`null` for `SYSTEM` and `PAYMENT` rows): the customer and every actor are named by **one** identity call (`AdminUserService.ListUserNames`), in parallel with the payments; a deactivated user still resolves, one identity cannot find is `null`. If payment is down: `payments: null`; if identity is down: `customerName` and every `actorName` `null` (the ids stay) — each adds its name to `meta.degraded` (`["payment", "identity"]`, in that order), and the order still shows. | perm:`order.read.all` The response is `{ data: Order & { payments }, meta?: { degraded } }` — the one single-resource response with `meta`. |
+| GET | `/admin/users/:id/loyalty` | A customer's points: the same `Loyalty` shape as `/loyalty/me` (`balance`, `lifetimeEarned`, the 20 most recent). An id with no ledger rows answers zeros; identity is not asked whether the user exists. | perm:`user.manage` |
+| GET | `/admin/users/:id/staff-stats` | `?from=&to=` (business days, inclusive, ≤ 93 days, both required) → `{ from, to, ordersHandled, transitions: { PREPARING, READY, COMPLETED, CANCELLED } }`, counted from O-3 rows with `actor_type = 'STAFF'` and this `actor_user_id` in the range: `ordersHandled` is the distinct orders, `transitions` the rows per `to_status`, zeros included. An admin who worked the counter has numbers too; a customer answers zeros. Nothing timed, no revenue. `from` after `to`, or more than 93 days, is `400`. | perm:`report.read` |
 | GET | `/admin/reports/sales` | `?from=&to=` (business days, inclusive, ≤ 93 days) → `{ days: [{ day, orders, revenueVnd }], topProducts: [{ productId, productName: LocalizedText, qty, revenueVnd }] }`. Counts orders that reached `PAID` and were not refunded — `paid_at IS NOT NULL AND refund_status <> 'REFUNDED'`, so a paid order whose refund **failed** still counts. Days are Vietnam days (`businessDay()`), grouped in SQL; days with no order are included with zeros. `topProducts`: the top **10** by revenue, named with the most recent line's snapshot. `from` after `to`, or more than 93 days, is `400`. | perm:`report.read` |
 
 ### 3.5 Promotions — `/admin/promotions`
@@ -321,9 +324,9 @@ Promotion = { id; code; description: string | null; discountType: 'PERCENT' | 'F
 | Method | Path | Description | Auth |
 | :---- | :---- | :---- | :---- |
 | GET | `/admin/promotions` | `?active=&deleted=&q=`, page style — `active` is the `is_active` column, `q` a code prefix (upper-cased). Sort `createdAt`, `code`, `endsAt`, default `-createdAt`. | perm:`promotion.manage` |
-| POST | `/admin/promotions` | Everything but `id`, `usedCount`, `createdAt`. Code normalised to upper case. `perUserLimit` defaults to `1`; `null` is unlimited. `maxUses: null` is unlimited, `0` a code that can no longer be used. `409 PROMO_CODE_TAKEN` — deleted codes included, since a code is never reused. | perm:`promotion.manage` |
+| POST | `/admin/promotions` | Everything but `id`, `usedCount`, `createdAt`. Code normalised to upper case. `perUserLimit` defaults to `1`; `null` is unlimited. `maxUses` omitted or `null` is unlimited. Both limits are an integer ≥ 1 or `null` — `0` is `400` (switching a code off is `isActive: false`). `409 PROMO_CODE_TAKEN` — deleted codes included, since a code is never reused. | perm:`promotion.manage` |
 | GET | `/admin/promotions/:id` | `Promotion`. | perm:`promotion.manage` |
-| PATCH | `/admin/promotions/:id` | `{ description?, endsAt?, maxUses?, perUserLimit?, isActive? }`. `maxUses` below `usedCount` is `422 PROMO_MAX_USES_BELOW_USED`. The discount itself never changes (rdm-spec O-4). | perm:`promotion.manage` |
+| PATCH | `/admin/promotions/:id` | `{ description?, endsAt?, maxUses?, perUserLimit?, isActive? }`. Omitted = unchanged; `maxUses: null` / `perUserLimit: null` removes the limit (always allowed, even on a used-up code); numbers ≥ 1. `maxUses` below `usedCount` is `422 PROMO_MAX_USES_BELOW_USED`. The discount itself never changes (rdm-spec O-4). | perm:`promotion.manage` |
 | DELETE | `/admin/promotions/:id` | Soft delete → `204`. The code stops working at once (`PROMO_CODE_INVALID`, `NOT_FOUND`); orders that used it are unaffected. | perm:`promotion.manage` |
 | POST | `/admin/promotions/:id/restore` | `204`. | perm:`promotion.manage` |
 
@@ -521,11 +524,11 @@ The gateway routes by path prefix; **a prefix belongs to exactly one service.**
 | :---- | :---- |
 | `/auth`, `/users/me`, `/admin/users` | `identity` |
 | `/categories`, `/products`, `/staff/products`, `/staff/toppings`, `/admin/categories`, `/admin/products`, `/admin/toppings` | `catalog` |
-| `/orders`, `/staff/orders`, `/admin/orders`, `/admin/reports`, `/admin/promotions`, `/loyalty` | `ordering` |
+| `/orders`, `/staff/orders`, `/admin/orders`, `/admin/reports`, `/admin/promotions`, `/loyalty`, `/admin/users/:id/loyalty`, `/admin/users/:id/staff-stats` | `ordering` |
 | `/payments`, `/webhooks/stripe` | `payment` |
 | `/health`, `/version`, `/docs` | `gateway` |
 
-**Composed response:** `GET /admin/orders/:id` (ordering + payment) is the only route that calls two services, and it degrades as §3.4 says.
+**Composed response:** `GET /admin/orders/:id` (ordering, then payment and identity in parallel) is the only route that calls more than one service, and it degrades as §3.4 says.
 
 ### 9.2 Internal RPCs
 
@@ -539,6 +542,7 @@ gRPC packages are `brewlite.<service>`; protos in `packages/contracts/proto/brew
 | `ordering.OrderService.BeginPayment(orderId, userId, paymentId)` | payment | the amount and the payability must be current. The deadline check and the `expires_at` raise are **one conditional write** whose `WHERE` repeats `status IN (PENDING, PAYMENT_FAILED) AND expires_at > now` — the same condition `orders-expire` uses, so whichever commits first wins and the other is told `ORDER_NOT_PAYABLE`. `expires_at` only moves forward | refuse the payment (`503`); no payment row is written |
 | `ordering.OrderService.GetOrderStatus(orderId)` | catalog (orphan sweep) | the sweep must not guess | skip the row; the next run retries |
 | `payment.PaymentService.ListPaymentsForOrder(orderId)` | gateway (composition, §3.4) | — every payment of the order, newest first; `clientSecret` always `null` | `payments: null`, `meta.degraded` |
+| `identity.AdminUserService.ListUserNames(ids)` | gateway (composition, §3.4) | — the names on both admin order routes: the list's customers, the detail's customer and actors; ≤ 100 ids, one read, deactivated users included, unknown ids absent, a repeated id folded | `customerName` / `actorName: null`, `meta.degraded` |
 
 `PriceItems` also runs a read-only `OUT_OF_STOCK` check (summed per counted product across the caller's lines) so the quote can refuse early — the reservation in `ReserveStock` stays the authority, since stock can change between the two calls. It returns every field O-2 snapshots — both product and topping names, base price, size delta, unit price — so ordering never reads catalog again to build an order line (rdm-spec §1.4).
 

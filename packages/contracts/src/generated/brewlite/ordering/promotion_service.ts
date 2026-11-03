@@ -52,7 +52,15 @@ export interface CreatePromotionRequest {
   endsAt: string;
   maxUses?: number | undefined;
   perUserLimit?: number | undefined;
-  isActive?: boolean | undefined;
+  isActive?:
+    | boolean
+    | undefined;
+  /**
+   * proto3 `optional` cannot tell `null` from absent: these say "unlimited" (the gateway sets them for
+   * `null`). With a number they are refused; absent means the default (1 per customer, no total cap).
+   */
+  unlimitedMaxUses?: boolean | undefined;
+  unlimitedPerUserLimit?: boolean | undefined;
 }
 
 export interface CreatePromotionResponse {
@@ -74,7 +82,12 @@ export interface UpdatePromotionRequest {
   endsAt?: string | undefined;
   maxUses?: number | undefined;
   perUserLimit?: number | undefined;
-  isActive?: boolean | undefined;
+  isActive?:
+    | boolean
+    | undefined;
+  /** As on create: set a cap back to unlimited (`NULL`). Absent with no number leaves it unchanged. */
+  unlimitedMaxUses?: boolean | undefined;
+  unlimitedPerUserLimit?: boolean | undefined;
 }
 
 export interface UpdatePromotionResponse {
@@ -109,6 +122,16 @@ export interface GetMyLoyaltyRequest {
 }
 
 export interface GetMyLoyaltyResponse {
+  balance: number;
+  lifetimeEarned: number;
+  recent: LoyaltyTransactionEntry[];
+}
+
+export interface GetLoyaltyForUserRequest {
+  userId: string;
+}
+
+export interface GetLoyaltyForUserResponse {
   balance: number;
   lifetimeEarned: number;
   recent: LoyaltyTransactionEntry[];
@@ -190,6 +213,10 @@ export const PROMOTION_ADMIN_SERVICE_NAME = "PromotionAdminService";
 
 export interface LoyaltyServiceClient {
   getMyLoyalty(request: GetMyLoyaltyRequest, metadata?: Metadata): Observable<GetMyLoyaltyResponse>;
+
+  /** The same ledger for any user — the gateway's `user.manage` is the gate. */
+
+  getLoyaltyForUser(request: GetLoyaltyForUserRequest, metadata?: Metadata): Observable<GetLoyaltyForUserResponse>;
 }
 
 export interface LoyaltyServiceController {
@@ -197,11 +224,18 @@ export interface LoyaltyServiceController {
     request: GetMyLoyaltyRequest,
     metadata?: Metadata,
   ): Promise<GetMyLoyaltyResponse> | Observable<GetMyLoyaltyResponse> | GetMyLoyaltyResponse;
+
+  /** The same ledger for any user — the gateway's `user.manage` is the gate. */
+
+  getLoyaltyForUser(
+    request: GetLoyaltyForUserRequest,
+    metadata?: Metadata,
+  ): Promise<GetLoyaltyForUserResponse> | Observable<GetLoyaltyForUserResponse> | GetLoyaltyForUserResponse;
 }
 
 export function LoyaltyServiceControllerMethods() {
   return function (constructor: Function) {
-    const grpcMethods: string[] = ["getMyLoyalty"];
+    const grpcMethods: string[] = ["getMyLoyalty", "getLoyaltyForUser"];
     for (const method of grpcMethods) {
       const descriptor: any = Reflect.getOwnPropertyDescriptor(constructor.prototype, method);
       GrpcMethod("LoyaltyService", method)(constructor.prototype[method], method, descriptor);

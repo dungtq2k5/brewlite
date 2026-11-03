@@ -2,7 +2,7 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import request from 'supertest';
 import { createE2eApp, type E2eApp } from './support/e2e-app.js';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { newId } from '@brewlite/contracts';
+import { compareStrings, newId } from '@brewlite/contracts';
 import { OrderingServiceGrpcClient } from '../../src/modules/orders/ordering-service-grpc.client.js';
 
 const orderingClientStub = {
@@ -47,6 +47,7 @@ function orderProto(overrides: Partial<Record<string, unknown>> = {}) {
     pointsEarned: 0,
     currentPaymentId: undefined,
     history: [],
+    userId: newId(), // ordering sends it; the customer's routes must not pass it on
     ...overrides,
   };
 }
@@ -135,6 +136,24 @@ describe('gateway e2e — /orders routes', () => {
     expect(orderingClientStub.getOrder).not.toHaveBeenCalled();
   });
 
+  it('the customer’s own routes never carry their owner (userId is admin-only)', async () => {
+    const auth = { Authorization: `Bearer ${e2e.tokenFor('CUSTOMER')}` };
+    orderingClientStub.listMyOrders.mockResolvedValueOnce({
+      orders: [orderProto()],
+      nextCursor: undefined,
+    });
+    const list = await request(app.getHttpServer()).get('/api/v1/orders/me').set(auth);
+    expect(list.status).toBe(200);
+    expect(list.body.data[0]).not.toHaveProperty('userId');
+    expect(list.body.data[0]).not.toHaveProperty('customerName');
+
+    orderingClientStub.getOrder.mockResolvedValueOnce({ order: orderProto() });
+    const one = await request(app.getHttpServer()).get(`/api/v1/orders/${newId()}`).set(auth);
+    expect(one.status).toBe(200);
+    expect(one.body.data).not.toHaveProperty('userId');
+    expect(one.body.data).not.toHaveProperty('customerName');
+  });
+
   it('GET /orders/:id carries currentPaymentId — null before a payment, the id after', async () => {
     const paymentId = newId();
     orderingClientStub.getOrder.mockResolvedValueOnce({ order: orderProto() });
@@ -151,6 +170,32 @@ describe('gateway e2e — /orders routes', () => {
       .get(`/api/v1/orders/${newId()}`)
       .set('Authorization', `Bearer ${e2e.tokenFor('CUSTOMER')}`);
     expect(after.body.data.currentPaymentId).toBe(paymentId);
+  });
+
+  it('GET /orders/:id history says who as a type only — never a user id or a name', async () => {
+    orderingClientStub.getOrder.mockResolvedValueOnce({
+      order: orderProto({
+        history: [
+          {
+            toStatus: 'PREPARING',
+            actorType: 'STAFF',
+            actorUserId: newId(), // ordering sends it; this route must not pass it on
+            createdAt: '2026-10-01T05:00:00Z',
+          },
+        ],
+      }),
+    });
+    const res = await request(app.getHttpServer())
+      .get(`/api/v1/orders/${newId()}`)
+      .set('Authorization', `Bearer ${e2e.tokenFor('CUSTOMER')}`);
+    expect(res.status).toBe(200);
+    expect(Object.keys(res.body.data.history[0]).sort(compareStrings)).toEqual([
+      'actorType',
+      'createdAt',
+      'fromStatus',
+      'note',
+      'toStatus',
+    ]);
   });
 
   it('GET /orders/:id with a malformed id — 400 VALIDATION_FAILED', async () => {

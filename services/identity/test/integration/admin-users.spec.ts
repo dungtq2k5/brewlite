@@ -239,4 +239,50 @@ describe('AdminUsersService integration', () => {
     expect(errorCodeOf(restoreLiveAgain)).toBe('INVALID_STATE');
     expect(detailsOf(restoreLiveAgain)).toEqual({ status: 'ACTIVE' });
   });
+
+  describe('ListUserNames', () => {
+    const named = (fullName: string) =>
+      prisma.user.create({
+        data: {
+          id: newId(),
+          email: `named-${newId()}@brewlite.test`,
+          fullName,
+          role: 'CUSTOMER',
+          passwordHash: '$'.repeat(60),
+        },
+      });
+
+    it('answers a name per id in one read, folding repeats, and leaves an unknown id out', async () => {
+      const a = await named('Lan Anh');
+      const b = await named('Minh Chau');
+      const { users } = await adminUsers.listUserNames({ ids: [a.id, b.id, a.id, newId()] });
+      expect(new Map(users.map((u) => [u.id, u.fullName]))).toEqual(
+        new Map([
+          [a.id, 'Lan Anh'],
+          [b.id, 'Minh Chau'],
+        ]),
+      );
+    });
+
+    it('includes a deactivated user — an order outlives its customer’s account', async () => {
+      const gone = await named('Left The Shop');
+      await prisma.user.update({ where: { id: gone.id }, data: { deletedAt: new Date() } });
+      const { users } = await adminUsers.listUserNames({ ids: [gone.id] });
+      expect(users).toEqual([{ id: gone.id, fullName: 'Left The Shop' }]);
+    });
+
+    it('takes up to 100 ids and refuses 101, none, and an id that is not a v7 id', async () => {
+      const hundred = Array.from({ length: 100 }, () => newId());
+      expect((await adminUsers.listUserNames({ ids: hundred })).users).toEqual([]);
+      for (const ids of [
+        [...hundred, newId()],
+        [],
+        ['nope'],
+        ['00000000-0000-4000-8000-000000000000'],
+      ]) {
+        const error = await adminUsers.listUserNames({ ids }).catch((e: unknown) => e);
+        expect(errorCodeOf(error)).toBe('VALIDATION_FAILED');
+      }
+    });
+  });
 });

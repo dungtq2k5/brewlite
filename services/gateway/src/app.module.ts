@@ -5,6 +5,7 @@ import { OrderEventsSource } from './events/order-events.source.js';
 import { envSchema } from './config/env.schema.js';
 import { AuthPipelineModule } from './auth/auth.module.js';
 import { AdminOrdersModule } from './modules/admin-orders/admin-orders.module.js';
+import { AdminUserActivityModule } from './modules/admin-user-activity/admin-user-activity.module.js';
 import { AdminReportsModule } from './modules/admin-reports/admin-reports.module.js';
 import { AdminUsersModule } from './modules/admin-users/admin-users.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
@@ -33,6 +34,7 @@ import { UsersModule } from './modules/users/users.module.js';
     AdminUsersModule,
     AdminOrdersModule,
     AdminReportsModule,
+    AdminUserActivityModule,
     CatalogModule,
     OrdersModule,
     PaymentsModule,

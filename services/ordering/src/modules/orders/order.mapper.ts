@@ -49,6 +49,7 @@ function toHistoryEntry(row: OrderStatusHistoryRow): OrderHistoryEntry {
     actorType: row.actorType,
     note: row.note ?? undefined,
     createdAt: row.createdAt.toISOString(),
+    actorUserId: row.actorUserId ?? undefined,
   };
 }
 
@@ -82,5 +83,6 @@ export function toProtoOrder(
     currentPaymentId: order.currentPaymentId ?? undefined,
     history: history.map(toHistoryEntry),
     cancelledAt: order.cancelledAt?.toISOString(),
+    userId: order.userId,
   };
 }

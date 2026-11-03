@@ -45,7 +45,6 @@ function createRequest(overrides: Partial<Record<string, unknown>> = {}) {
     minSubtotalVnd: 0,
     startsAt: new Date().toISOString(),
     endsAt: new Date(Date.now() + 7 * 86_400_000).toISOString(),
-    perUserLimit: 1,
     ...overrides,
   };
 }
@@ -91,6 +90,101 @@ describe('PromotionAdminService', () => {
 
     const { promotion: unchanged } = await promotions.getPromotion({ id: promotion!.id });
     expect(unchanged!.maxUses).toBeUndefined();
+  });
+
+  describe('usage limits — a number, unlimited, or the default', () => {
+    const limits = (p: { maxUses?: number; perUserLimit?: number }) => [p.maxUses, p.perUserLimit];
+
+    it('create: omitted is one use per customer and no total cap', async () => {
+      const { promotion } = await promotions.createPromotion(
+        createRequest({ code: 'LIM_DEFAULT' }),
+      );
+      expect(limits(promotion!)).toEqual([undefined, 1]);
+    });
+
+    it('create: numbers are kept, and the flags make each limit unlimited', async () => {
+      const set = await promotions.createPromotion(
+        createRequest({ code: 'LIM_SET', maxUses: 200, perUserLimit: 3 }),
+      );
+      expect(limits(set.promotion!)).toEqual([200, 3]);
+
+      const open = await promotions.createPromotion(
+        createRequest({ code: 'LIM_OPEN', unlimitedMaxUses: true, unlimitedPerUserLimit: true }),
+      );
+      expect(limits(open.promotion!)).toEqual([undefined, undefined]);
+      const row = await prisma.promotion.findUniqueOrThrow({ where: { id: open.promotion!.id } });
+      expect([row.maxUses, row.perUserLimit]).toEqual([null, null]); // the columns say NULL
+    });
+
+    it('a flag together with a number, a zero and a negative are refused on create', async () => {
+      for (const [name, extra] of [
+        ['maxUses + flag', { maxUses: 5, unlimitedMaxUses: true }],
+        ['perUserLimit + flag', { perUserLimit: 2, unlimitedPerUserLimit: true }],
+        ['maxUses 0', { maxUses: 0 }],
+        ['perUserLimit 0', { perUserLimit: 0 }],
+        ['perUserLimit -1', { perUserLimit: -1 }],
+      ] as const) {
+        const error = await promotions
+          .createPromotion(createRequest({ code: `LIM_BAD_${name.replace(/\W/g, '')}`, ...extra }))
+          .catch((e: unknown) => e);
+        expect(errorCodeOf(error), name).toBe('VALIDATION_FAILED');
+      }
+    });
+
+    it('update: a cap, once set, can be set back to unlimited — each limit on its own', async () => {
+      const { promotion } = await promotions.createPromotion(
+        createRequest({ code: 'LIM_CLEAR', maxUses: 50, perUserLimit: 2 }),
+      );
+      const first = await promotions.updatePromotion({ id: promotion!.id, unlimitedMaxUses: true });
+      expect(limits(first.promotion!)).toEqual([undefined, 2]);
+      const second = await promotions.updatePromotion({
+        id: promotion!.id,
+        unlimitedPerUserLimit: true,
+      });
+      expect(limits(second.promotion!)).toEqual([undefined, undefined]);
+    });
+
+    it('update: unlimited works even when the code has been used a lot', async () => {
+      const { promotion } = await promotions.createPromotion(
+        createRequest({ code: 'LIM_USED', maxUses: 10 }),
+      );
+      await prisma.promotion.update({ where: { id: promotion!.id }, data: { usedCount: 10 } });
+      const updated = await promotions.updatePromotion({
+        id: promotion!.id,
+        unlimitedMaxUses: true,
+      });
+      expect(updated.promotion!.maxUses).toBeUndefined();
+    });
+
+    it('update: a number is still refused below the used count, and neither field leaves both unchanged', async () => {
+      const { promotion } = await promotions.createPromotion(
+        createRequest({ code: 'LIM_KEEP', maxUses: 40, perUserLimit: 2 }),
+      );
+      await prisma.promotion.update({ where: { id: promotion!.id }, data: { usedCount: 37 } });
+      await expect(promotions.updatePromotion({ id: promotion!.id, maxUses: 5 })).rejects.toSatisfy(
+        (e: unknown) => errorCodeOf(e) === 'PROMO_MAX_USES_BELOW_USED',
+      );
+      const kept = await promotions.updatePromotion({ id: promotion!.id, isActive: false });
+      expect(limits(kept.promotion!)).toEqual([40, 2]);
+    });
+
+    it('update: a flag together with a number is refused, and nothing changes', async () => {
+      const { promotion } = await promotions.createPromotion(
+        createRequest({ code: 'LIM_BOTH', maxUses: 40, perUserLimit: 2 }),
+      );
+      for (const extra of [
+        { maxUses: 9, unlimitedMaxUses: true },
+        { perUserLimit: 9, unlimitedPerUserLimit: true },
+        { maxUses: 0 },
+      ]) {
+        const error = await promotions
+          .updatePromotion({ id: promotion!.id, ...extra })
+          .catch((e: unknown) => e);
+        expect(errorCodeOf(error)).toBe('VALIDATION_FAILED');
+      }
+      const same = await promotions.getPromotion({ id: promotion!.id });
+      expect(limits(same.promotion!)).toEqual([40, 2]);
+    });
   });
 
   it('the discount itself is not editable — no such field on update', async () => {

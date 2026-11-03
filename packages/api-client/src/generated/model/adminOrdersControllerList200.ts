@@ -4,10 +4,10 @@
  * BrewLite API
  * OpenAPI spec version: 1
  */
+import type { AdminOrderListItemResponseDto } from './adminOrderListItemResponseDto.js';
 import type { AdminOrdersControllerList200Meta } from './adminOrdersControllerList200Meta.js';
-import type { OrderResponseDto } from './orderResponseDto.js';
 
 export type AdminOrdersControllerList200 = {
-  data?: OrderResponseDto[];
+  data?: AdminOrderListItemResponseDto[];
   meta?: AdminOrdersControllerList200Meta;
 };

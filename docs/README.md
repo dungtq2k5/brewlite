@@ -55,6 +55,7 @@ Each title is an **assertion**, not a topic, so this index reads as the rules th
 | [0011](./decisions/0011-zod-is-the-only-schema-language-and-orval-generates-the-client.md) | zod is the only schema language, and the web client is generated from it by Orval |
 | [0022](./decisions/0022-order-updates-reach-browsers-as-server-sent-events.md) | Order updates reach browsers as Server-Sent Events fed from NATS |
 | [0023](./decisions/0023-redis-holds-only-reconstructible-state.md) | Redis holds only reconstructible state: rate limits, cache and job queues |
+| [0033](./decisions/0033-browsers-reach-the-web-app-only-through-caddy-which-sets-the-client-address.md) | Browsers reach the web app only through Caddy, which sets the client address |
 
 ### Data
 
@@ -100,9 +101,9 @@ Each title is an **assertion**, not a topic, so this index reads as the rules th
 
 ## Working documents and the archive
 
-`docs/archive/` is **git-ignored scratch**: the course brief (`brewlite-requirements.pdf`), reference material from another project (`ref/`), and the numbered implementation docs (`impls/NN-*.md`) with their review notes (`temp/`).
+`docs/archive/` is **git-ignored scratch**: the course brief (`brewlite-requirements.pdf`), reference material from another project (`ref/`), the numbered implementation docs (`impls/NN-*.md`) with their review notes (`temp/`), and the design docs for the web app's screens (`designs/`) with the designer's handoff notes.
 
-An implementation doc exists to carry one slice of work from prose into code, following the loop: *doc written → reviewed → revised → implemented → implementation summary noted → next doc*. It is disposable once its slice is merged. **Nothing durable may link into the archive** — not this folder, not an ADR, not a docblock. Anything in an implementation doc that outlives it moves into an ADR (why) or one of the core documents (what is true now) in the same PR that implements it. `packages/config/guards/archive-references.spec.ts` enforces this.
+An implementation doc exists to carry one slice of work from prose into code, following the loop: *doc written → reviewed → revised → implemented → implementation summary noted → next doc*. It is disposable once its slice is merged. A design doc carries one group of screens from the product docs to a finished design, following *design doc written → designer's handoff → design doc revised → screens designed in Figma → implementation doc written from them*; it says what each screen must show and support, never how it looks, and is disposable once its screens are built. **Nothing durable may link into the archive** — not this folder, not an ADR, not a docblock. Anything in an implementation doc that outlives it moves into an ADR (why) or one of the core documents (what is true now) in the same PR that implements it. `packages/config/guards/archive-references.spec.ts` enforces this.
 
 ---
 

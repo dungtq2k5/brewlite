@@ -215,3 +215,116 @@ describe('ReportsService.salesReport', () => {
     }
   });
 });
+
+describe('ReportsService.getStaffStats', () => {
+  let app: Awaited<ReturnType<typeof buildModule>>;
+  let reports: ReportsService;
+
+  beforeAll(async () => {
+    app = await buildModule();
+    reports = app.get(ReportsService);
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  /** One history row; `at` is an ISO instant. */
+  async function moved(
+    orderId: string,
+    toStatus: string,
+    actor: { type: string; userId?: string },
+    at: string,
+  ) {
+    await prisma.orderStatusHistory.create({
+      data: {
+        id: newId(),
+        orderId,
+        toStatus,
+        actorType: actor.type,
+        actorUserId: actor.userId,
+        createdAt: new Date(at),
+      },
+    });
+  }
+
+  const staff = (userId: string) => ({ type: 'STAFF', userId });
+  const day = '2026-10-15';
+
+  it('counts transitions by status and distinct orders, zeros included', async () => {
+    const me = newId();
+    const a = await seedPaid('2026-10-15T05:00:00Z', [
+      { productId: latte, nameEn: 'Latte', qty: 1, lineTotalVnd: 40_000 },
+    ]);
+    const b = await seedPaid('2026-10-15T05:00:00Z', [
+      { productId: latte, nameEn: 'Latte', qty: 1, lineTotalVnd: 40_000 },
+    ]);
+    await moved(a.id, 'PREPARING', staff(me), '2026-10-15T05:01:00Z');
+    await moved(a.id, 'READY', staff(me), '2026-10-15T05:05:00Z');
+    await moved(a.id, 'COMPLETED', staff(me), '2026-10-15T05:09:00Z');
+    await moved(b.id, 'PREPARING', staff(me), '2026-10-15T06:00:00Z');
+
+    expect(await reports.getStaffStats({ userId: me, from: day, to: day })).toEqual({
+      from: day,
+      to: day,
+      ordersHandled: 2, // a moved three times, b once
+      transitions: { preparing: 2, ready: 1, completed: 1, cancelled: 0 },
+    });
+  });
+
+  it('leaves out other staff, CUSTOMER rows and anything outside the range', async () => {
+    const me = newId();
+    const other = newId();
+    const order = await seedPaid('2026-10-15T05:00:00Z', [
+      { productId: latte, nameEn: 'Latte', qty: 1, lineTotalVnd: 40_000 },
+    ]);
+    await moved(order.id, 'PREPARING', staff(other), '2026-10-15T05:01:00Z');
+    await moved(order.id, 'CANCELLED', { type: 'CUSTOMER', userId: me }, '2026-10-15T05:02:00Z');
+    await moved(order.id, 'READY', staff(me), '2026-10-13T05:00:00Z'); // 13 Oct VN: before the range
+
+    const stats = await reports.getStaffStats({ userId: me, from: day, to: day });
+    expect(stats.ordersHandled).toBe(0);
+    expect(stats.transitions).toEqual({ preparing: 0, ready: 0, completed: 0, cancelled: 0 });
+  });
+
+  it('groups by Vietnam day: 16:59:59Z and 17:00:00Z are different days', async () => {
+    const me = newId();
+    const order = await seedPaid('2026-10-15T05:00:00Z', [
+      { productId: latte, nameEn: 'Latte', qty: 1, lineTotalVnd: 40_000 },
+    ]);
+    await moved(order.id, 'PREPARING', staff(me), '2026-10-15T16:59:59Z'); // 15 Oct VN
+    await moved(order.id, 'READY', staff(me), '2026-10-15T17:00:00Z'); // 16 Oct VN
+
+    const first = await reports.getStaffStats({ userId: me, from: '2026-10-15', to: '2026-10-15' });
+    expect(first.transitions).toMatchObject({ preparing: 1, ready: 0 });
+    const second = await reports.getStaffStats({
+      userId: me,
+      from: '2026-10-16',
+      to: '2026-10-16',
+    });
+    expect(second.transitions).toMatchObject({ preparing: 0, ready: 1 });
+    const both = await reports.getStaffStats({ userId: me, from: '2026-10-15', to: '2026-10-16' });
+    expect(both.ordersHandled).toBe(1);
+  });
+
+  it('answers zeros for a user who moved nothing (a customer)', async () => {
+    const stats = await reports.getStaffStats({ userId: newId(), from: day, to: day });
+    expect(stats.ordersHandled).toBe(0);
+  });
+
+  it('allows 93 days and refuses 94, from after to, a bad day and a bad user id', async () => {
+    const userId = newId();
+    expect(
+      (await reports.getStaffStats({ userId, from: '2026-07-01', to: '2026-10-01' })).ordersHandled,
+    ).toBe(0);
+    for (const request of [
+      { userId, from: '2026-07-01', to: '2026-10-02' },
+      { userId, from: '2026-10-02', to: '2026-10-01' },
+      { userId, from: '2026-02-30', to: '2026-03-01' },
+      { userId: 'nope', from: day, to: day },
+    ]) {
+      const error = await reports.getStaffStats(request).catch((e: unknown) => e);
+      expect(errorCode(error)).toBe('VALIDATION_FAILED');
+    }
+  });
+});

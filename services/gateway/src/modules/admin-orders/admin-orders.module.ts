@@ -1,10 +1,12 @@
 import { Module } from '@nestjs/common';
+import { AuthModule } from '../auth/auth.module.js';
 import { PaymentServiceGrpcClient } from '../payments/payment-service-grpc.client.js';
 import { AdminOrderGrpcClient } from './admin-order-grpc.client.js';
 import { AdminOrdersController } from './admin-orders.controller.js';
 import { AdminOrdersService } from './admin-orders.service.js';
 
 @Module({
+  imports: [AuthModule],
   controllers: [AdminOrdersController],
   providers: [AdminOrdersService, AdminOrderGrpcClient, PaymentServiceGrpcClient],
 })

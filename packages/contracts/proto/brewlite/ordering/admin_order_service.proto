@@ -19,6 +19,7 @@ message ListOrdersRequest {
   optional string from = 3; // business day, YYYY-MM-DD, inclusive
   optional string to = 4; // business day, YYYY-MM-DD, inclusive
   optional string order_no = 5; // int64 as a string (conventions §5.1)
+  optional string user_id = 6; // one customer's orders
 }
 // Each order is the `Order` without `history`, as /orders/me returns it.
 message ListOrdersResponse {

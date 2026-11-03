@@ -62,5 +62,8 @@ export interface AdminOrderDetailResponseDto {
   /** @nullable */
   currentPaymentId: string | null;
   history: AdminOrderDetailResponseDtoHistoryItem[];
+  userId: string;
+  /** @nullable */
+  customerName: string | null;
   payments: AdminOrderDetailResponseDtoPayments;
 }

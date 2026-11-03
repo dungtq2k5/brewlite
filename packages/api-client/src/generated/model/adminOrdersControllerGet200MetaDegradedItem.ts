@@ -10,4 +10,5 @@ export type AdminOrdersControllerGet200MetaDegradedItem =
 
 export const AdminOrdersControllerGet200MetaDegradedItem = {
   payment: 'payment',
+  identity: 'identity',
 } as const;

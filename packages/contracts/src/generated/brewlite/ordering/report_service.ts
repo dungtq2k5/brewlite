@@ -41,10 +41,37 @@ export interface SalesReportResponse {
   topProducts: TopProduct[];
 }
 
+/** What O-3 can answer exactly: the STAFF rows of one user over a range of business days. */
+export interface GetStaffStatsRequest {
+  userId: string;
+  /** business day, YYYY-MM-DD, inclusive */
+  from: string;
+  /** business day, YYYY-MM-DD, inclusive; to − from ≤ 92 days */
+  to: string;
+}
+
+export interface StaffTransitions {
+  preparing: number;
+  ready: number;
+  completed: number;
+  cancelled: number;
+}
+
+export interface GetStaffStatsResponse {
+  from: string;
+  to: string;
+  /** distinct orders */
+  ordersHandled: number;
+  /** count per to_status, zeros included */
+  transitions: StaffTransitions | undefined;
+}
+
 export const BREWLITE_ORDERING_PACKAGE_NAME = "brewlite.ordering";
 
 export interface ReportServiceClient {
   salesReport(request: SalesReportRequest, metadata?: Metadata): Observable<SalesReportResponse>;
+
+  getStaffStats(request: GetStaffStatsRequest, metadata?: Metadata): Observable<GetStaffStatsResponse>;
 }
 
 export interface ReportServiceController {
@@ -52,11 +79,16 @@ export interface ReportServiceController {
     request: SalesReportRequest,
     metadata?: Metadata,
   ): Promise<SalesReportResponse> | Observable<SalesReportResponse> | SalesReportResponse;
+
+  getStaffStats(
+    request: GetStaffStatsRequest,
+    metadata?: Metadata,
+  ): Promise<GetStaffStatsResponse> | Observable<GetStaffStatsResponse> | GetStaffStatsResponse;
 }
 
 export function ReportServiceControllerMethods() {
   return function (constructor: Function) {
-    const grpcMethods: string[] = ["salesReport"];
+    const grpcMethods: string[] = ["salesReport", "getStaffStats"];
     for (const method of grpcMethods) {
       const descriptor: any = Reflect.getOwnPropertyDescriptor(constructor.prototype, method);
       GrpcMethod("ReportService", method)(constructor.prototype[method], method, descriptor);

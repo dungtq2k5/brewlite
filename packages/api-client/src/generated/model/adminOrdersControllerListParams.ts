@@ -27,4 +27,5 @@ export type AdminOrdersControllerListParams = {
    * @exclusiveMinimum 0
    */
   orderNo?: number;
+  userId?: string;
 };

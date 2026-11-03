@@ -80,7 +80,7 @@ export const quoteResponseSchema = z.object({
 });
 export class QuoteResponseDto extends createZodDto(quoteResponseSchema) {}
 
-const orderHistoryEntryResponseSchema = z.object({
+export const orderHistoryEntryResponseSchema = z.object({
   fromStatus: z.string().nullable(),
   toStatus: z.string(),
   actorType: z.string(),

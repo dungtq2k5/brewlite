@@ -1,3 +1,4 @@
+import type { Metadata } from '@grpc/grpc-js';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
@@ -38,6 +39,8 @@ import type {
   DeactivateUserResponse,
   GetUserRequest,
   GetUserResponse,
+  ListUserNamesRequest,
+  ListUserNamesResponse,
   ListUsersRequest,
   ListUsersResponse,
   LockUserRequest,
@@ -115,6 +118,12 @@ class TestAdminUsersClient extends BaseGrpcClient {
   }
   getUser(request: GetUserRequest, opts: { caller: Caller }): Promise<GetUserResponse> {
     return this.call('getUser', request, opts);
+  }
+  listUserNames(
+    request: ListUserNamesRequest,
+    opts: { caller: Caller },
+  ): Promise<ListUserNamesResponse> {
+    return this.call('listUserNames', request, opts);
   }
   changeRole(request: ChangeRoleRequest, opts: { caller: Caller }): Promise<ChangeRoleResponse> {
     return this.call('changeRole', request, opts);
@@ -307,6 +316,19 @@ describe('identity gRPC contract', () => {
 
     const got = await adminUsersClient.getUser({ id: caller.userId }, { caller });
     expect(got.user?.id).toBe(caller.userId);
+  });
+
+  it('completes a real ListUserNames round trip: a name per id, an unknown id absent, a bad id refused', async () => {
+    const caller = await adminCaller();
+    const { users } = await adminUsersClient.listUserNames(
+      { ids: [caller.userId, newId()] },
+      { caller },
+    );
+    expect(users).toEqual([{ id: caller.userId, fullName: 'Contract Admin' }]);
+    await expect(adminUsersClient.listUserNames({ ids: ['nope'] }, { caller })).rejects.toSatisfy(
+      (error) =>
+        (error as { metadata: Metadata }).metadata.get('bl-error-code')[0] === 'VALIDATION_FAILED',
+    );
   });
 
   it('completes real ChangeRole, LockUser and UnlockUser round trips', async () => {

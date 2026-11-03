@@ -462,7 +462,7 @@ Everything Prisma cannot declare — partial unique indexes, `CHECK` constraints
 | **from_status** | VARCHAR(16) | Nullable | NULL only on the first row (creation). |
 | **to_status** | VARCHAR(16) | NOT NULL | — |
 | **actor_type** | VARCHAR(16) | NOT NULL | `CUSTOMER \| STAFF \| SYSTEM \| PAYMENT` |
-| **actor_user_id** | UUID | Nullable | ref ➔ identity.users.id. Set for `CUSTOMER` and `STAFF`. `CHECK ((actor_type IN ('CUSTOMER','STAFF')) = (actor_user_id IS NOT NULL))`. |
+| **actor_user_id** | UUID | Nullable | ref ➔ identity.users.id. Set for `CUSTOMER` and `STAFF`. `CHECK ((actor_type IN ('CUSTOMER','STAFF')) = (actor_user_id IS NOT NULL))`. Index `(actor_user_id, created_at)` — a staff member's activity over a range. |
 | **note** | VARCHAR(200) | Nullable | The staff cancel reason; the payment failure reason. |
 | **created_at** | TIMESTAMPTZ(3) | NOT NULL, now() | — |
 
@@ -492,7 +492,7 @@ Everything Prisma cannot declare — partial unique indexes, `CHECK` constraints
 
 - **Validation order**, each failure a `PROMO_CODE_INVALID` reason: `NOT_FOUND` (including deleted) → `INACTIVE` → `NOT_STARTED` → `EXPIRED` → `MIN_SUBTOTAL` → `EXHAUSTED` → `PER_USER_LIMIT`.
 - **Discount:** `PERCENT` → `floor(subtotal × value / 100)`, capped by `max_discount_vnd`; `FIXED` → `value`. Then capped so `total_vnd >= MIN_PAYABLE_VND`. One function, `applyPromotion`, in ordering's `domain/`.
-- An admin may edit `description`, `ends_at`, `max_uses` (never below `used_count`), `per_user_limit` and `is_active`. The discount itself is immutable once any order used the code — create a new code instead.
+- An admin may edit `description`, `ends_at`, `max_uses` (never below `used_count`), `per_user_limit` and `is_active`; either limit can be set back to unlimited (`NULL`), and a set limit is ≥ 1. The discount itself is immutable once any order used the code — create a new code instead.
 
 #### Table O-5: loyalty_accounts
 
