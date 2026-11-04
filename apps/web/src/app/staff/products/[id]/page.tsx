@@ -1,10 +1,14 @@
 import { notFound } from 'next/navigation';
+import Image from 'next/image';
 import {
   categoriesControllerList,
+  productsControllerGet,
   staffProductsControllerList,
   type CategoryResponseDto,
+  type ProductDetailResponseDto,
   type StaffProductResponseDto,
 } from '@brewlite/api-client';
+import ProductArtwork from '@/components/ProductArtwork';
 import { ButtonLink } from '@/components/vellum/Button';
 import { DetailList } from '@/components/vellum/DetailList';
 import { Notice } from '@/components/vellum/Notice';
@@ -29,10 +33,12 @@ export default async function StaffProductDetailPage({
 
   let products: StaffProductResponseDto[] = [];
   let categories: CategoryResponseDto[] = [];
+  let imageUrl: string | null = null;
   let failed = false;
-  const [productResult, categoryResult] = await Promise.allSettled([
+  const [productResult, categoryResult, imageResult] = await Promise.allSettled([
     staffProductsControllerList(),
     categoriesControllerList(),
+    productsControllerGet(id),
   ]);
   if (productResult.status === 'fulfilled') {
     products = unwrap<StaffProductResponseDto[]>(productResult.value.data);
@@ -41,6 +47,9 @@ export default async function StaffProductDetailPage({
   }
   if (categoryResult.status === 'fulfilled') {
     categories = readPage<CategoryResponseDto>(categoryResult.value.data).rows;
+  }
+  if (imageResult.status === 'fulfilled') {
+    imageUrl = unwrap<ProductDetailResponseDto>(imageResult.value.data).imageUrl;
   }
 
   const product = products.find((row) => row.id === id);
@@ -93,6 +102,24 @@ export default async function StaffProductDetailPage({
             }
           />
           <div className="panel-body">
+            <div className="record-photo">
+              <div className="record-photo-frame">
+                {imageUrl ? (
+                  <Image
+                    src={imageUrl}
+                    alt={localized(product.name, locale)}
+                    fill
+                    sizes="(max-width: 48rem) 100vw, 320px"
+                    unoptimized={
+                      imageUrl.startsWith('http://localhost:29199') ||
+                      imageUrl.startsWith('http://127.0.0.1:29199')
+                    }
+                  />
+                ) : (
+                  <ProductArtwork locale={locale} />
+                )}
+              </div>
+            </div>
             <DetailList
               rows={[
                 { label: t('Tên tiếng Việt', 'Vietnamese name'), value: product.name.vi },

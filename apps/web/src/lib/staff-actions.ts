@@ -28,6 +28,14 @@ function isOrderId(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0;
 }
 
+/** Staff availability changes must not leave a buyer's cached menu or item page behind. */
+function revalidateBuyerMenu(): void {
+  revalidatePath('/');
+  revalidatePath('/products/[id]', 'page');
+  revalidatePath('/cart');
+  revalidatePath('/checkout');
+}
+
 /** `PAID → PREPARING → READY → COMPLETED`; the gateway refuses anything else with `INVALID_STATE`. */
 export async function advanceStaffOrderAction(input: {
   orderId: string;
@@ -74,6 +82,7 @@ export async function setProductAvailabilityAction(input: {
       isAvailable: input.isAvailable,
     });
     revalidatePath('/staff/stock');
+    revalidateBuyerMenu();
     return { ok: true, data: unwrap<StaffProductResponseDto>(response.data) };
   } catch (error) {
     return actionFailure(error);
@@ -102,6 +111,7 @@ export async function setProductStockAction(input: {
       expectedVersion: input.expectedVersion,
     });
     revalidatePath('/staff/stock');
+    revalidateBuyerMenu();
     return { ok: true, data: unwrap<StaffProductResponseDto>(response.data) };
   } catch (error) {
     return actionFailure(error);
@@ -119,6 +129,7 @@ export async function setToppingAvailabilityAction(input: {
       isAvailable: input.isAvailable,
     });
     revalidatePath('/staff/stock');
+    revalidateBuyerMenu();
     return { ok: true, data: unwrap<StaffToppingResponseDto>(response.data) };
   } catch (error) {
     return actionFailure(error);

@@ -36,6 +36,13 @@ export function actionFailure(error: unknown): ActionFailure {
   return { ok: false, code: 'INTERNAL', details: {} };
 }
 
+/** An expired session must leave the console, not just show an inline error. */
+function redirectToLogin(): void {
+  if (typeof window === 'undefined') return;
+  const next = `${window.location.pathname}${window.location.search}`;
+  window.location.assign(`/login?next=${encodeURIComponent(next)}&expired=1`);
+}
+
 /**
  * A Server Action call can reject before it returns its envelope: the browser lost the
  * connection, the proxy timed out, or the action threw outside its own `try`. Callers
@@ -43,7 +50,9 @@ export function actionFailure(error: unknown): ActionFailure {
  */
 export async function runAction<T>(call: Promise<ActionResult<T>>): Promise<ActionResult<T>> {
   try {
-    return await call;
+    const result = await call;
+    if (!result.ok && result.code === 'UNAUTHENTICATED') redirectToLogin();
+    return result;
   } catch {
     return { ok: false, code: 'INTERNAL', details: {} };
   }

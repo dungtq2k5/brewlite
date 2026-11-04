@@ -16,6 +16,7 @@ export interface CartItem {
   id: string;
   productId: string;
   name: LocalizedText;
+  imageUrl?: string | null;
   size: ProductSize;
   toppingIds: string[];
   toppingNames: LocalizedText[];
@@ -30,6 +31,7 @@ interface CartContextType {
   items: CartItem[];
   hydrated: boolean;
   addItem: (item: Omit<CartItem, 'id' | 'unitPriceVnd'>) => boolean;
+  updateItem: (id: string, item: Omit<CartItem, 'id' | 'unitPriceVnd'>) => 'updated' | 'merged';
   removeItem: (id: string) => void;
   updateQty: (id: string, delta: number) => void;
   clearCart: () => void;
@@ -37,6 +39,10 @@ interface CartContextType {
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
+
+function cartLineId(item: Pick<CartItem, 'productId' | 'size' | 'toppingIds'>): string {
+  return `${item.productId}-${item.size}-${[...item.toppingIds].sort().join('_')}`;
+}
 
 function normalizeText(value: unknown): LocalizedText {
   if (typeof value === 'string') return { en: value, vi: value };
@@ -69,6 +75,8 @@ function readStoredCart(): CartItem[] {
           id: String(row.id ?? ''),
           productId: String(row.productId ?? ''),
           name: normalizeText(row.name),
+          imageUrl:
+            typeof row.imageUrl === 'string' && row.imageUrl.length > 0 ? row.imageUrl : null,
           size,
           toppingIds,
           toppingNames,
@@ -108,6 +116,53 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setItems(stored);
     setHydrated(true);
   }, []);
+
+  // Carts saved before product thumbnails existed (or edited on another device) get
+  // their image back from the public menu once, then keep it in local storage.
+  useEffect(() => {
+    if (!hydrated) return;
+    if (!itemsRef.current.some((item) => !item.imageUrl)) return;
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await fetch('/api/v1/products', { cache: 'no-store' });
+        if (!response.ok) return;
+        const body: unknown = await response.json();
+        if (!body || typeof body !== 'object') return;
+        const rows = (body as { data?: unknown }).data;
+        if (!Array.isArray(rows)) return;
+
+        const imageByProduct = new Map<string, string>();
+        for (const row of rows) {
+          if (!row || typeof row !== 'object') continue;
+          const { id, imageUrl } = row as { id?: unknown; imageUrl?: unknown };
+          if (typeof id === 'string' && typeof imageUrl === 'string' && imageUrl) {
+            imageByProduct.set(id, imageUrl);
+          }
+        }
+        if (cancelled || imageByProduct.size === 0) return;
+
+        let changed = false;
+        const next = itemsRef.current.map((item) => {
+          if (item.imageUrl) return item;
+          const imageUrl = imageByProduct.get(item.productId);
+          if (!imageUrl) return item;
+          changed = true;
+          return { ...item, imageUrl };
+        });
+        if (!changed) return;
+        itemsRef.current = next;
+        setItems(next);
+      } catch {
+        // A failed lookup only leaves the illustration fallback in place.
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hydrated]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -152,7 +207,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     if (newItem.toppingIds.length > MAX_TOPPINGS_PER_LINE) return false;
 
     const unitPriceVnd = newItem.basePriceVnd + newItem.sizeDeltaVnd + newItem.toppingsPriceVnd;
-    const id = `${newItem.productId}-${newItem.size}-${[...newItem.toppingIds].sort().join('_')}`;
+    const id = cartLineId(newItem);
     const current = itemsRef.current;
     const existing = current.find((item) => item.id === id);
     if (!existing && current.length >= MAX_LINES_PER_ORDER) return false;
@@ -173,6 +228,45 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       { ...newItem, id, qty: Math.min(MAX_QTY_PER_LINE, newItem.qty), unitPriceVnd },
     ]);
     return true;
+  };
+
+  const updateItem = (
+    id: string,
+    newItem: Omit<CartItem, 'id' | 'unitPriceVnd'>,
+  ): 'updated' | 'merged' => {
+    const unitPriceVnd = newItem.basePriceVnd + newItem.sizeDeltaVnd + newItem.toppingsPriceVnd;
+    const nextId = cartLineId(newItem);
+    const current = itemsRef.current;
+    const target = current.find((item) => item.id === id);
+    if (!target) return 'updated';
+
+    const duplicate = nextId === id ? null : current.find((item) => item.id === nextId);
+    if (duplicate) {
+      commit(
+        current
+          .filter((item) => item.id !== id)
+          .map((item) =>
+            item.id === nextId
+              ? { ...item, qty: Math.min(MAX_QTY_PER_LINE, item.qty + newItem.qty) }
+              : item,
+          ),
+      );
+      return 'merged';
+    }
+
+    commit(
+      current.map((item) =>
+        item.id === id
+          ? {
+              ...newItem,
+              id: nextId,
+              qty: Math.min(MAX_QTY_PER_LINE, newItem.qty),
+              unitPriceVnd,
+            }
+          : item,
+      ),
+    );
+    return 'updated';
   };
 
   const removeItem = (id: string) => {
@@ -205,6 +299,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         items,
         hydrated,
         addItem,
+        updateItem,
         removeItem,
         updateQty,
         clearCart,

@@ -5,12 +5,13 @@ import { getLocale } from '@/i18n/locale.server';
 import { safeNextPath } from '@/lib/navigation';
 
 interface LoginPageProps {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string; expired?: string }>;
 }
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = await searchParams;
   const nextPath = params.next ? safeNextPath(params.next, '') || undefined : undefined;
+  const expired = params.expired === '1';
   const locale = await getLocale();
   const isVi = locale === 'vi';
   const consoleTarget = nextPath?.startsWith('/admin')
@@ -39,7 +40,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
               <span className="auth-context">{consoleTarget}</span>{' '}
               {isVi ? 'Dùng tài khoản nội bộ để tiếp tục.' : 'Use your staff account to continue.'}
             </p>
-            <LoginForm nextPath={nextPath} locale={locale} consoleOnly />
+            <LoginForm nextPath={nextPath} locale={locale} consoleOnly expired={expired} />
             <p className="auth-footer">
               <Link className="text-link" href="/">
                 {isVi ? 'Về cửa hàng' : 'Back to store'}
@@ -64,30 +65,6 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
               : 'One account keeps your cart, tracks your order, and collects loyalty points at the counter.'}
           </p>
         </div>
-        <div className="auth-index" aria-label={isVi ? 'Quyền lợi tài khoản' : 'Account benefits'}>
-          <div>
-            <span>01</span>
-            <span>
-              {isVi ? 'Giỏ hàng được giữ trên thiết bị này.' : 'Your cart stays on this device.'}
-            </span>
-          </div>
-          <div>
-            <span>02</span>
-            <span>
-              {isVi
-                ? 'Theo dõi trạng thái pha chế theo thời gian thực.'
-                : 'Follow preparation status in real time.'}
-            </span>
-          </div>
-          <div>
-            <span>03</span>
-            <span>
-              {isVi
-                ? 'Điểm tích lũy cộng sau khi đơn hoàn tất.'
-                : 'Points arrive when an order completes.'}
-            </span>
-          </div>
-        </div>
       </section>
 
       <section className="auth-panel">
@@ -102,7 +79,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
               ? 'Khách hàng BrewLite. Dùng email và mật khẩu của bạn.'
               : 'BrewLite customer. Use your email and password.'}
           </p>
-          <LoginForm nextPath={nextPath} locale={locale} />
+          <LoginForm nextPath={nextPath} locale={locale} expired={expired} />
           <p className="auth-footer">
             <Link className="text-link" href="/">
               {isVi ? 'Về thực đơn' : 'Back to menu'}

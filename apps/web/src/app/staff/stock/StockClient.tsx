@@ -1,6 +1,7 @@
 'use client';
 
 import { Fragment, useEffect, useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type {
@@ -10,6 +11,7 @@ import type {
 } from '@brewlite/api-client';
 import { ConfirmDialog } from '@/components/feedback/ConfirmDialog';
 import { useToast } from '@/components/feedback/ToastProvider';
+import ProductArtwork from '@/components/ProductArtwork';
 import { Button, ButtonLink } from '@/components/vellum/Button';
 import { EmptyState } from '@/components/vellum/EmptyState';
 import { Notice } from '@/components/vellum/Notice';
@@ -67,11 +69,13 @@ function categoryLabel(
 function ProductRow({
   product,
   category,
+  imageUrl,
   onUpdated,
   onRefresh,
 }: {
   product: StaffProductResponseDto;
   category: string;
+  imageUrl?: string;
   onUpdated: (product: StaffProductResponseDto) => void;
   onRefresh: () => void;
 }) {
@@ -151,12 +155,32 @@ function ProductRow({
     <Fragment>
       <tr>
         <td data-label={t('Món', 'Product')}>
-          <Link className="text-link" href={`/staff/products/${product.id}`}>
-            {name}
-          </Link>
-          <span className="cell-meta">
-            {altName && altName !== name ? altName : '—'} · v{product.version}
-          </span>
+          <div className="stock-product">
+            <div className="stock-thumb">
+              {imageUrl ? (
+                <Image
+                  src={imageUrl}
+                  alt=""
+                  fill
+                  sizes="44px"
+                  unoptimized={
+                    imageUrl.startsWith('http://localhost:29199') ||
+                    imageUrl.startsWith('http://127.0.0.1:29199')
+                  }
+                />
+              ) : (
+                <ProductArtwork locale={locale} />
+              )}
+            </div>
+            <div>
+              <Link className="text-link" href={`/staff/products/${product.id}`}>
+                {name}
+              </Link>
+              <span className="cell-meta">
+                {altName && altName !== name ? altName : '—'} · v{product.version}
+              </span>
+            </div>
+          </div>
         </td>
         <td data-label={t('Nhóm', 'Category')}>
           <Link className="text-link" href={`/staff/categories/${product.categoryId}`}>
@@ -165,7 +189,7 @@ function ProductRow({
         </td>
         <td data-label={t('Kho', 'Stock')}>
           <input
-            className="input"
+            className="input stock-qty"
             type="number"
             min={0}
             step={1}
@@ -174,7 +198,6 @@ function ProductRow({
             placeholder={t('Không giới hạn', 'Unlimited')}
             aria-label={t(`Số lượng kho ${name}`, `Stock quantity for ${name}`)}
             disabled={busy !== null}
-            style={{ maxWidth: 120 }}
             onChange={(event) => setStock(event.target.value)}
           />
           <span className="cell-meta">
@@ -375,12 +398,14 @@ export default function StockClient({
   products: initialProducts,
   toppings: initialToppings,
   categories,
+  productImages,
   productsFailed,
   toppingsFailed,
 }: {
   products: StaffProductResponseDto[];
   toppings: StaffToppingResponseDto[];
   categories: CategoryResponseDto[];
+  productImages: Record<string, string>;
   productsFailed: boolean;
   toppingsFailed: boolean;
 }) {
@@ -507,6 +532,7 @@ export default function StockClient({
                       <ProductRow
                         key={product.id}
                         product={product}
+                        imageUrl={productImages[product.id]}
                         category={categoryLabel(
                           categories,
                           product.categoryId,

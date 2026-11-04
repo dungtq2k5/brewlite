@@ -145,7 +145,7 @@ export default function CheckoutPageClient({ locale, recipient }: Props) {
         if (!result.ok) {
           const details = result.details as unknown as ApiErrorDetails;
           if (result.code === 'UNAUTHENTICATED') {
-            router.replace(`/login?next=${encodeURIComponent('/checkout')}`);
+            router.replace(`/login?next=${encodeURIComponent('/checkout')}&expired=1`);
             return;
           }
 
@@ -214,6 +214,11 @@ export default function CheckoutPageClient({ locale, recipient }: Props) {
     });
   };
 
+  const handleRemoveAllUnavailable = () => {
+    for (const itemId of Object.keys(unavailable)) removeItem(itemId);
+    setUnavailable({});
+  };
+
   const handlePlaceOrder = async () => {
     if (
       !quote ||
@@ -239,7 +244,7 @@ export default function CheckoutPageClient({ locale, recipient }: Props) {
       if (!orderResult.ok) {
         const details = orderResult.details as unknown as ApiErrorDetails;
         if (orderResult.code === 'UNAUTHENTICATED') {
-          router.replace(`/login?next=${encodeURIComponent('/checkout')}`);
+          router.replace(`/login?next=${encodeURIComponent('/checkout')}&expired=1`);
           return;
         }
         if (orderResult.code === 'IDEMPOTENCY_KEY_REUSED') {
@@ -690,8 +695,8 @@ export default function CheckoutPageClient({ locale, recipient }: Props) {
           <button
             className="btn btn--primary btn--block"
             type="button"
-            onClick={handlePlaceOrder}
-            disabled={!canPlaceOrder}
+            onClick={hasUnavailable ? handleRemoveAllUnavailable : handlePlaceOrder}
+            disabled={hasUnavailable ? quoting || placing : !canPlaceOrder}
           >
             {placeLabel}
           </button>

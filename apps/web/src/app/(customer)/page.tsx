@@ -6,6 +6,8 @@ import {
   type CategoryResponseDto,
   type ProductSummaryResponseDto,
 } from '@brewlite/api-client';
+import AutoRefresh from '@/components/AutoRefresh';
+import ProductArtwork from '@/components/ProductArtwork';
 import { EmptyState } from '@/components/vellum/EmptyState';
 import { Notice } from '@/components/vellum/Notice';
 import { PageHead } from '@/components/vellum/PageHead';
@@ -20,6 +22,58 @@ interface MenuPageProps {
 interface MenuGroup {
   category: CategoryResponseDto;
   products: ProductSummaryResponseDto[];
+}
+
+function MenuCard({
+  product,
+  categoryName,
+  locale,
+  eager,
+}: {
+  product: ProductSummaryResponseDto;
+  categoryName?: string | null;
+  locale: 'vi' | 'en';
+  eager?: boolean;
+}) {
+  const isVi = locale === 'vi';
+  const name = localized(product.name, locale);
+  const alt = localized(product.name, isVi ? 'en' : 'vi');
+  const image = product.imageUrl;
+
+  return (
+    <Link className="menu-card" href={`/products/${product.id}`}>
+      <div className="menu-card-media">
+        {image ? (
+          <Image
+            src={image}
+            alt={name}
+            fill
+            sizes="(max-width: 40rem) 50vw, (max-width: 60rem) 33vw, 320px"
+            priority={eager}
+            unoptimized={
+              image.startsWith('http://localhost:29199') ||
+              image.startsWith('http://127.0.0.1:29199')
+            }
+          />
+        ) : (
+          <ProductArtwork categoryName={categoryName} locale={locale} />
+        )}
+        {product.isSoldOut && (
+          <span className="tag tag--error menu-card-badge">
+            {isVi ? 'Tạm hết' : 'Temporarily out'}
+          </span>
+        )}
+      </div>
+      <div className="menu-card-body">
+        <h3>{name}</h3>
+        {alt && alt !== name && <p className="menu-card-alt">{alt}</p>}
+        <p className="menu-card-price">
+          <span className="menu-card-from">{isVi ? 'từ' : 'from'}</span>
+          <span className="money">{formatVnd(product.fromPriceVnd, locale)}</span>
+        </p>
+      </div>
+    </Link>
+  );
 }
 
 export default async function MenuPage({ searchParams }: MenuPageProps) {
@@ -66,15 +120,11 @@ export default async function MenuPage({ searchParams }: MenuPageProps) {
 
   return (
     <>
+      <AutoRefresh />
       <PageHead
         title={isVi ? 'Thực đơn hôm nay' : "Today's menu"}
         titleClassName="page-title--buyer"
         meta={meta}
-        lede={
-          isVi
-            ? 'Chọn size và topping ở trang món; giá cuối cùng hiện trước khi thêm vào giỏ.'
-            : 'Choose size and toppings on the item page to see the final price before adding it.'
-        }
         actions={
           <>
             <Link className="btn btn--sm" href="/orders">
@@ -116,37 +166,6 @@ export default async function MenuPage({ searchParams }: MenuPageProps) {
               );
             })}
           </nav>
-
-          <figure className="menu-figure">
-            <div className="menu-photo">
-              <Image
-                src="/menu-espresso.jpg"
-                alt={
-                  isVi
-                    ? 'Espresso đang chảy từ máy xuống hai ly thuỷ tinh'
-                    : 'Espresso pouring from a retro machine into two glasses'
-                }
-                fill
-                sizes="(max-width: 60rem) 100vw, 236px"
-              />
-            </div>
-            <figcaption className="photo-credit">
-              <Link className="text-link" href="/credits">
-                {isVi
-                  ? 'Ảnh minh hoạ: Shixart1985 · CC BY 2.0'
-                  : 'Illustration: Shixart1985 · CC BY 2.0'}
-              </Link>
-            </figcaption>
-          </figure>
-
-          <div className="menu-note">
-            <p className="menu-note-title">{isVi ? 'Pha theo từng ly' : 'Made to order'}</p>
-            <p>
-              {isVi
-                ? 'Mỗi ly được pha khi đơn vào bếp. Món hết nguyên liệu sẽ bị khóa ở bước đặt đơn.'
-                : 'Each drink is made when the order reaches the bar. Sold-out items are locked at checkout.'}
-            </p>
-          </div>
         </aside>
 
         <div>
@@ -195,40 +214,22 @@ export default async function MenuPage({ searchParams }: MenuPageProps) {
                   </div>
 
                   {group.products.length === 0 && (
-                    <p className="menu-row-meta" style={{ padding: 'var(--space-sm) 0' }}>
+                    <p className="menu-empty" style={{ padding: 'var(--space-sm) 0' }}>
                       {isVi ? 'Chưa có món trong nhóm này.' : 'No items in this group yet.'}
                     </p>
                   )}
 
-                  {group.products.map((product) => {
-                    const name = localized(product.name, locale);
-                    const alt = localized(product.name, isVi ? 'en' : 'vi');
-                    return (
-                      <div className="menu-row" key={product.id}>
-                        <div>
-                          <h3>
-                            <Link href={`/products/${product.id}`}>{name}</Link>
-                          </h3>
-                          {alt && alt !== name && <p className="menu-row-meta">{alt}</p>}
-                        </div>
-                        <div className="menu-row-price">
-                          <span className="menu-from">{isVi ? 'từ' : 'from'}</span>
-                          <span className="money">{formatVnd(product.fromPriceVnd, locale)}</span>
-                        </div>
-                        {product.isSoldOut ? (
-                          <span className="tag tag--error">{isVi ? 'Hết hàng' : 'Sold out'}</span>
-                        ) : (
-                          <Link
-                            className="menu-add"
-                            href={`/products/${product.id}`}
-                            aria-label={isVi ? `Xem món ${name}` : `View ${name}`}
-                          >
-                            {isVi ? 'Xem' : 'View'}
-                          </Link>
-                        )}
-                      </div>
-                    );
-                  })}
+                  <div className="menu-grid">
+                    {group.products.map((product, index) => (
+                      <MenuCard
+                        key={product.id}
+                        product={product}
+                        categoryName={group.category.name.en}
+                        locale={locale}
+                        eager={index < 4 && group.category.id === visibleGroups[0]?.category.id}
+                      />
+                    ))}
+                  </div>
                 </section>
               );
             })
@@ -242,33 +243,11 @@ export default async function MenuPage({ searchParams }: MenuPageProps) {
                   {uncategorized.length} {isVi ? 'món' : 'items'}
                 </span>
               </div>
-              {uncategorized.map((product) => {
-                const name = localized(product.name, locale);
-                return (
-                  <div className="menu-row" key={product.id}>
-                    <div>
-                      <h3>
-                        <Link href={`/products/${product.id}`}>{name}</Link>
-                      </h3>
-                    </div>
-                    <div className="menu-row-price">
-                      <span className="menu-from">{isVi ? 'từ' : 'from'}</span>
-                      <span className="money">{formatVnd(product.fromPriceVnd, locale)}</span>
-                    </div>
-                    {product.isSoldOut ? (
-                      <span className="tag tag--error">{isVi ? 'Hết hàng' : 'Sold out'}</span>
-                    ) : (
-                      <Link
-                        className="menu-add"
-                        href={`/products/${product.id}`}
-                        aria-label={isVi ? `Xem món ${name}` : `View ${name}`}
-                      >
-                        {isVi ? 'Xem' : 'View'}
-                      </Link>
-                    )}
-                  </div>
-                );
-              })}
+              <div className="menu-grid">
+                {uncategorized.map((product) => (
+                  <MenuCard key={product.id} product={product} locale={locale} />
+                ))}
+              </div>
             </section>
           )}
         </div>

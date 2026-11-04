@@ -173,11 +173,11 @@ export default function PromotionsClient({
   const parsedMaxUses = maxUses.trim() === '' ? undefined : Number(maxUses);
   const maxUsesInvalid =
     parsedMaxUses !== undefined &&
-    (!Number.isInteger(parsedMaxUses) || parsedMaxUses < 0 || parsedMaxUses > 1_000_000);
+    (!Number.isInteger(parsedMaxUses) || parsedMaxUses < 1 || parsedMaxUses > 1_000_000);
   const parsedPerUser = perUserLimit.trim() === '' ? undefined : Number(perUserLimit);
   const perUserInvalid =
     parsedPerUser !== undefined &&
-    (!Number.isInteger(parsedPerUser) || parsedPerUser < 0 || parsedPerUser > 1_000_000);
+    (!Number.isInteger(parsedPerUser) || parsedPerUser < 1 || parsedPerUser > 1_000_000);
   const startTime = Date.parse(startsAt);
   const endTime = Date.parse(endsAt);
   const timeInvalid = Number.isNaN(startTime) || Number.isNaN(endTime) || endTime <= startTime;
@@ -206,8 +206,8 @@ export default function PromotionsClient({
           minSubtotalVnd: parsedMin,
           startsAt: new Date(startTime).toISOString(),
           endsAt: new Date(endTime).toISOString(),
-          maxUses: parsedMaxUses,
-          perUserLimit: parsedPerUser,
+          maxUses: parsedMaxUses ?? null,
+          perUserLimit: parsedPerUser ?? null,
           isActive,
         }),
       );
@@ -232,8 +232,8 @@ export default function PromotionsClient({
           promotionId: editTarget.id,
           description,
           endsAt: new Date(endTime).toISOString(),
-          maxUses: parsedMaxUses,
-          perUserLimit: parsedPerUser,
+          maxUses: parsedMaxUses ?? null,
+          perUserLimit: parsedPerUser ?? null,
           isActive,
         }),
       );
@@ -619,12 +619,15 @@ export default function PromotionsClient({
                 id="promo-max-uses"
                 className="input"
                 type="number"
-                min={0}
+                min={1}
                 step={1}
                 value={maxUses}
                 placeholder={t('Không giới hạn', 'Unlimited')}
                 onChange={(event) => setMaxUses(event.target.value)}
               />
+              <p className="field-hint">
+                {t('Để trống nghĩa là không giới hạn.', 'Leave empty for unlimited.')}
+              </p>
             </div>
           </div>
 
@@ -658,12 +661,15 @@ export default function PromotionsClient({
                 id="promo-per-user"
                 className="input"
                 type="number"
-                min={0}
+                min={1}
                 step={1}
                 value={perUserLimit}
                 placeholder={t('Không giới hạn', 'Unlimited')}
                 onChange={(event) => setPerUserLimit(event.target.value)}
               />
+              <p className="field-hint">
+                {t('Để trống nghĩa là không giới hạn.', 'Leave empty for unlimited.')}
+              </p>
             </div>
             <label className="check" style={{ alignSelf: 'end' }}>
               <input
@@ -758,16 +764,14 @@ export default function PromotionsClient({
                 id="promo-edit-max"
                 className="input"
                 type="number"
-                min={0}
+                min={1}
                 step={1}
                 value={maxUses}
+                placeholder={t('Không giới hạn', 'Unlimited')}
                 onChange={(event) => setMaxUses(event.target.value)}
               />
               <p className="field-hint">
-                {t(
-                  'Để trống để giữ nguyên giới hạn hiện tại.',
-                  'Leave empty to keep the current limit.',
-                )}
+                {t('Để trống nghĩa là không giới hạn.', 'Leave empty for unlimited.')}
               </p>
             </div>
             <div className="field">
@@ -776,16 +780,14 @@ export default function PromotionsClient({
                 id="promo-edit-per"
                 className="input"
                 type="number"
-                min={0}
+                min={1}
                 step={1}
                 value={perUserLimit}
+                placeholder={t('Không giới hạn', 'Unlimited')}
                 onChange={(event) => setPerUserLimit(event.target.value)}
               />
               <p className="field-hint">
-                {t(
-                  'Để trống để giữ nguyên giới hạn hiện tại.',
-                  'Leave empty to keep the current limit.',
-                )}
+                {t('Để trống nghĩa là không giới hạn.', 'Leave empty for unlimited.')}
               </p>
             </div>
           </div>

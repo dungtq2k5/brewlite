@@ -7,6 +7,7 @@ import {
   type ProductDetailResponseDto,
 } from '@brewlite/api-client';
 import { EmptyState } from '@/components/vellum/EmptyState';
+import AutoRefresh from '@/components/AutoRefresh';
 import { localized } from '@/i18n/format';
 import { getLocale } from '@/i18n/locale.server';
 import { unwrap } from '@/lib/api-server';
@@ -85,6 +86,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
 
   return (
     <>
+      <AutoRefresh />
       <nav className="breadcrumb" aria-label={isVi ? 'Đường dẫn' : 'Breadcrumb'}>
         <Link href="/">{isVi ? 'Thực đơn' : 'Menu'}</Link>
         <span aria-hidden="true">/</span>

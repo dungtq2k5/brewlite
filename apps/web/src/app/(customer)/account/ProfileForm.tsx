@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/vellum/Button';
 import { Notice } from '@/components/vellum/Notice';
+import { runAction } from '@/lib/action-result';
 import { describeError } from '@/lib/error-messages';
 import type { ApiErrorDetails } from '@/lib/gateway-types';
 import { updateProfileAction } from '@/lib/profile-actions';
@@ -41,7 +42,7 @@ export default function ProfileForm({
     setError(null);
     setSaved(false);
     try {
-      const result = await updateProfileAction({ fullName, preferredLocale: locale });
+      const result = await runAction(updateProfileAction({ fullName, preferredLocale: locale }));
       if (!result.ok) {
         setError(describeError(result.code, result.details as ApiErrorDetails, uiLocale));
         return;

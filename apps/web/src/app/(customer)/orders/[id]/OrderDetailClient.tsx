@@ -162,7 +162,7 @@ export default function OrderDetailClient({ order, payment, locale, cardholder }
 
   const currentStatus = String(order.status ?? '').toUpperCase();
   const live = isLiveOrderStatus(currentStatus);
-  const loginUrl = `/login?next=${encodeURIComponent(`/orders/${order.id}`)}`;
+  const loginUrl = `/login?next=${encodeURIComponent(`/orders/${order.id}`)}&expired=1`;
 
   useEffect(() => {
     if (!live) return;

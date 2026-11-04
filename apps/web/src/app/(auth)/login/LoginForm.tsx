@@ -20,17 +20,21 @@ export default function LoginForm({
   nextPath,
   locale,
   consoleOnly = false,
+  expired = false,
 }: {
   nextPath?: string;
   locale: Locale;
   consoleOnly?: boolean;
+  expired?: boolean;
 }) {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>('login');
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState<{ code: string; details: ApiErrorDetails } | null>(null);
+  const [error, setError] = useState<{ code: string; details: ApiErrorDetails } | null>(
+    expired ? { code: 'UNAUTHENTICATED', details: {} } : null,
+  );
   const [pending, startTransition] = useTransition();
   const isVi = locale === 'vi';
 

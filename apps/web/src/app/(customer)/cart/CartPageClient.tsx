@@ -1,20 +1,24 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useState } from 'react';
 import { MAX_QTY_PER_LINE } from '@brewlite/contracts';
 import { ConfirmDialog } from '@/components/feedback/ConfirmDialog';
 import { useToast } from '@/components/feedback/ToastProvider';
+import ProductArtwork from '@/components/ProductArtwork';
 import { EmptyState } from '@/components/vellum/EmptyState';
 import { PageHead } from '@/components/vellum/PageHead';
 import { useCart, type CartItem } from '@/context/CartContext';
 import { formatVnd, localized } from '@/i18n/format';
 import type { Locale } from '@/i18n/locale';
+import CartItemEditor from './CartItemEditor';
 
 export default function CartPageClient({ locale }: { locale: Locale }) {
   const { items, hydrated, updateQty, removeItem, previewSubtotalVnd } = useCart();
   const { showToast } = useToast();
   const [removeTarget, setRemoveTarget] = useState<CartItem | null>(null);
+  const [editTarget, setEditTarget] = useState<CartItem | null>(null);
   const isVi = locale === 'vi';
   const itemCount = items.reduce((total, item) => total + item.qty, 0);
 
@@ -79,19 +83,37 @@ export default function CartPageClient({ locale }: { locale: Locale }) {
 
           {items.map((item) => (
             <article className="cart-line" key={item.id}>
-              <div>
-                <h3>{localized(item.name, locale)}</h3>
-                <p className="cart-line-meta">
-                  Size {item.size}
-                  {item.toppingNames.length > 0 && (
-                    <>
-                      {', '}
-                      {item.toppingNames.map((name) => localized(name, locale)).join(', ')}
-                    </>
+              <div className="cart-line-product">
+                <div className="cart-thumb">
+                  {item.imageUrl ? (
+                    <Image
+                      src={item.imageUrl}
+                      alt=""
+                      fill
+                      sizes="64px"
+                      unoptimized={
+                        item.imageUrl.startsWith('http://localhost:29199') ||
+                        item.imageUrl.startsWith('http://127.0.0.1:29199')
+                      }
+                    />
+                  ) : (
+                    <ProductArtwork locale={locale} />
                   )}
-                  <br />
-                  {isVi ? 'Đơn giá' : 'Unit price'} {formatVnd(item.unitPriceVnd, locale)}
-                </p>
+                </div>
+                <div>
+                  <h3>{localized(item.name, locale)}</h3>
+                  <p className="cart-line-meta">
+                    Size {item.size}
+                    {item.toppingNames.length > 0 && (
+                      <>
+                        {', '}
+                        {item.toppingNames.map((name) => localized(name, locale)).join(', ')}
+                      </>
+                    )}
+                    <br />
+                    {isVi ? 'Đơn giá' : 'Unit price'} {formatVnd(item.unitPriceVnd, locale)}
+                  </p>
+                </div>
               </div>
 
               <div className="stepper" role="group" aria-label={isVi ? 'Số lượng' : 'Quantity'}>
@@ -118,9 +140,18 @@ export default function CartPageClient({ locale }: { locale: Locale }) {
                 <span className="line-total">
                   {formatVnd(item.unitPriceVnd * item.qty, locale)}
                 </span>
-                <button className="remove-link" type="button" onClick={() => setRemoveTarget(item)}>
-                  {isVi ? 'Xóa' : 'Remove'}
-                </button>
+                <span className="cart-line-actions">
+                  <button className="edit-link" type="button" onClick={() => setEditTarget(item)}>
+                    {isVi ? 'Sửa' : 'Edit'}
+                  </button>
+                  <button
+                    className="remove-link"
+                    type="button"
+                    onClick={() => setRemoveTarget(item)}
+                  >
+                    {isVi ? 'Xóa' : 'Remove'}
+                  </button>
+                </span>
               </div>
             </article>
           ))}
@@ -158,6 +189,15 @@ export default function CartPageClient({ locale }: { locale: Locale }) {
           </p>
         </aside>
       </div>
+
+      {editTarget && (
+        <CartItemEditor
+          key={editTarget.id}
+          item={editTarget}
+          locale={locale}
+          onClose={() => setEditTarget(null)}
+        />
+      )}
 
       {removeTarget && (
         <ConfirmDialog

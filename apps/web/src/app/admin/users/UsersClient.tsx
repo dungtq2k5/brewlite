@@ -107,6 +107,19 @@ export default function UsersClient({
   const [lockReason, setLockReason] = useState('');
   const [lockedUntil, setLockedUntil] = useState('');
 
+  const tabHref = (nextRole: Role | '') => {
+    const params = new URLSearchParams(queryString);
+    params.delete('role');
+    if (nextRole) params.set('role', nextRole);
+    const search = params.toString();
+    return search ? `/admin/users?${search}` : '/admin/users';
+  };
+
+  const roleTabs: { value: Role | ''; label: string }[] = [
+    { value: '', label: t('Tất cả', 'All') },
+    ...ROLE_VALUES.map((value) => ({ value, label: roleLabel(value, locale) })),
+  ];
+
   const close = () => {
     if (busy) return;
     setCreateOpen(false);
@@ -408,7 +421,21 @@ export default function UsersClient({
       )}
 
       <Panel>
+        <nav className="filter-tabs" aria-label={t('Lọc theo vai trò', 'Filter by role')}>
+          {roleTabs.map((tab) => (
+            <a
+              key={tab.value || 'all'}
+              className={`filter-tab${role === tab.value ? ' is-active' : ''}`}
+              href={tabHref(tab.value)}
+              aria-current={role === tab.value ? 'page' : undefined}
+            >
+              {tab.label}
+            </a>
+          ))}
+        </nav>
+
         <form className="toolbar" action="/admin/users" method="get">
+          <input type="hidden" name="role" value={role} />
           <div className="field">
             <label htmlFor="user-q">
               {t('Tìm theo tên hoặc email', 'Search by name or email')}
@@ -420,17 +447,6 @@ export default function UsersClient({
               defaultValue={query}
               placeholder="staff@brewlite.test"
             />
-          </div>
-          <div className="field">
-            <label htmlFor="user-role">{t('Vai trò', 'Role')}</label>
-            <select id="user-role" className="input" name="role" defaultValue={role}>
-              <option value="">{t('Tất cả', 'All')}</option>
-              {ROLE_VALUES.map((value) => (
-                <option key={value} value={value}>
-                  {roleLabel(value, locale)}
-                </option>
-              ))}
-            </select>
           </div>
           <div className="field">
             <label htmlFor="user-locked">{t('Trạng thái', 'Status')}</label>

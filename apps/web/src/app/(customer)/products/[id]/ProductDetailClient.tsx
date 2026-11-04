@@ -41,6 +41,7 @@ export default function ProductDetailClient({ product, locale, categoryName }: P
   const [selectedToppings, setSelectedToppings] = useState<string[]>([]);
   const [qty, setQty] = useState(1);
   const [cartError, setCartError] = useState('');
+  const [checkingStock, setCheckingStock] = useState(false);
 
   const name = localized(product.name, locale);
   const altName = localized(product.name, isVi ? 'en' : 'vi');
@@ -71,12 +72,47 @@ export default function ProductDetailClient({ product, locale, categoryName }: P
     });
   };
 
-  const addToCart = () => {
-    if (product.isSoldOut) return;
+  const addToCart = async () => {
+    if (product.isSoldOut || checkingStock) return;
     setCartError('');
+    setCheckingStock(true);
+
+    // The page may have been open before staff switched the item off. Re-read it
+    // once at the moment of adding so a stale button can never create a cart line.
+    try {
+      const response = await fetch(`/api/v1/products/${encodeURIComponent(product.id)}`, {
+        cache: 'no-store',
+      });
+      if (!response.ok) throw new Error('product request failed');
+      const body: unknown = await response.json();
+      const fresh =
+        body && typeof body === 'object'
+          ? (body as { data?: ProductDetailResponseDto }).data
+          : undefined;
+      if (!fresh || fresh.isSoldOut) {
+        setCartError(
+          isVi
+            ? 'Món này vừa tạm hết nên chưa thể thêm vào giỏ. Thực đơn sẽ tự cập nhật.'
+            : 'This item just went out, so it cannot be added. The menu will refresh.',
+        );
+        router.refresh();
+        return;
+      }
+    } catch {
+      setCartError(
+        isVi
+          ? 'Không kiểm tra được tình trạng món. Kiểm tra kết nối rồi thử lại.'
+          : 'Could not check whether this item is available. Check your connection and try again.',
+      );
+      return;
+    } finally {
+      setCheckingStock(false);
+    }
+
     const added = addItem({
       productId: product.id,
       name: product.name,
+      imageUrl: product.imageUrl,
       size: size as ProductSize,
       toppingIds: selectedToppings,
       toppingNames: selectedToppingObjects.map((topping) => topping.name),
@@ -99,6 +135,9 @@ export default function ProductDetailClient({ product, locale, categoryName }: P
         onClick: () => router.push('/cart'),
       },
     });
+    // Most buyers pick several drinks in a row; return them to the menu while the
+    // toast keeps the cart one tap away.
+    router.push('/');
   };
 
   const currentChoice = isVi
@@ -112,7 +151,7 @@ export default function ProductDetailClient({ product, locale, categoryName }: P
         {altName && altName !== name && <p className="page-meta">{altName}</p>}
         {product.isSoldOut && (
           <p style={{ marginTop: 'var(--space-sm)' }}>
-            <span className="tag tag--error">{isVi ? 'Hết hàng' : 'Sold out'}</span>
+            <span className="tag tag--error">{isVi ? 'Tạm hết' : 'Temporarily out'}</span>
           </p>
         )}
         {description && (
@@ -219,18 +258,24 @@ export default function ProductDetailClient({ product, locale, categoryName }: P
           <button
             className="btn btn--primary"
             type="button"
-            onClick={addToCart}
-            disabled={product.isSoldOut}
+            onClick={() => {
+              void addToCart();
+            }}
+            disabled={product.isSoldOut || checkingStock}
             style={{ justifyContent: 'space-between' }}
           >
             <span>
               {product.isSoldOut
                 ? isVi
-                  ? 'Đã hết hàng'
-                  : 'Sold out'
-                : isVi
-                  ? 'Thêm vào giỏ'
-                  : 'Add to cart'}
+                  ? 'Tạm hết'
+                  : 'Temporarily out'
+                : checkingStock
+                  ? isVi
+                    ? 'Đang kiểm tra…'
+                    : 'Checking…'
+                  : isVi
+                    ? 'Thêm vào giỏ'
+                    : 'Add to cart'}
             </span>
             <span className="money">{formatVnd(unitPriceVnd * qty, locale)}</span>
           </button>
@@ -241,12 +286,6 @@ export default function ProductDetailClient({ product, locale, categoryName }: P
             {cartError}
           </Notice>
         )}
-
-        <p className="fine">
-          {isVi
-            ? `Tối đa ${MAX_QTY_PER_LINE} phần mỗi dòng. Món hết nguyên liệu sẽ bị khóa ở bước đặt đơn.`
-            : `Up to ${MAX_QTY_PER_LINE} per line. Sold-out items are locked at checkout.`}
-        </p>
       </div>
 
       {image ? (

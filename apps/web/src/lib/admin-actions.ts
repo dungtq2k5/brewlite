@@ -546,8 +546,8 @@ export async function createPromotionAction(input: {
     Number.isNaN(endsAt) ||
     endsAt <= startsAt ||
     (input.maxDiscountVnd != null && !isInt(input.maxDiscountVnd, 0, 10_000_000)) ||
-    (input.maxUses != null && !isInt(input.maxUses, 0, 1_000_000)) ||
-    (input.perUserLimit != null && !isInt(input.perUserLimit, 0, 1_000_000))
+    (input.maxUses != null && !isInt(input.maxUses, 1, 1_000_000)) ||
+    (input.perUserLimit != null && !isInt(input.perUserLimit, 1, 1_000_000))
   ) {
     return invalid();
   }
@@ -562,8 +562,8 @@ export async function createPromotionAction(input: {
       minSubtotalVnd: input.minSubtotalVnd,
       startsAt: new Date(startsAt).toISOString(),
       endsAt: new Date(endsAt).toISOString(),
-      ...(input.maxUses != null && { maxUses: input.maxUses }),
-      ...(input.perUserLimit != null && { perUserLimit: input.perUserLimit }),
+      ...(input.maxUses !== undefined && { maxUses: input.maxUses }),
+      ...(input.perUserLimit !== undefined && { perUserLimit: input.perUserLimit }),
       ...(input.isActive !== undefined && { isActive: input.isActive }),
     });
     revalidateAdmin('/admin/promotions');
@@ -600,8 +600,8 @@ export async function updatePromotionAction(input: {
   if (
     (input.description !== undefined && description === undefined) ||
     (input.endsAt !== undefined && Number.isNaN(endsAt)) ||
-    (input.maxUses != null && !isInt(input.maxUses, 0, 1_000_000)) ||
-    (input.perUserLimit != null && !isInt(input.perUserLimit, 0, 1_000_000)) ||
+    (input.maxUses != null && !isInt(input.maxUses, 1, 1_000_000)) ||
+    (input.perUserLimit != null && !isInt(input.perUserLimit, 1, 1_000_000)) ||
     (input.isActive !== undefined && typeof input.isActive !== 'boolean')
   ) {
     return invalid();
@@ -612,8 +612,8 @@ export async function updatePromotionAction(input: {
       ...(description !== undefined && { description: description ?? undefined }),
       ...(description === null && { clearDescription: true }),
       ...(input.endsAt !== undefined && { endsAt: new Date(endsAt).toISOString() }),
-      ...(input.maxUses !== undefined && { maxUses: input.maxUses ?? 0 }),
-      ...(input.perUserLimit !== undefined && { perUserLimit: input.perUserLimit ?? 0 }),
+      ...(input.maxUses !== undefined && { maxUses: input.maxUses }),
+      ...(input.perUserLimit !== undefined && { perUserLimit: input.perUserLimit }),
       ...(input.isActive !== undefined && { isActive: input.isActive }),
     });
     revalidateAdmin('/admin/promotions');

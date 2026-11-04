@@ -93,6 +93,16 @@ function clearRefreshCookie(response: NextResponse): void {
   response.cookies.set(REFRESH_COOKIE, '', { path: '/', maxAge: 0 });
 }
 
+/** Keep the refreshed token visible to the current Server Action, not only the next request. */
+function withCookie(header: string | null, name: string, value: string): string {
+  const parts = (header ?? '')
+    .split(';')
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0 && !part.startsWith(`${name}=`));
+  parts.push(`${name}=${value}`);
+  return parts.join('; ');
+}
+
 async function refreshAccessToken(refreshToken: string): Promise<RefreshResult> {
   try {
     const response = await fetch(`${GATEWAY_URL}/api/v1/auth/refresh`, {
@@ -122,9 +132,10 @@ async function refreshAccessToken(refreshToken: string): Promise<RefreshResult> 
   }
 }
 
-function loginRedirect(request: NextRequest): NextResponse {
+function loginRedirect(request: NextRequest, expired = false): NextResponse {
   const loginUrl = new URL('/login', request.url);
   loginUrl.searchParams.set('next', request.nextUrl.pathname + request.nextUrl.search);
+  if (expired) loginUrl.searchParams.set('expired', '1');
   return NextResponse.redirect(loginUrl);
 }
 
@@ -144,15 +155,25 @@ export default async function middleware(request: NextRequest) {
 
   if (refreshToken && (!accessToken || isAccessTokenExpiring(accessToken))) {
     refreshResult = await refreshAccessToken(refreshToken);
-    if (refreshResult.kind === 'ok') activeAccessToken = refreshResult.accessToken;
+    if (refreshResult.kind === 'ok') {
+      activeAccessToken = refreshResult.accessToken;
+      requestHeaders.set(
+        'cookie',
+        withCookie(request.headers.get('cookie'), ACCESS_COOKIE, refreshResult.accessToken),
+      );
+    }
   }
 
   const hasValidAccess = !!activeAccessToken && !isAccessTokenExpired(activeAccessToken);
+  // Server Actions are POSTs tagged with `Next-Action`. A redirect here would be
+  // followed by the action client and surface as a generic network error, so let the
+  // action run and return its own `UNAUTHENTICATED` envelope instead.
+  const isServerAction = request.method === 'POST' && request.headers.has('next-action');
 
   // 1. Guests (and expired sessions) cannot open a protected surface. Role checks live
   // in the server layouts; the gateway is the final authorization boundary.
-  if (isProtected(pathname) && !hasValidAccess) {
-    const response = loginRedirect(request);
+  if (isProtected(pathname) && !hasValidAccess && !isServerAction) {
+    const response = loginRedirect(request, !!accessToken && isAccessTokenExpired(accessToken));
     if (
       !refreshToken ||
       refreshResult?.kind === 'invalid' ||
