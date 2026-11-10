@@ -9,6 +9,7 @@ export default defineConfig({
   testDir: './e2e',
   fullyParallel: false,
   workers: 1,
+  // The smoke project never retries — a smoke that needs a retry is a finding (it overrides below).
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
   use: {
@@ -16,12 +17,14 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   projects: [
-    { name: 'phone', use: { ...phone } },
+    // The smoke journey lives in its own project, run by `pnpm smoke`, never twice in the full suite.
+    { name: 'phone', testIgnore: /smoke\//, use: { ...phone } },
     {
       name: 'narrow',
       testMatch: /shell\.spec\.ts/,
       use: { ...phone, viewport: { width: 360, height: 780 } },
     },
+    { name: 'smoke', testMatch: /smoke\//, retries: 0, use: { ...phone } },
   ],
   webServer: process.env.E2E_BASE_URL
     ? undefined

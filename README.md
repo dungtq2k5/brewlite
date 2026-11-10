@@ -148,6 +148,7 @@ The fake provider is the default: it produces exactly the events Stripe's webhoo
 | `pnpm db:migrate:dev` | create a migration from a Prisma schema change |
 | `pnpm proto:generate` | regenerate the gRPC code after a `.proto` change |
 | `pnpm seed:dev` · `pnpm seed:dev:apply` | plan / create the demo café (step 8) |
+| `pnpm smoke` | a one-minute check of any running stack: every service's health, then one order end to end in a browser. Point it elsewhere with `SMOKE_BASE_URL`, `SMOKE_API_URL`, `SMOKE_OPS_URLS` (empty for a deployment), `SMOKE_STAFF_EMAIL` / `SMOKE_STAFF_PASSWORD` |
 | `pnpm perf` | latency of every main route against the seeded stack |
 
 ## Project structure

@@ -675,6 +675,7 @@ When `NODE_ENV === 'production'`: the error filter returns a generic message for
 | **Gateway e2e** | markers, validation, envelope, error mapping, raw webhook body | gRPC peers, the rate limiter's Redis client and the SSE event source stubbed by `createE2eApp` — **no infrastructure**, so it runs in `pnpm test` before anything is started | `services/gateway/test/e2e/` |
 | **Gateway integration** | real rate limiting, the real ordered consumer behind SSE | Redis database 14, the test broker | `services/gateway/test/integration/`, run by `test:integration` |
 | **Web e2e** | each web screen's behaviour and states; J1 end to end once checkout exists | Playwright against the running stack, fake payments; selectors by role and accessible name, never CSS classes | `apps/web/e2e/` |
+| **Smoke** | is the stack alive, and does J1 work end to end — about a minute | nothing; any running stack (`SMOKE_*` variables) | `scripts/smoke.mjs` + `apps/web/e2e/smoke/` — **no retries** (a smoke that needs one is a finding) |
 
 ### 16.2 Rules
 

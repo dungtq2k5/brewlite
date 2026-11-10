@@ -78,6 +78,11 @@ jobs:
 
       - run: pnpm --filter @brewlite/web exec playwright install --with-deps chromium
 
+      - name: Smoke — is it alive, and does J1 work? (fails minutes before the full suite would)
+        run: pnpm smoke
+        env:
+          SMOKE_BASE_URL: http://localhost:23000
+
       - name: Web e2e, through Caddy as a browser would
         run: pnpm --filter @brewlite/web e2e
         env:
