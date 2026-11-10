@@ -5711,6 +5711,9 @@
               "hasPassword": {
                 "type": "boolean"
               },
+              "signsInWithGoogle": {
+                "type": "boolean"
+              },
               "preferredLocale": {
                 "type": "string",
                 "enum": ["en", "vi"]
@@ -5726,6 +5729,7 @@
               "role",
               "permissions",
               "hasPassword",
+              "signsInWithGoogle",
               "preferredLocale",
               "createdAt"
             ]
@@ -5858,6 +5862,9 @@
           "hasPassword": {
             "type": "boolean"
           },
+          "signsInWithGoogle": {
+            "type": "boolean"
+          },
           "preferredLocale": {
             "type": "string",
             "enum": ["en", "vi"]
@@ -5873,6 +5880,7 @@
           "role",
           "permissions",
           "hasPassword",
+          "signsInWithGoogle",
           "preferredLocale",
           "createdAt"
         ]

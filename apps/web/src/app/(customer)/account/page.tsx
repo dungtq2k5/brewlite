@@ -32,7 +32,7 @@ export default async function AccountPage() {
       <h1 className="text-3xl font-bold">{t('title')}</h1>
       <ProfileForm fullName={me.fullName} email={me.email} />
       <PointsSummary loyalty={points} />
-      <SignInMethod hasPassword={me.hasPassword} />
+      <SignInMethod hasPassword={me.hasPassword} signsInWithGoogle={me.signsInWithGoogle} />
       <SignOutButton />
     </div>
   );

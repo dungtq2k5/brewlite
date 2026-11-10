@@ -7,6 +7,7 @@ export const ME_SELECT = {
   fullName: true,
   role: true,
   passwordHash: true,
+  firebaseUid: true,
   preferredLocale: true,
   createdAt: true,
 } satisfies Prisma.UserSelect;
@@ -20,6 +21,8 @@ export function toProtoMe(row: MeRow): Me {
     fullName: row.fullName,
     role: row.role,
     hasPassword: row.passwordHash !== null,
+    // A Firebase link is Google today (Apple sign-in is off).
+    signsInWithGoogle: row.firebaseUid !== null,
     preferredLocale: row.preferredLocale,
     createdAt: row.createdAt.toISOString(),
   };

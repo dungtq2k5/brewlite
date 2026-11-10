@@ -25,6 +25,7 @@ function meProto(overrides: Partial<Record<string, unknown>> = {}) {
     fullName: 'A Customer',
     role: 'CUSTOMER',
     hasPassword: true,
+    signsInWithGoogle: false,
     preferredLocale: 'en',
     createdAt: new Date().toISOString(),
     ...overrides,

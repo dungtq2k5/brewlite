@@ -1,0 +1,5 @@
+/* DaisyUI, before the theme: CSS allows @import only ahead of every other rule, so the plugin
+   lives here and app.css imports it in the same order as before (tailwind → daisyui → theme). */
+@plugin "daisyui" {
+  themes: false;
+}

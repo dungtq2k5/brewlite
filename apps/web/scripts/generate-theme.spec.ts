@@ -1,5 +1,7 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { generateTheme } from './generate-theme.mjs';
+import { formatTheme, generateTheme } from './generate-theme.mjs';
 
 const t = (v: unknown) => ({ $value: v });
 
@@ -25,5 +27,14 @@ describe('generateTheme', () => {
     { font: { serif: t('x') } },
   ])('throws on an unknown token %j', (tokens) => {
     expect(() => generateTheme(tokens)).toThrow(/unknown/);
+  });
+
+  it("writes Prettier's formatting, so formatting the file again changes nothing", async () => {
+    const file = fileURLToPath(new URL('../src/styles/theme.css', import.meta.url));
+    const tokens = JSON.parse(
+      readFileSync(new URL('../src/styles/tokens.json', import.meta.url), 'utf8'),
+    ) as Record<string, Record<string, { $value: string }>>;
+    const once = await formatTheme(generateTheme(tokens), file);
+    expect(await formatTheme(once, file)).toBe(once);
   });
 });

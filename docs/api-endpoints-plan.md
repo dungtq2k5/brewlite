@@ -153,6 +153,7 @@ Session = {
 
 ```ts
 Me = { id; email; fullName; role: 'CUSTOMER' | 'STAFF' | 'ADMIN'; permissions: string[]; hasPassword: boolean;
+       signsInWithGoogle: boolean;   // linked to a Firebase sign-in (firebase_uid IS NOT NULL) — Google while Apple is off
        preferredLocale: 'en' | 'vi'; createdAt }
 ```
 

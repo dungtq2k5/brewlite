@@ -44,8 +44,19 @@ export function generateTheme(tokens) {
   ].join('\n');
 }
 
+/**
+ * The theme exactly as Prettier would format it, so a formatter (format-on-save, a hand-run
+ * `prettier --write`) can never make the committed file drift from what CI regenerates.
+ */
+export async function formatTheme(css, file) {
+  const prettier = await import('prettier');
+  const options = (await prettier.resolveConfig(file)) ?? {};
+  return prettier.format(css, { ...options, filepath: file });
+}
+
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const root = new URL('../src/styles/', import.meta.url);
   const tokens = JSON.parse(readFileSync(new URL('tokens.json', root), 'utf8'));
-  writeFileSync(new URL('theme.css', root), generateTheme(tokens));
+  const file = fileURLToPath(new URL('theme.css', root));
+  writeFileSync(file, await formatTheme(generateTheme(tokens), file));
 }

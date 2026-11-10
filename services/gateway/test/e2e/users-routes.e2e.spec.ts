@@ -28,6 +28,7 @@ function meProto(overrides: Partial<Record<string, unknown>> = {}) {
     fullName: 'A Customer',
     role: 'CUSTOMER',
     hasPassword: true,
+    signsInWithGoogle: false,
     preferredLocale: 'en',
     createdAt: new Date().toISOString(),
     ...overrides,
@@ -69,6 +70,18 @@ describe('gateway e2e — /users/me routes', () => {
     expect(res.status).toBe(200);
     expect(res.body.data.id).toBe(userId);
     expect(res.headers['cache-control']).toBe('private, no-store');
+  });
+
+  it('GET /users/me — signsInWithGoogle is passed through beside hasPassword', async () => {
+    const userId = newId();
+    identityClientStub.getMe.mockResolvedValue({
+      me: meProto({ id: userId, hasPassword: true, signsInWithGoogle: true }),
+    });
+    const res = await request(app.getHttpServer())
+      .get('/api/v1/users/me')
+      .set('Authorization', `Bearer ${tokenFor(userId)}`);
+    expect(res.status).toBe(200);
+    expect(res.body.data).toMatchObject({ hasPassword: true, signsInWithGoogle: true });
   });
 
   it('GET /users/me — 401 UNAUTHENTICATED without a token', async () => {

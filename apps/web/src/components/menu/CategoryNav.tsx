@@ -75,10 +75,10 @@ export function CategoryNav({
       observer?.disconnect();
       const root = document.documentElement;
       const offset =
-        parseFloat(getComputedStyle(root).getPropertyValue(HEADER_VAR) || '0') +
+        Number.parseFloat(getComputedStyle(root).getPropertyValue(HEADER_VAR) || '0') +
         (window.matchMedia('(min-width: 1024px)').matches
           ? 0
-          : parseFloat(getComputedStyle(root).getPropertyValue(NAV_VAR) || '0'));
+          : Number.parseFloat(getComputedStyle(root).getPropertyValue(NAV_VAR) || '0'));
       const line = Math.round(offset) + 1;
       observer = new IntersectionObserver(
         (entries) => {

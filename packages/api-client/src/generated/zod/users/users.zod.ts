@@ -27,6 +27,7 @@ export const UsersControllerGetResponse = zod.object({
         ]),
       ),
       hasPassword: zod.boolean(),
+      signsInWithGoogle: zod.boolean(),
       preferredLocale: zod.enum(['en', 'vi']),
       createdAt: zod.string(),
     })
@@ -59,6 +60,7 @@ export const UsersControllerUpdateResponse = zod.object({
         ]),
       ),
       hasPassword: zod.boolean(),
+      signsInWithGoogle: zod.boolean(),
       preferredLocale: zod.enum(['en', 'vi']),
       createdAt: zod.string(),
     })

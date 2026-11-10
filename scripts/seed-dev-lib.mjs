@@ -29,7 +29,9 @@ export function readEnvText(text) {
     if (eq < 1) continue;
     let value = line.slice(eq + 1).trim();
     if (/^(['"]).*\1$/.test(value)) value = value.slice(1, -1);
-    else value = value.replace(/\s+#.*$/, ''); // dotenv's rule: an unquoted value ends at ` #`
+    // dotenv's rule: an unquoted value ends at ` #`. One whitespace character finds the start (no
+    // backtracking over a run of spaces); the trim takes the rest.
+    else value = value.replace(/[ \t]#.*$/, '').trimEnd();
     out[line.slice(0, eq).trim()] = value;
   }
   return out;

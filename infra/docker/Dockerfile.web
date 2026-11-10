@@ -4,7 +4,9 @@ FROM node:24.14.0-alpine AS prune
 WORKDIR /repo
 RUN corepack enable
 COPY . .
-RUN npx turbo prune @brewlite/web --docker
+# turbo at the lockfile's exact version (pnpm-lock.yaml) with its scripts off — `npx turbo` would
+# download whatever is latest, since this stage has no node_modules. Keep the two in step.
+RUN npm install -g turbo@2.11.4 --ignore-scripts && turbo prune @brewlite/web --docker
 
 FROM node:24.14.0-alpine AS build
 WORKDIR /repo

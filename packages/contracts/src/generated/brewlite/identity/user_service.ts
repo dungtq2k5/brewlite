@@ -19,6 +19,8 @@ export interface Me {
   hasPassword: boolean;
   preferredLocale: string;
   createdAt: string;
+  /** I-1 `firebase_uid IS NOT NULL` — linked to a Firebase (Google) sign-in. */
+  signsInWithGoogle: boolean;
 }
 
 export interface GetMeRequest {

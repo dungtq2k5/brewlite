@@ -16,9 +16,13 @@ type Done = 'changed' | 'setDone' | null;
 /**
  * *Sign-in* (`116:2207`): how this account signs in and one button — *Change password*, or *Set a
  * password* for a Google-only account. The form opens in place; *Cancel* closes it; success collapses
- * it with a line, and a refresh flips `hasPassword` so the list and the button follow.
+ * it with a line, and a refresh flips `hasPassword` so the list and the button follow. Both methods
+ * are listed when both apply — a Google account that set a password signs in either way.
  */
-export function SignInMethod({ hasPassword }: Readonly<{ hasPassword: boolean }>) {
+export function SignInMethod({
+  hasPassword,
+  signsInWithGoogle,
+}: Readonly<{ hasPassword: boolean; signsInWithGoogle: boolean }>) {
   const { t, i18n } = useTranslation(['account', 'auth', 'errors']);
   const locale = i18n.language as Locale;
   const router = useRouter();
@@ -77,7 +81,7 @@ export function SignInMethod({ hasPassword }: Readonly<{ hasPassword: boolean }>
         {t('signIn.heading')}
       </h2>
       <ul className="flex flex-col gap-1">
-        {!hasPassword && (
+        {signsInWithGoogle && (
           <li className="flex items-center gap-2">
             <KeyRound aria-hidden size={18} />
             {t('signIn.google')}

@@ -533,6 +533,7 @@ Every durable consumer is a `JetStreamConsumer` subclass, started from the servi
 
 ### 11.3 Pages and components
 
+- **Confirm dialogs and sheets are native `<dialog>` elements** opened with `showModal()` — the browser traps focus, closes on `Esc`, draws the backdrop and makes the page inert; a click on the backdrop closes it, and focus starts on the safe choice. The customer side's confirms share one `ConfirmSheet`. Inside a dialog, `autofocus` on the safe choice is HTML's own way to set where focus starts. Outside dialogs, focus moves into a field only from the tap that revealed it — never `autoFocus` on page load.
 - A component that calls a hook (`useTranslation` included) carries its own `'use client'` — a Server Component importing it otherwise fails the build.
 - Server Components by default; `'use client'` only for what needs the browser — the cart, the size and topping pickers, the Firebase popup, Stripe's embedded Checkout, `EventSource`.
 - Every page that loads data has a `loading.tsx` and an `error.tsx`; every list has an empty state.

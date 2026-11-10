@@ -15,7 +15,7 @@
 /* global fetch, setTimeout */
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
-import { webcrypto as crypto } from 'node:crypto';
+import { randomInt, webcrypto as crypto } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
@@ -83,7 +83,7 @@ function preconditions() {
 
 let counter = 0;
 const nextIp = () => {
-  const n = ++counter + Math.floor(Math.random() * 60_000);
+  const n = ++counter + randomInt(60_000); // only spreads rate-limit buckets
   return `10.${(n >> 16) & 255}.${(n >> 8) & 255}.${n & 255}`;
 };
 
@@ -268,33 +268,44 @@ async function waitFor(label, read, done, timeoutMs = 20_000) {
 /** One demo order, from the quote to its planned lifecycle. Returns what the time shift needs. */
 async function runOrder(order, email, catalog, counts, warnings) {
   // Quote first (it validates the lines and the code, and reserves nothing). A refusal asks for
-  // other lines — a bigger subtotal, a different drink — before the code is given up.
+  // other lines — a bigger subtotal, a different drink — up to four tries; then the code is given
+  // up and the order is quoted once more without it.
+  const tryQuote = async (code) => {
+    let last;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const body = {
+        items: linesFor(order, catalog, attempt),
+        ...(order.note ? { note: order.note } : {}),
+      };
+      // A quote takes the lines and the code only — the note belongs to the order (`.strict()`).
+      last = await as(email, 'POST', '/orders/quote', {
+        body: { items: body.items, ...(code ? { promoCode: code } : {}) },
+      });
+      if (last.status === 200) return { body };
+      if (last.status === 400) {
+        throw new Error(
+          `the quote request was refused as malformed (${last.code}) — a bug in this script`,
+        );
+      }
+    }
+    return { refused: last };
+  };
+
   let promo = order.promo;
-  let body;
-  for (let attempt = 0; ; attempt++) {
-    body = {
-      items: linesFor(order, catalog, attempt),
-      ...(order.note ? { note: order.note } : {}),
-    };
-    // A quote takes the lines and the code only — the note belongs to the order (`.strict()`).
-    const quote = await as(email, 'POST', '/orders/quote', {
-      body: { items: body.items, ...(promo ? { promoCode: promo } : {}) },
-    });
-    if (quote.status === 200) break;
-    if (quote.status === 400) {
-      throw new Error(
-        `the quote request was refused as malformed (${quote.code}) — a bug in this script`,
-      );
-    }
-    if (attempt === 3) {
-      if (!promo) throw new Error(`could not quote an order (${quote.status} ${quote.code ?? ''})`);
-      warnings.push(
-        `${promo} could not be applied for ${email} (${quote.code ?? quote.status}) — that order has no code`,
-      );
-      promo = null;
-      attempt = -1;
-    }
+  let quoted = await tryQuote(promo);
+  if (!quoted.body && promo) {
+    warnings.push(
+      `${promo} could not be applied for ${email} (${quoted.refused.code ?? quoted.refused.status}) — that order has no code`,
+    );
+    promo = null;
+    quoted = await tryQuote(null);
   }
+  if (!quoted.body) {
+    throw new Error(
+      `could not quote an order (${quoted.refused.status} ${quoted.refused.code ?? ''})`,
+    );
+  }
+  const body = quoted.body;
   const placed = await expect(
     'place an order',
     await as(email, 'POST', '/orders', {

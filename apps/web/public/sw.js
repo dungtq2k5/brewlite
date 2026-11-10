@@ -50,7 +50,8 @@ self.addEventListener('fetch', (event) => {
           fetch(event.request).then((response) => {
             if (response.ok) {
               const copy = response.clone();
-              caches.open(CACHE).then((cache) => cache.put(event.request, copy));
+              // Kept alive until written (the respondWith promise is still pending, so this is allowed).
+              event.waitUntil(caches.open(CACHE).then((cache) => cache.put(event.request, copy)));
             }
             return response;
           }),

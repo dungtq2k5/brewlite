@@ -90,6 +90,30 @@ describe('UsersService.changePassword — real DB', () => {
     expect(errorCodeOf(old)).toBe('INVALID_CREDENTIALS');
   });
 
+  it('signsInWithGoogle follows the Firebase link: false for a password account, true for a Google one', async () => {
+    const { caller } = await threeSessions();
+    expect((await users.getMe(caller)).me).toMatchObject({
+      hasPassword: true,
+      signsInWithGoogle: false,
+    });
+
+    const userId = newId();
+    await prisma.user.create({
+      data: {
+        id: userId,
+        email: `only-google-${userId}@brewlite.test`,
+        fullName: 'Only Google',
+        role: Role.CUSTOMER,
+        firebaseUid: `only-google-${userId}`,
+      },
+    });
+    const google: Caller = { kind: 'USER', userId, role: Role.CUSTOMER };
+    expect((await users.getMe(google)).me).toMatchObject({
+      hasPassword: false,
+      signsInWithGoogle: true,
+    });
+  });
+
   it('a wrong or missing current password is CURRENT_PASSWORD_INCORRECT, and nothing changes', async () => {
     const { userId, caller, sessionId } = await threeSessions();
     const before = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
@@ -122,7 +146,11 @@ describe('UsersService.changePassword — real DB', () => {
 
     await users.changePassword(caller, { sessionId: newId(), newPassword: 'first-password' });
 
-    expect((await users.getMe(caller)).me?.hasPassword).toBe(true);
+    // Both ways in now: the Firebase link stays, and the password is new.
+    expect((await users.getMe(caller)).me).toMatchObject({
+      hasPassword: true,
+      signsInWithGoogle: true,
+    });
     await expect(auth.login({ email, password: 'first-password' })).resolves.toBeDefined();
   });
 

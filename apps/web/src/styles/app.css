@@ -1,7 +1,5 @@
 @import 'tailwindcss';
-@plugin "daisyui" {
-  themes: false;
-}
+@import './daisyui.css';
 @import './theme.css';
 @theme {
   --font-sans: var(--font-be-vietnam-pro), sans-serif;

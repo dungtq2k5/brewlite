@@ -17,6 +17,8 @@ message Me {
   bool has_password = 5;
   string preferred_locale = 6;
   string created_at = 7;
+  // I-1 `firebase_uid IS NOT NULL` — linked to a Firebase (Google) sign-in.
+  bool signs_in_with_google = 8;
 }
 
 message GetMeRequest {}

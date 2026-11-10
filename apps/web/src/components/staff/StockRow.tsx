@@ -1,7 +1,7 @@
 'use client';
 
 import { LoaderCircle, Minus, Plus } from 'lucide-react';
-import { useReducer, useRef, useState } from 'react';
+import { useEffect, useReducer, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { StaffProductResponseDto } from '@brewlite/api-client';
 import { setProductAvailability, setProductStock } from '@/actions/staff';
@@ -38,6 +38,11 @@ export function StockRow({ product }: Readonly<{ product: StaffProductResponseDt
     initialStock({ stockQty: product.stockQty, version: product.version }),
   );
   const [editing, setEditing] = useState(false);
+  // Focus goes into the count field only because the staff member just tapped *Edit* / *Count*.
+  const draftField = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (editing) draftField.current?.focus();
+  }, [editing]);
   const [draft, setDraft] = useState('');
 
   // The logic reads this mirror (kept in step by `apply`); React state only paints it.
@@ -148,7 +153,7 @@ export function StockRow({ product }: Readonly<{ product: StaffProductResponseDt
               value={draft}
               onChange={(e) => setDraft(e.target.value.replace(/\D/g, ''))}
               className="input w-28"
-              autoFocus
+              ref={draftField}
             />
             <button type="button" className="btn btn-primary min-h-11" onClick={saveDraft}>
               {t('stock.count.save')}

@@ -44,6 +44,12 @@ describe('readEnvText', () => {
     const env = readEnvText('A=fake # for demo\nB="a # b"\nC=x#y\n');
     expect(env).toEqual({ A: 'fake', B: 'a # b', C: 'x#y' });
   });
+  it('finds the comment after a long run of spaces, and keeps a # with no space before it', () => {
+    expect(readEnvText(`A=fake${' '.repeat(5000)}# demo\nB=fake#notacomment\n`)).toEqual({
+      A: 'fake',
+      B: 'fake#notacomment',
+    });
+  });
   it('accepts Windows line endings', () => {
     expect(readEnvText('A=1\r\nB=2\r\n')).toEqual({ A: '1', B: '2' });
   });
