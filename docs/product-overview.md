@@ -72,7 +72,7 @@ The five screens of the course wireframe, plus what a returning customer needs:
 
 | Route | Screen | Guest? |
 | :---- | :---- | :---- |
-| `/` | **Menu** — grid by category, name, price, image, *sold out* badge, cart badge with item count | yes |
+| `/` | **Menu** — grid by category, name, price, image, *sold out* badge, cart badge with item count; above it a short welcome hero for guests (*order ahead, pay on your phone, collect when called*), a one-line strip once signed in, none in the installed app; dismissible per device | yes |
 | `/products/[id]` | **Product detail** — size S/M/L, toppings, quantity, live price, *Add to cart* | yes |
 | `/cart` | **Cart** — edit quantity, remove, preview total, *Checkout* | yes |
 | `/checkout` | **Checkout** — server-priced summary, promo code, pay with card or wallet | sign-in required — a guest is sent to `/login?next=/checkout` and comes back with the cart intact |

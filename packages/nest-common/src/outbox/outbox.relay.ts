@@ -1,5 +1,5 @@
 import { Logger } from '@nestjs/common';
-import { headers, type JetStreamClient } from 'nats';
+import { ErrorCode, headers, NatsError, type JetStreamClient } from 'nats';
 
 /** One consumer of these — the relay itself (conventions §3.1). */
 export const OUTBOX_BATCH_SIZE = 50;
@@ -47,6 +47,12 @@ export class OutboxRelay {
   constructor(
     private readonly db: OutboxRelayClient,
     private readonly jsc: JetStreamClient,
+    /**
+     * Re-creates the streams this service publishes to (its `NatsModule`'s `ensureStreams` list).
+     * Called when a publish finds **no stream for the subject** — NATS was reset under a running
+     * service — so the relay heals instead of piling rows up until a restart.
+     */
+    private readonly ensureStreams?: () => Promise<void>,
   ) {}
 
   start(): void {
@@ -107,7 +113,7 @@ export class OutboxRelay {
         let failure: { id: string; message: string } | undefined;
         for (const row of rows) {
           try {
-            await this.publishOne(row);
+            await this.publishWithRepair(row);
             published.push(row.id);
           } catch (error) {
             failure = {
@@ -136,6 +142,18 @@ export class OutboxRelay {
     );
   }
 
+  /** One publish; on *no stream for this subject*, re-create the streams once and try that row again. */
+  private async publishWithRepair(row: ClaimedRow): Promise<void> {
+    try {
+      await this.publishOne(row);
+    } catch (error) {
+      if (!this.ensureStreams || !isNoStream(error)) throw error;
+      this.logger.warn(`no stream for ${row.subject} — re-creating the streams`);
+      await this.ensureStreams();
+      await this.publishOne(row); // the msgID still de-duplicates a publish that did go out
+    }
+  }
+
   private async publishOne(row: ClaimedRow): Promise<void> {
     const hdrs = headers();
     if (row.request_id) hdrs.set('x-request-id', row.request_id);
@@ -147,6 +165,11 @@ export class OutboxRelay {
       headers: hdrs,
     });
   }
+}
+
+/** nats.js answers a JetStream publish to a subject no stream captures with *no responders* (503). */
+export function isNoStream(error: unknown): boolean {
+  return error instanceof NatsError && error.code === ErrorCode.NoResponders;
 }
 
 function sleep(ms: number): Promise<void> {

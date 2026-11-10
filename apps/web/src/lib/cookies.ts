@@ -5,6 +5,9 @@ export const ACCESS_COOKIE = 'bl_at';
 export const REFRESH_COOKIE = 'bl_rt';
 export const LOCALE_COOKIE = 'bl_locale';
 export const LOCALE_MAX_AGE_SECONDS = 365 * 24 * 60 * 60;
+/** The menu hero, hidden on this device for good (architecture §4.7) — a preference, like `bl_locale`. */
+export const HERO_COOKIE = 'bl_hero';
+export const HERO_MAX_AGE_SECONDS = 365 * 24 * 60 * 60;
 
 export interface SessionTokens {
   accessToken: string;

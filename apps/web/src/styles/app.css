@@ -24,3 +24,10 @@
   border-color: var(--color-primary);
   border-width: 2px;
 }
+
+/* The installed app never shows the menu hero (architecture §4.7) — CSS, so it never paints there. */
+@media (display-mode: standalone) {
+  .bl-menu-hero {
+    display: none;
+  }
+}

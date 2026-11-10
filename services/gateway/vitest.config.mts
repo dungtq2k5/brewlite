@@ -1,5 +1,5 @@
 import { defineProject } from 'vitest/config';
-import { nestProject } from '../../packages/config/vitest.preset.js';
+import { nestProject } from '../../packages/config/vitest.preset.mjs';
 
 // Unit + e2e tier: gRPC peers stubbed, no infrastructure. The specs that need the real
 // Redis or the test broker live in test/integration (vitest.integration.config.mts).

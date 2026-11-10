@@ -133,6 +133,7 @@ The fake provider is the default: it produces exactly the events Stripe's webhoo
 1. In `services/payment/.env` set `PAYMENT_PROVIDER=stripe`, `STRIPE_SECRET_KEY` to a **restricted** test key (`rk_test_…`: Checkout Sessions write, Refunds write, Events read), and `WEB_URL=http://localhost:23000`.
 2. Run `stripe listen --forward-to localhost:23100/api/webhooks/stripe` and put the `whsec_…` it prints in `STRIPE_WEBHOOK_SECRET`.
 3. Restart the payment service. Card `4242 4242 4242 4242` pays; `4000 0000 0000 0002` is declined.
+4. In the containers, the web image needs the publishable key at build time: `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_… docker compose --profile apps up -d --build --wait` (on your machine, `apps/web/.env` has it).
 
 `pnpm seed:dev:apply` refuses to run against Stripe: a script cannot complete a card payment. More: [architecture §6](docs/architecture-and-tech-stack.md#6-payments--stripe-).
 
@@ -143,11 +144,13 @@ The fake provider is the default: it produces exactly the events Stripe's webhoo
 | `pnpm dev` | start the infrastructure, then every service and the web app with hot reload |
 | `pnpm test` | unit tests, everywhere |
 | `pnpm test:integration` | integration tests (needs the infrastructure up) |
+| `TEST_LOGS=1 pnpm test` | the same, with the services' logs (tests are silent by default) |
 | `pnpm --filter @brewlite/web e2e` | the browser tests against a running stack |
 | `pnpm lint` · `pnpm typecheck` · `pnpm format:check` · `pnpm lint:md` | the other checks CI runs |
 | `pnpm db:migrate:dev` | create a migration from a Prisma schema change |
 | `pnpm proto:generate` | regenerate the gRPC code after a `.proto` change |
 | `pnpm seed:dev` · `pnpm seed:dev:apply` | plan / create the demo café (step 8) |
+| `pnpm smoke` | a one-minute check of any running stack: every service's health, then one order end to end in a browser. Point it elsewhere with `SMOKE_BASE_URL`, `SMOKE_API_URL`, `SMOKE_OPS_URLS` (empty for a deployment), `SMOKE_STAFF_EMAIL` / `SMOKE_STAFF_PASSWORD` |
 | `pnpm perf` | latency of every main route against the seeded stack |
 
 ## Project structure

@@ -45,7 +45,7 @@ const zVnd = zInt.nonnegative();
 interface ErrorDefinition {
   http: number;
   grpc: (typeof GrpcStatus)[keyof typeof GrpcStatus];
-  details?: z.ZodTypeAny;
+  details?: z.ZodType;
 }
 
 /**

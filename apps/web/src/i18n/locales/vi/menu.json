@@ -64,5 +64,26 @@
     "results_other": "{{count}} kết quả",
     "none": "Thực đơn không có món nào tên \"{{q}}\"",
     "hint": "Thử từ khác, có dấu hay không dấu đều được."
+  },
+  "hero": {
+    "headline": "Đặt trước. Khỏi xếp hàng.",
+    "line": "Thanh toán trên điện thoại, rồi ra quầy nhận khi được gọi số.",
+    "steps": {
+      "choose": {
+        "name": "1. Chọn",
+        "line": "món bạn thích"
+      },
+      "pay": {
+        "name": "2. Trả",
+        "line": "trên điện thoại"
+      },
+      "collect": {
+        "name": "3. Nhận",
+        "line": "khi được gọi số"
+      }
+    },
+    "orderNow": "Đặt món ngay",
+    "hide": "Ẩn phần này",
+    "compact": "Chào bạn quay lại — đặt trước, khỏi xếp hàng."
   }
 }

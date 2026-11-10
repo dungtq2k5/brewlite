@@ -1,5 +1,5 @@
 import { defineConfig } from 'vitest/config';
-import { nestProject } from './vitest.preset.js';
+import { nestProject } from './vitest.preset.mjs';
 
 /**
  * `pnpm test` (via `turbo run test`) runs this package's own `test` script, which is

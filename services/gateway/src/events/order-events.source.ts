@@ -1,6 +1,6 @@
 import { Injectable, Logger, type OnApplicationShutdown, type OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { DeliverPolicy, type ConsumerMessages, type NatsConnection } from 'nats';
+import { ConsumerEvents, DeliverPolicy, type ConsumerMessages, type NatsConnection } from 'nats';
 import { Observable, Subject } from 'rxjs';
 import { orderStatusChangedPayload } from '@brewlite/contracts';
 import {
@@ -13,6 +13,12 @@ import type { Env } from '../config/env.schema.js';
 import { toFrame, type OrderStatusFrame } from './order-status-frame.js';
 
 const SUBJECT = 'ordering.order.status_changed';
+/** Statuses meaning the stream or the consumer is gone — the loop below starts over. */
+const STREAM_GONE = new Set<string>([
+  ConsumerEvents.StreamNotFound,
+  ConsumerEvents.ConsumerNotFound,
+  ConsumerEvents.ConsumerDeleted,
+]);
 const RETRY_MS = 5_000;
 
 /**
@@ -57,8 +63,20 @@ export class OrderEventsSource implements OnModuleInit, OnApplicationShutdown {
           filterSubjects: [SUBJECT],
           deliver_policy: DeliverPolicy.New,
         });
-        this.messages = await consumer.consume();
-        for await (const msg of this.messages) this.publish(msg.data);
+        const messages = await consumer.consume();
+        this.messages = messages;
+        // nats.js keeps the iterator open while its stream is gone (a NATS reset), reporting it
+        // only on the status stream — end it, so this loop re-ensures the stream and re-subscribes.
+        void (async () => {
+          for await (const status of await messages.status()) {
+            if (STREAM_GONE.has(status.type as string)) {
+              this.logger.warn(`order events: ${status.type} — re-subscribing`);
+              await messages.close();
+              break;
+            }
+          }
+        })();
+        for await (const msg of messages) this.publish(msg.data);
       } catch (error) {
         if (this.stopped) return;
         this.logger.warn({ err: error }, 'order events source failed; retrying');

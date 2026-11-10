@@ -27,6 +27,7 @@
     "proto:lint": "turbo run proto:lint",
     "keys:dev": "node scripts/keys-dev.mjs",
     "perf": "node scripts/perf.mjs",
+    "smoke": "node scripts/smoke.mjs",
     "seed:dev": "node scripts/seed-dev.mjs",
     "seed:dev:apply": "node scripts/seed-dev.mjs --apply"
   },

@@ -2,7 +2,7 @@
 
 import { KeyRound } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useRef, useState, type FormEvent } from 'react';
+import { useRef, useState, type SubmitEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { changePassword } from '@/actions/account';
 import { errorMessage } from '@/i18n/error-message';
@@ -38,7 +38,7 @@ export function SignInMethod({
 
   const ready = filled.next && (!hasPassword || filled.current);
 
-  const submit = async (event: FormEvent<HTMLFormElement>) => {
+  const submit = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     const currentPassword = hasPassword ? String(data.get('currentPassword') ?? '') : undefined;

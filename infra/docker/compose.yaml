@@ -294,6 +294,10 @@ services:
     build:
       context: ../..
       dockerfile: infra/docker/Dockerfile.web
+      args:
+        # Compiled into the browser bundle, so a build argument, not a runtime variable. Public by
+        # design (a publishable key); empty by default — the fake provider needs none.
+        NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:-}
     container_name: brewlite-web
     depends_on:
       gateway:

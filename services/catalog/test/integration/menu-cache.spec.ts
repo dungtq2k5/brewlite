@@ -1,8 +1,8 @@
 import { ConfigModule } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
-import { Redis } from 'ioredis';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { newId } from '@brewlite/contracts';
+import { createRedis } from '@brewlite/nest-common';
 import { envSchema } from '../../src/config/env.schema.js';
 import { MenuCache } from '../../src/modules/menu/menu-cache.service.js';
 import { MenuModule } from '../../src/modules/menu/menu.module.js';
@@ -97,14 +97,17 @@ describe('the menu cache', () => {
   });
 
   it('with the client pointed at a closed port, the menu is still served', async () => {
-    const downRedis = new Redis({
-      port: 25999,
-      host: '127.0.0.1',
-      maxRetriesPerRequest: 1,
-      enableOfflineQueue: false,
-      connectTimeout: 200,
-      lazyConnect: true,
-    });
+    // Made like the real client, so the outage is one log line and nothing on stderr.
+    const downRedis = createRedis(
+      'redis://127.0.0.1:25999',
+      {
+        maxRetriesPerRequest: 1,
+        enableOfflineQueue: false,
+        connectTimeout: 200,
+        lazyConnect: true,
+      },
+      { name: 'catalog-cache' },
+    );
     const cache = new MenuCache(downRedis);
     await seedOneProduct();
 

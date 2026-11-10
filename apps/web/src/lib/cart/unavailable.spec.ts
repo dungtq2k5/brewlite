@@ -20,6 +20,7 @@ const make = async (lng: 'en' | 'vi', cart: object) => {
     resources: { [lng]: { cart } },
     ns: ['cart'],
     interpolation: { escapeValue: false },
+    showSupportNotice: false,
   });
   return i.t;
 };

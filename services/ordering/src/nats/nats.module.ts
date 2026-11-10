@@ -1,7 +1,12 @@
 import { Global, Inject, Module, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import type { ConsumerMessages, NatsConnection } from 'nats';
-import { connectNats, ensureStreams, OutboxRelay } from '@brewlite/nest-common';
+import type { NatsConnection } from 'nats';
+import {
+  connectNats,
+  ensureStreams,
+  OutboxRelay,
+  type ConsumerHandle,
+} from '@brewlite/nest-common';
 import type { Env } from '../config/env.schema.js';
 import { PrismaModule } from '../modules/prisma/prisma.module.js';
 import { PrismaService } from '../modules/prisma/prisma.service.js';
@@ -10,6 +15,9 @@ import { PaymentSucceededConsumer } from '../modules/orders/payment-succeeded.co
 import { PaymentRefundFailedConsumer } from '../modules/orders/payment-refund-failed.consumer.js';
 import { PaymentRefundSucceededConsumer } from '../modules/orders/payment-refund-succeeded.consumer.js';
 import { PaymentFailedConsumer } from '../modules/orders/payment-failed.consumer.js';
+
+/** The streams this service publishes to or reads — ensured at boot, and again by the relay. */
+const STREAM_NAMES = ['ORDERING', 'PAYMENT', 'DLQ'];
 
 export const NATS_CONNECTION = Symbol('NATS_CONNECTION');
 
@@ -34,13 +42,16 @@ export const NATS_CONNECTION = Symbol('NATS_CONNECTION');
       provide: OutboxRelay,
       inject: [PrismaService, NATS_CONNECTION],
       useFactory: (prisma: PrismaService, nc: NatsConnection): OutboxRelay =>
-        new OutboxRelay(prisma, nc.jetstream()),
+        // A publish that finds no stream (NATS reset under a running service) re-creates them.
+        new OutboxRelay(prisma, nc.jetstream(), async () =>
+          ensureStreams(await nc.jetstreamManager(), STREAM_NAMES),
+        ),
     },
   ],
   exports: [NATS_CONNECTION, OutboxRelay],
 })
 export class NatsModule implements OnModuleInit, OnModuleDestroy {
-  private readonly messages: ConsumerMessages[] = [];
+  private readonly messages: ConsumerHandle[] = [];
 
   constructor(
     @Inject(NATS_CONNECTION) private readonly nc: NatsConnection,
@@ -53,7 +64,7 @@ export class NatsModule implements OnModuleInit, OnModuleDestroy {
 
   async onModuleInit(): Promise<void> {
     const jsm = await this.nc.jetstreamManager();
-    await ensureStreams(jsm, ['ORDERING', 'PAYMENT', 'DLQ']);
+    await ensureStreams(jsm, STREAM_NAMES);
     this.relay.start();
     const jsc = this.nc.jetstream();
     for (const consumer of [

@@ -15,6 +15,7 @@ beforeAll(async () => {
       resources: { [lng]: { errors } },
       ns: ['errors'],
       interpolation: { escapeValue: false },
+      showSupportNotice: false,
     });
     return i;
   };

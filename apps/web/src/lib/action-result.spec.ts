@@ -26,10 +26,13 @@ describe('toResult', () => {
     });
     expect(result).toEqual({ ok: false, code: 'ACCOUNT_LOCKED', details: { lockedUntil: null } });
   });
-  it('maps anything else to INTERNAL', async () => {
+  it('maps anything else to INTERNAL, logging only the error name', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const result = await toResult(async () => {
       throw new TypeError('fetch failed');
     });
     expect(result).toEqual({ ok: false, code: 'INTERNAL' });
+    expect(log).toHaveBeenCalledWith('action failed', 'TypeError');
+    log.mockRestore();
   });
 });

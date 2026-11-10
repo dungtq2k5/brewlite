@@ -264,6 +264,7 @@ As defined in api-endpoints-plan §0.3. A global interceptor wraps success as `{
 
 [ADR 0011](./decisions/0011-zod-is-the-only-schema-language-and-orval-generates-the-client.md).
 
+- **`NODE_ENV` is `zNodeEnv`** from `packages/contracts` (`development | test | production`, default `development`) in every env schema — never a fresh `z.enum`. **String formats are zod 4's top-level schemas** — `z.url()`, `z.email()`, `z.uuid()`, `z.base64url()`, `z.iso.datetime()` — never the deprecated `z.string().url()` family; `@typescript-eslint/no-deprecated` (on, as `error`) catches any deprecated API, ours or a dependency's. A deprecation with no replacement yet gets a one-line `eslint-disable-next-line … -- <why>`.
 - Request and response shapes are **zod schemas** made into DTOs with `createZodDto`, so OpenAPI comes from the definition that validates.
 - **Requests are `.strict()`** — an unknown key is `400`, so a client sending `totalVnd` learns at once that it is ignored.
 - Responses are validated in development and test, and stripped to the schema in production so a mapper cannot leak a column.
@@ -437,6 +438,8 @@ Every durable consumer is a `JetStreamConsumer` subclass, started from the servi
 
   Throwing a transient error for a message that can never succeed burns ten deliveries on every restart.
 
+- **A consumer outlives its stream.** The base class re-creates its stream and durable and resumes when they disappear (a NATS reset), with backoff — a subclass does nothing for it, and never stops consuming except at module shutdown.
+
 ### 8.3 Background jobs
 
 [ADR 0023](./decisions/0023-redis-holds-only-reconstructible-state.md).
@@ -521,7 +524,7 @@ Every durable consumer is a `JetStreamConsumer` subclass, started from the servi
 - Every API read is `cache: 'no-store'`. The web app caches no API data (architecture §2.6). A list of links to pages that call the gateway (the menu's product cards) uses `prefetch={false}`: Next would otherwise prefetch every one, one public gateway call each, against `PUBLIC_READ`'s 120 per minute per address.
 - A `'use server'` file exports **only `async function` declarations** — `export const f = (…) => …` makes Turbopack report the module as having no exports.
 - A Server Action returns `{ ok: true, data } | { ok: false, code, details }` — never throws an API error into the UI. The page renders `code` through `t('errors:<CODE>', details)` (§11.6).
-- **Cookies are set only** in `proxy.ts` (refresh) and in the sign-in / sign-out Server Actions — never in a Server Component, where setting one silently does nothing.
+- **Cookies are set only** in `proxy.ts` (refresh), in the sign-in / sign-out Server Actions, and in the preference Server Actions (`actions/locale.ts` — `bl_locale`; `actions/preferences.ts` — `bl_hero`) — never in a Server Component, where setting one silently does nothing.
 - A Server Action that places an order or starts a payment receives the idempotency key **from the client** (generated with `newId()` when the button is tapped, kept in component state across retries) — never generates it itself, or every retry is a new intent.
 
 ### 11.2 Client state
@@ -604,6 +607,7 @@ Every durable consumer is a `JetStreamConsumer` subclass, started from the servi
 - `pino` through `nestjs-pino`, JSON, one logger per class; every line carries `requestId`.
 - Levels: `debug` developer aid; `info` lifecycle (boot, job run); `warn` handled-but-suspicious (a poison message, a late payment refunded); `error` a bug or a failed dependency, with the error object.
 - **MUST NOT** log inside a loop over rows; log the summary.
+- **Every long-lived Redis client is made with `createRedis(url, options, { name })`** (`packages/nest-common`), and every BullMQ `Queue` and `Worker` gets `watchRedisErrors(…, client)`. An outage logs **one** `error` line (`redis unreachable`, with `client` and `code`) and **one** `log` line when it ends (`redis reconnected`, with `downMs`) — never a line per retry, never raw stderr. BullMQ's errors are sorted by kind: a connection failure joins the outage's line (or is dropped once the client is back — BullMQ's second, blocking connection reconnects a moment later); any other error is logged on its own. A test that checks this spies on `console.error` (ioredis and BullMQ fall back to it; Vitest captures it before stderr).
 
 ### 13.2 Handling
 
@@ -675,6 +679,7 @@ When `NODE_ENV === 'production'`: the error filter returns a generic message for
 | **Gateway e2e** | markers, validation, envelope, error mapping, raw webhook body | gRPC peers, the rate limiter's Redis client and the SSE event source stubbed by `createE2eApp` — **no infrastructure**, so it runs in `pnpm test` before anything is started | `services/gateway/test/e2e/` |
 | **Gateway integration** | real rate limiting, the real ordered consumer behind SSE | Redis database 14, the test broker | `services/gateway/test/integration/`, run by `test:integration` |
 | **Web e2e** | each web screen's behaviour and states; J1 end to end once checkout exists | Playwright against the running stack, fake payments; selectors by role and accessible name, never CSS classes | `apps/web/e2e/` |
+| **Smoke** | is the stack alive, and does J1 work end to end — about a minute | nothing; any running stack (`SMOKE_*` variables) | `scripts/smoke.mjs` + `apps/web/e2e/smoke/` — **no retries** (a smoke that needs one is a finding) |
 
 ### 16.2 Rules
 
@@ -685,7 +690,9 @@ When `NODE_ENV === 'production'`: the error filter returns a generic message for
 - **Every RPC is exercised by a test in the service that owns it**, against its real database.
 - **Web e2e shares the dev database** with every other spec and whoever is using the app: a spec picks the products it needs from the API (never by name — the seed switches some off on purpose), creates its own rows under a unique `e2e-<run id>` name, restores anything shared (availability, order, a category) in `finally`, and **never changes a seeded account** — not its role, not its language (a signed-in language switch saves `preferredLocale` to the profile). A spec that needs another account registers one. Specs that pay need the fake provider and skip on Stripe; uploads use a real, decodable image — a fake one hides content-type bugs.
 - Integration suites migrate once and `TRUNCATE … RESTART IDENTITY CASCADE` between specs; suites touching one database run serially. A setup reads its service's `.env` into a local object and **never writes `process.env`**.
-- Vitest transforms with `unplugin-swc` with decorator metadata on, or Nest DI resolves `undefined`. Every package's and service's Vitest config — unit and integration — is built from `nestProject(...)` in `packages/config/vitest.preset.ts`, which aliases `@brewlite/contracts` and `@brewlite/nest-common` to **source**: a config that does not would test a shared package's stale build.
+- Vitest transforms with `unplugin-swc` with decorator metadata on, or Nest DI resolves `undefined`. Every package's and service's Vitest config — unit and integration — is built from `nestProject(...)` in `packages/config/vitest.preset.mts` (`.mts`: `packages/config` is CommonJS), which aliases `@brewlite/contracts` and `@brewlite/nest-common` to **source**: a config that does not would test a shared package's stale build. `nestProject` **merges** a project's own `test` block into its defaults (`env`, `setupFiles`) — it never replaces them.
+- **Tests are silent.** The preset runs with `LOG_LEVEL=silent` (Vitest's per-worker `env`) and its setup file (`vitest.setup.mts`) turns Nest's own `Logger` off — including the testing logger every `Test.createTestingModule(...).compile()` installs. `TEST_LOGS=1` brings both back. A test that asserts on a log keeps its own spy; the web app's Vitest is silent the same way.
+- **From a clean cache** is `pnpm exec turbo run test --force` — `pnpm test -- --force` hands the flag to the last command in the script, not to Turbo.
 - **The tier is decided by what a spec needs:** one that opens a real Postgres, Redis or NATS connection is an integration spec; one that points a client at a closed port on purpose needs nothing and stays in its no-infrastructure tier.
 
 ### 16.3 The Task 10 proofs

@@ -1,22 +1,23 @@
+import { zNodeEnv } from '@brewlite/contracts';
 import { z } from 'zod';
 
 export const envSchema = z
   .object({
-    NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+    NODE_ENV: zNodeEnv,
     LOG_LEVEL: z.string().default('info'),
-    DATABASE_URL: z.string().url(),
-    DATABASE_URL_TEST: z.string().url().optional(),
-    DATABASE_URL_SHADOW: z.string().url().optional(),
+    DATABASE_URL: z.url(),
+    DATABASE_URL_TEST: z.url().optional(),
+    DATABASE_URL_SHADOW: z.url().optional(),
     GRPC_URL: z.string(),
     OPS_PORT: z.coerce.number().int().positive(),
     ORDERING_GRPC_URL: z.string(),
     NATS_URL: z.string(),
     NATS_URL_TEST: z.string().optional(),
-    REDIS_URL: z.string().url(),
+    REDIS_URL: z.url(),
     PAYMENT_PROVIDER: z.enum(['fake', 'stripe']),
     STRIPE_SECRET_KEY: z.string().optional(),
     STRIPE_WEBHOOK_SECRET: z.string().optional(),
-    WEB_URL: z.string().url().optional(),
+    WEB_URL: z.url().optional(),
   })
   .superRefine((env, ctx) => {
     if (env.PAYMENT_PROVIDER === 'stripe') {
