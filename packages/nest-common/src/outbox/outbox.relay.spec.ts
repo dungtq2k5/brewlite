@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { JetStreamClient } from 'nats';
+import { ErrorCode, NatsError, type JetStreamClient } from 'nats';
 import {
   OUTBOX_BATCH_SIZE,
   OUTBOX_PUBLISH_TIMEOUT_MS,
@@ -92,5 +92,43 @@ describe('OutboxRelay', () => {
     await (relay as unknown as { runCycle(): Promise<number> }).runCycle();
 
     expect(getTimeout()).toBe(OUTBOX_BATCH_SIZE * OUTBOX_PUBLISH_TIMEOUT_MS + 5_000);
+  });
+
+  it('a publish with no stream re-creates the streams once and publishes that row again', async () => {
+    const rows: Row[] = [
+      { id: 'a', subject: 'payment.payment.succeeded', payload: {}, request_id: null },
+    ];
+    const { db, executed } = fakeDb(rows);
+    const noStream = new NatsError('503', ErrorCode.NoResponders);
+    const jsc = {
+      publish: vi.fn().mockRejectedValueOnce(noStream).mockResolvedValueOnce({}),
+    } as unknown as JetStreamClient;
+    const ensure = vi.fn().mockResolvedValue(undefined);
+
+    await (
+      new OutboxRelay(db, jsc, ensure) as unknown as { runCycle(): Promise<number> }
+    ).runCycle();
+
+    expect(ensure).toHaveBeenCalledTimes(1);
+    expect(jsc.publish).toHaveBeenCalledTimes(2);
+    expect(executed.find((c) => c.sql.includes('published_at'))?.values[0]).toEqual(['a']);
+  });
+
+  it('any other publish failure is not repaired — the row counts an attempt, as before', async () => {
+    const rows: Row[] = [
+      { id: 'a', subject: 'payment.payment.succeeded', payload: {}, request_id: null },
+    ];
+    const { db, executed } = fakeDb(rows);
+    const jsc = {
+      publish: vi.fn().mockRejectedValue(new Error('timeout')),
+    } as unknown as JetStreamClient;
+    const ensure = vi.fn();
+
+    await (
+      new OutboxRelay(db, jsc, ensure) as unknown as { runCycle(): Promise<number> }
+    ).runCycle();
+
+    expect(ensure).not.toHaveBeenCalled();
+    expect(executed.find((c) => c.sql.includes('attempts'))).toBeDefined();
   });
 });

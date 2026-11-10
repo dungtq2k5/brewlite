@@ -1,7 +1,7 @@
 import { Global, Inject, Module, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import type { ConsumerMessages, NatsConnection } from 'nats';
-import { connectNats, ensureStreams } from '@brewlite/nest-common';
+import type { NatsConnection } from 'nats';
+import { connectNats, ensureStreams, type ConsumerHandle } from '@brewlite/nest-common';
 import type { Env } from '../config/env.schema.js';
 import { StockModule } from '../modules/stock/stock.module.js';
 import { OrderStatusConsumer } from '../modules/stock/order-status.consumer.js';
@@ -27,7 +27,7 @@ export const NATS_CONNECTION = Symbol('NATS_CONNECTION');
   exports: [NATS_CONNECTION],
 })
 export class NatsModule implements OnModuleInit, OnModuleDestroy {
-  private messages?: ConsumerMessages;
+  private messages?: ConsumerHandle;
 
   constructor(
     @Inject(NATS_CONNECTION) private readonly nc: NatsConnection,

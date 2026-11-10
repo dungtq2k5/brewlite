@@ -437,6 +437,8 @@ Every durable consumer is a `JetStreamConsumer` subclass, started from the servi
 
   Throwing a transient error for a message that can never succeed burns ten deliveries on every restart.
 
+- **A consumer outlives its stream.** The base class re-creates its stream and durable and resumes when they disappear (a NATS reset), with backoff — a subclass does nothing for it, and never stops consuming except at module shutdown.
+
 ### 8.3 Background jobs
 
 [ADR 0023](./decisions/0023-redis-holds-only-reconstructible-state.md).
