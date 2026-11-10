@@ -37,3 +37,14 @@ export function formatDateTime(iso: string, locale: Locale): string {
 export function localized(text: { en: string; vi: string }, locale: Locale): string {
   return text[locale];
 }
+
+/** `15 Nov` / `15/11` (with `year`: `15 Nov 2026` / `15/11/2026`), the day in Vietnam time. */
+export function formatDay(iso: string, locale: Locale, year = false): string {
+  const date = new Date(iso);
+  const part = (opts: Intl.DateTimeFormatOptions) =>
+    new Intl.DateTimeFormat('en-GB', { timeZone: TIME_ZONE, ...opts }).format(date);
+  if (locale === 'vi') {
+    return `${part({ day: '2-digit' })}/${part({ month: '2-digit' })}${year ? `/${part({ year: 'numeric' })}` : ''}`;
+  }
+  return `${part({ day: 'numeric' })} ${part({ month: 'short' })}${year ? ` ${part({ year: 'numeric' })}` : ''}`;
+}

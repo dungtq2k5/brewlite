@@ -4,6 +4,7 @@ import {
   api,
   expect,
   productDetail,
+  pickProduct,
   publicMenu,
   test,
   vnd,
@@ -72,14 +73,13 @@ test('a chip scrolls to its section and the current chip follows the scroll', as
 });
 
 test('a sold-out product shows its badge and still opens', async ({ page }) => {
-  const { products } = await publicMenu();
-  const latte = products.find((p) => p.name.en === 'Latte')!;
-  await withSoldOut(latte.id, async () => {
+  const picked = await pickProduct();
+  await withSoldOut(picked.id, async () => {
     await page.goto('/');
-    const card = page.getByRole('link', { name: /Latte/ });
+    const card = page.getByRole('link', { name: picked.name.en });
     await expect(card.getByText('Sold out')).toBeVisible();
     await card.click();
-    await expect(page.getByRole('heading', { name: 'Latte', level: 1 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: picked.name.en, level: 1 })).toBeVisible();
   });
 });
 
@@ -103,8 +103,8 @@ test('a category with no product is not shown', async ({ page }) => {
 });
 
 test('an uploaded photo fills the fixed 1:1 frame of its card', async ({ page }) => {
-  const { products } = await publicMenu();
-  const product = products.find((p) => p.name.en === 'Espresso')!;
+  const product = await pickProduct();
+  const untouched = await pickProduct({ skip: [product.id] });
   const token = await adminToken();
   const png = readFileSync(new URL('../public/icon-512.png', import.meta.url));
   const form = new FormData();
@@ -120,7 +120,7 @@ test('an uploaded photo fills the fixed 1:1 frame of its card', async ({ page })
   expect(upload.status).toBe(200);
   try {
     await page.goto('/');
-    const photo = page.getByRole('img', { name: 'Espresso' });
+    const photo = page.getByRole('img', { name: product.name.en, exact: true });
     await expect(photo).toBeVisible();
     const frame = await photo.evaluate((img) => {
       const box = img.parentElement!.getBoundingClientRect();
@@ -128,7 +128,7 @@ test('an uploaded photo fills the fixed 1:1 frame of its card', async ({ page })
     });
     expect(Math.abs(frame.width - frame.height)).toBeLessThan(1);
     // The other cards are untouched.
-    await expect(page.getByRole('img', { name: 'Latte' })).toHaveCount(0);
+    await expect(page.getByRole('img', { name: untouched.name.en, exact: true })).toHaveCount(0);
   } finally {
     await api(`/admin/products/${product.id}/image`, { method: 'DELETE', token });
   }

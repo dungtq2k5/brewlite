@@ -69,7 +69,8 @@
       "counter": "Quầy",
       "staffBoard": "Bảng nhân viên",
       "stock": "Kho",
-      "backToShop": "Về cửa hàng"
+      "backToShop": "Về cửa hàng",
+      "overview": "Tổng quan"
     }
   },
   "notFound": {

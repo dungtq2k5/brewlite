@@ -70,7 +70,8 @@
       "counter": "Counter",
       "staffBoard": "Staff board",
       "stock": "Stock",
-      "backToShop": "Back to shop"
+      "backToShop": "Back to shop",
+      "overview": "Overview"
     }
   },
   "notFound": {

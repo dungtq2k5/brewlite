@@ -94,10 +94,10 @@ Every page's header carries the **language switch** (EN / VI), the cart badge, a
 
 | Route | Screen |
 | :---- | :---- |
-| `/admin` | Dashboard — today's orders and revenue *(P1)* |
+| `/admin` | **Overview** — today's orders, revenue and average order; sales over a range (≤ 93 days) by day; the top 10 products |
 | `/admin/products`, `/admin/categories`, `/admin/toppings` | Menu CRUD, sizes and allowed toppings per product, image upload |
 | `/admin/promotions` | Promo codes |
-| `/admin/orders` | Every order, filterable |
+| `/admin/orders` | Every order, filterable by status, date, order number and customer; the detail shows who did what and every payment |
 | `/admin/users` | Users, role changes, lock / unlock |
 
 An admin can open the staff pages too. A staff member cannot open the admin pages.
@@ -198,12 +198,12 @@ Use these words in code, tickets and commit messages.
 - Cancel a paid order (e.g. an ingredient ran out) with a reason; the customer is refunded automatically.
 - Sold-out toggle and stock count per product.
 
-### F8 — Admin back office (P0 menu and roles; P1 the rest)
+### F8 — Admin back office (P0)
 
 - **(P0)** Products, categories, toppings: create, edit, delete and restore (soft delete, §6.9); sizes and allowed toppings per product; image upload.
 - **(P0)** Users: list, search, change role, lock (with a reason, optionally until a date) / unlock, deactivate / restore. Nobody can do any of these to the last active admin, or to themselves.
 - **(P0)** Promotions: create, edit, switch off, delete and restore (§6.5).
-- *(P1)* All orders with filters; dashboard with today's orders, revenue and top products.
+- **(P0)** All orders with filters, each with its customer, who moved it and its payments; the *Overview* with today's sales, a range by day and the top products. Read-only — cancelling stays at the counter.
 
 ### F9 — Promotions and loyalty (P0 promotions and earning; P1 redeeming)
 

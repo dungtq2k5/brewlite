@@ -138,7 +138,7 @@ Every transition inserts one `order_status_history` (O-3) row in the same transa
 
 - `created_at TIMESTAMPTZ(3) NOT NULL DEFAULT now()` on every table.
 - `updated_at TIMESTAMPTZ(3) NOT NULL DEFAULT now()` on every mutable table, maintained by Prisma `@updatedAt` — declared `@default(now()) @updatedAt`, because `@updatedAt` alone gives no database default and a raw insert fails `NOT NULL`. Append-only tables have **no** `updated_at` — its absence documents that the row is never edited.
-- Always `TIMESTAMPTZ`, stored in UTC. A calendar day (the sales report) is computed in **`Asia/Ho_Chi_Minh`** through `businessDay()` / `businessDayRange()` in `packages/contracts` (`Intl` with the zone name, never a hard-coded offset), never the server's zone.
+- Always `TIMESTAMPTZ`, stored in UTC. A calendar day (the sales report) is computed in **`Asia/Ho_Chi_Minh`** through `businessDay()` / `businessDayRange()` in `packages/contracts` (`Intl` with the zone name, never a hard-coded offset), never the server's zone. Times an admin **types** are Vietnam time too: `vietnamLocalToInstant('2026-06-01T00:00')` → an ISO instant ending in `Z` (a promotion's window), `instantToVietnamLocal(iso)` its inverse for the edit form, and `endOfBusinessDay(day)` → the instant the next Vietnam day starts (a lock *until* a date).
 
 ### 2.3 Strings
 

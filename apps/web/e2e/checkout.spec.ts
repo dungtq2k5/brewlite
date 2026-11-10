@@ -4,7 +4,7 @@ test("the checkout shows the server's total and Place order opens the order page
   page,
 }) => {
   await register(page);
-  await addDrink(page, 'Espresso');
+  await addDrink(page);
   await page.goto('/checkout');
 
   await expect(page.getByRole('heading', { name: 'Checkout', level: 1 })).toBeVisible();
@@ -29,7 +29,7 @@ test('a reload of the order page does not start a second payment', async ({ page
 
 test('an unavailable drink is named at the checkout and not counted', async ({ page }) => {
   await register(page);
-  const product = await addDrink(page, 'Espresso');
+  const product = await addDrink(page);
   await withSoldOut(product.id, async () => {
     await page.goto('/checkout');
     await expect(page.getByText('Not counted in the total')).toBeVisible();

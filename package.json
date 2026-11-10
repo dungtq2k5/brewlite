@@ -47,7 +47,7 @@
   },
   "lint-staged": {
     "*.{ts,tsx,js,mjs,cjs}": [
-      "eslint --fix"
+      "eslint --flag v10_config_lookup_from_file --fix"
     ],
     "*.{ts,tsx,js,mjs,cjs,json,md}": [
       "prettier --write"

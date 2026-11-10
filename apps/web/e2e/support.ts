@@ -218,27 +218,65 @@ export async function settledScrollY(page: Page): Promise<number> {
   return last;
 }
 
-/** Adds the named drink (smallest size, no toppings) from its product page. */
-export async function addDrink(page: Page, name = 'Espresso') {
+export interface PickOptions {
+  /** Size codes the product must offer, e.g. `['S', 'L']`. */
+  sizes?: string[];
+  /** At least this many sizes, whichever they are. */
+  minSizes?: number;
+  /** At least this many toppings on offer. */
+  toppings?: number;
+  /** Product ids to leave out — for a second, different product. */
+  skip?: string[];
+}
+
+/**
+ * A product that is on sale and has what the test needs, **picked from the API** — never by name.
+ * The seed switches some products and toppings off on purpose, so a spec that named one would break.
+ */
+export async function pickProduct({
+  sizes = [],
+  minSizes = 0,
+  toppings = 0,
+  skip = [],
+}: PickOptions = {}) {
   const { products } = await publicMenu();
-  const product = products.find((p) => p.name.en === name)!;
-  await page.goto(`/products/${product.id}`);
+  for (const candidate of products) {
+    if (candidate.isSoldOut || skip.includes(candidate.id)) continue;
+    const detail = await productDetail(candidate.id);
+    const offers = (size: string) => detail.sizes.some((s) => s.size === size);
+    if (
+      detail.isSoldOut ||
+      !sizes.every(offers) ||
+      detail.sizes.length < minSizes ||
+      detail.toppings.length < toppings
+    ) {
+      continue;
+    }
+    return detail;
+  }
+  throw new Error(`no product on sale offers ${JSON.stringify({ sizes, minSizes, toppings })}`);
+}
+
+/** Adds a drink (smallest size, no toppings) from its product page — a picked one unless a product is given. */
+export async function addDrink(page: Page, product?: ProductDetail) {
+  const chosen = product ?? (await pickProduct());
+  await page.goto(`/products/${chosen.id}`);
   await page.getByRole('button', { name: /^Add to cart/ }).click();
   await expect(page).toHaveURL(/\/$/);
-  return product;
+  return chosen;
 }
 
 /**
  * A new customer with a drink in the cart who taps *Place order*: ends on `/orders/[id]`, and
  * returns that id. (The order page starts the payment by itself on arrival.)
  */
-export async function placeOrderAsNewCustomer(page: Page, name = 'Espresso') {
+export async function placeOrderAsNewCustomer(page: Page, product?: ProductDetail) {
   const account = await register(page);
-  await addDrink(page, name);
+  const chosen = await addDrink(page, product);
   await page.goto('/checkout');
   await page.getByRole('button', { name: /^Place order/ }).click();
   await expect(page).toHaveURL(/\/orders\/[0-9a-f-]{36}$/);
-  return { ...account, orderId: page.url().split('/').pop()! };
+  return { ...account, orderId: page.url().split('/').pop()!, product: chosen };
 }
 
 /** A customer's access token — setup only. */
@@ -302,6 +340,13 @@ export interface StaffProduct {
   version: number;
 }
 
+/** A product the counter has switched on — picked, not named (the seed turns some off on purpose). */
+export async function pickStaffProduct(skip: string[] = []): Promise<StaffProduct> {
+  const found = (await staffProducts()).find((p) => p.isAvailable && !skip.includes(p.id));
+  if (!found) throw new Error('no available product');
+  return found;
+}
+
 export async function staffProducts(): Promise<StaffProduct[]> {
   const { body } = await api<{ data: StaffProduct[] }>('/staff/products', {
     token: await staffToken(),
@@ -344,4 +389,50 @@ export async function setStock(productId: string, stockQty: number | null) {
     token: await staffToken(),
     body: JSON.stringify({ stockQty, expectedVersion: current.version }),
   });
+}
+
+/**
+ * Runs `body` with a product that allows `count` toppings **all switched on**. The seed leaves some
+ * toppings off on purpose, so no product shows four of them; this switches the missing ones on
+ * through the counter's API and puts each back in `finally`.
+ */
+export async function withToppingsOn<T>(
+  count: number,
+  body: (product: ProductDetail) => Promise<T>,
+): Promise<T> {
+  const token = await staffToken();
+  const admin = await adminToken();
+  const toppings = (
+    await api<{ data: { id: string; isAvailable: boolean }[] }>('/staff/toppings', { token })
+  ).body.data;
+  const available = new Map(toppings.map((t) => [t.id, t.isAvailable]));
+  const listed = (
+    await api<{ data: { id: string }[] }>('/admin/products?pageSize=100', { token: admin })
+  ).body.data;
+  for (const { id } of listed) {
+    const { body: one } = await api<{ data: { toppingIds: string[]; deletedAt: string | null } }>(
+      `/admin/products/${id}`,
+      { token: admin },
+    );
+    const allowed = one.data.toppingIds.filter((t) => available.has(t));
+    if (one.data.deletedAt || allowed.length < count) continue;
+    const toggled = allowed
+      .filter((t) => !available.get(t))
+      .slice(0, Math.max(0, count - allowed.filter((t) => available.get(t)).length));
+    const set = (topping: string, isAvailable: boolean) =>
+      api(`/staff/toppings/${topping}/availability`, {
+        method: 'PATCH',
+        token,
+        body: JSON.stringify({ isAvailable }),
+      });
+    try {
+      for (const t of toggled) await set(t, true);
+      const detail = await productDetail(id);
+      if (detail.isSoldOut) continue;
+      return await body(detail);
+    } finally {
+      for (const t of toggled) await set(t, false);
+    }
+  }
+  throw new Error(`no product allows ${count} toppings`);
 }

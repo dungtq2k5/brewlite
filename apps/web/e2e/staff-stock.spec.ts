@@ -2,6 +2,7 @@ import type { Page } from '@playwright/test';
 import {
   api,
   expect,
+  pickStaffProduct,
   publicMenu,
   restoreProduct,
   seedPassword,
@@ -32,10 +33,11 @@ test('products by category with a badge for why each is off sale', async ({ page
   await expect(page.getByRole('link', { name: `Products · ${products.length}` })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Coffee', level: 2 })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Pastry', level: 2 })).toBeVisible();
-  const latte = (await staffProducts()).find((p) => p.name.en === 'Latte')!;
+  const latte = await pickStaffProduct();
+  const name = latte.name.en;
   try {
-    await row(page, 'Latte').getByRole('switch').uncheck();
-    await expect(row(page, 'Latte').getByText('Sold out · switched off')).toBeVisible();
+    await row(page, name).getByRole('switch').uncheck();
+    await expect(row(page, name).getByText('Sold out · switched off')).toBeVisible();
     await expect
       .poll(async () => (await staffProducts()).find((p) => p.id === latte.id)!.isAvailable)
       .toBe(false);
@@ -44,8 +46,8 @@ test('products by category with a badge for why each is off sale', async ({ page
       .poll(async () => (await publicMenu()).products.find((p) => p.id === latte.id)!.isSoldOut)
       .toBe(true);
     expect(menu.length).toBeGreaterThan(0);
-    await row(page, 'Latte').getByRole('switch').check();
-    await expect(row(page, 'Latte').getByText('On sale', { exact: true })).toBeVisible();
+    await row(page, name).getByRole('switch').check();
+    await expect(row(page, name).getByText('On sale', { exact: true })).toBeVisible();
   } finally {
     await restoreProduct(latte);
   }
@@ -90,11 +92,11 @@ test('a topping switches off and back on', async ({ page }) => {
 test('counting: save 5, two quick −1 taps end at 3 with no conflict, then stop counting', async ({
   page,
 }) => {
-  const croissant = (await staffProducts()).find((p) => p.name.en === 'Croissant')!;
+  const croissant = await pickStaffProduct();
   try {
     await setStock(croissant.id, null); // start from "not counted"
     await openStock(page);
-    const r = row(page, 'Croissant');
+    const r = row(page, croissant.name.en);
     await r.getByRole('button', { name: 'Count stock' }).click();
     await r.getByRole('textbox').fill('5');
     await r.getByRole('button', { name: 'Save', exact: true }).click();
@@ -123,13 +125,13 @@ test('counting: save 5, two quick −1 taps end at 3 with no conflict, then stop
 test('an order racing the edit: the row resets to the server’s count with the conflict line', async ({
   page,
 }) => {
-  const croissant = (await staffProducts()).find((p) => p.name.en === 'Croissant')!;
+  const croissant = await pickStaffProduct();
   try {
     await setStock(croissant.id, null);
     await openStock(page);
     // Someone else counts it between this page's load and its save.
     await setStock(croissant.id, 7);
-    const r = row(page, 'Croissant');
+    const r = row(page, croissant.name.en);
     await r.getByRole('button', { name: 'Count stock' }).click();
     await r.getByRole('textbox').fill('9');
     await r.getByRole('button', { name: 'Save', exact: true }).click();

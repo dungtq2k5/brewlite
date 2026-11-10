@@ -46,7 +46,9 @@ test.describe('admin', () => {
     await page.goto('/staff');
     await expect(page.getByRole('heading', { name: 'Orders board' })).toBeVisible();
     await page.goto('/admin');
-    await expect(page.getByRole('heading', { name: 'Products' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1 })).toContainText(
+      /^Good (morning|afternoon|evening)/,
+    );
     await page.getByRole('button', { name: 'Open account menu' }).click();
     await expect(
       page.getByRole('dialog', { name: 'Account' }).getByRole('link', { name: 'Admin' }),

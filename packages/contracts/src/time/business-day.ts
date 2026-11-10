@@ -57,6 +57,36 @@ const nextDay = (day: string): string =>
   new Date(Date.parse(`${day}T00:00:00Z`) + DAY_MS).toISOString().slice(0, 10);
 
 /**
+ * The instant a business day ends — the start of the next one, exclusive. A lock "until the 15th"
+ * lasts through the whole of the 15th in Vietnam, so its `lockedUntil` is this.
+ */
+export function endOfBusinessDay(day: string): Date {
+  return startOfBusinessDay(nextDay(day));
+}
+
+const LOCAL_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
+
+/**
+ * What a `datetime-local` input holds (`'2026-06-01T00:00'`, no zone) read as **Vietnam time**,
+ * as the UTC instant the API takes: an ISO string ending in `Z` (the gateway's `z.iso.datetime()`
+ * accepts only that). Throws `RangeError` for anything that is not a real local time.
+ */
+export function vietnamLocalToInstant(local: string): string {
+  const asUtc = Date.parse(`${local}:00Z`);
+  if (!LOCAL_PATTERN.test(local) || Number.isNaN(asUtc) || !isBusinessDay(local.slice(0, 10))) {
+    throw new RangeError(`not a YYYY-MM-DDTHH:mm local time: ${local}`);
+  }
+  let instant = asUtc - (wallClockAsUtc(new Date(asUtc)) - asUtc);
+  instant = asUtc - (wallClockAsUtc(new Date(instant)) - instant);
+  return new Date(instant).toISOString();
+}
+
+/** The inverse of `vietnamLocalToInstant`: an ISO instant as the Vietnam wall clock `'YYYY-MM-DDTHH:mm'`. */
+export function instantToVietnamLocal(iso: string): string {
+  return new Date(wallClockAsUtc(new Date(iso))).toISOString().slice(0, 16);
+}
+
+/**
  * The UTC instants bounding the days `from`…`to` inclusive: `[from 00:00, to + 1 day 00:00)` in
  * Vietnam time. `end` is exclusive.
  */

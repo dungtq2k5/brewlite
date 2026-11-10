@@ -11,6 +11,9 @@ const config: NextConfig = {
   // The monorepo root, so the standalone trace includes the workspace packages.
   outputFileTracingRoot: fileURLToPath(new URL('../..', import.meta.url)),
   poweredByHeader: false,
+  // Product photos go through a Server Action: the 1 MB default is under the 2 MB image cap, and
+  // 3 MB also covers the multipart overhead. A file over 2 MB is refused by the uploader first.
+  experimental: { serverActions: { bodySizeLimit: '3mb' } },
   agentRules: false,
 };
 

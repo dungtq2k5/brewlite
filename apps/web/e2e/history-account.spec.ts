@@ -13,11 +13,11 @@ test("a new customer's history is empty and points to the menu", async ({ page }
 });
 
 test('a placed order is a row that opens its page', async ({ page }) => {
-  const { orderId } = await placeOrderAsNewCustomer(page);
+  const { orderId, product } = await placeOrderAsNewCustomer(page);
   await page.goto('/orders');
   const row = page.getByRole('link', { name: /^Order #\d+$/ });
   await expect(row).toHaveCount(1);
-  await expect(row).toContainText('Espresso');
+  await expect(row).toContainText(product.name.en);
   await expect(row).toContainText('Awaiting payment');
   await row.click();
   await expect(page).toHaveURL(new RegExp(orderId));
@@ -43,7 +43,7 @@ test('the account shows the name, lets it change, and says how the customer sign
 });
 
 test('points appear in the ledger once an order is paid', async ({ page }) => {
-  const { orderId } = await placeOrderAsNewCustomer(page, 'Iced milk coffee');
+  const { orderId } = await placeOrderAsNewCustomer(page);
   test.skip(!(await fakeProviderIsOn(page)), 'payment runs with Stripe, not the fake provider');
   await page.getByRole('button', { name: 'Simulate success' }).click();
   await expect(page.getByRole('heading', { name: "Paid — we've got it." })).toBeVisible();

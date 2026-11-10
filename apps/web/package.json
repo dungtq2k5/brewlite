@@ -16,6 +16,9 @@
   "dependencies": {
     "@brewlite/api-client": "workspace:*",
     "@brewlite/contracts": "workspace:*",
+    "@dnd-kit/core": "6.3.1",
+    "@dnd-kit/sortable": "10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@stripe/react-stripe-js": "^7.0.1",
     "@stripe/stripe-js": "^10.2.0",
     "firebase": "^12.0.0",

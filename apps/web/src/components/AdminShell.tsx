@@ -1,4 +1,14 @@
-import { Home, LayoutGrid, Package, Receipt, Tag, Users } from 'lucide-react';
+import {
+  ChartColumn,
+  Coffee,
+  Home,
+  LayoutGrid,
+  Package,
+  Receipt,
+  Tag,
+  Ticket,
+  Users,
+} from 'lucide-react';
 import Image from 'next/image';
 import type { ReactNode } from 'react';
 import type { MeResponseDto } from '@brewlite/api-client';
@@ -6,11 +16,13 @@ import { getT } from '@/i18n/server';
 import { AccountMenu } from './AccountMenu';
 import { LanguageSwitch } from './LanguageSwitch';
 import { NavLink } from './NavLink';
+import { AdminBarTitle } from './admin/AdminBarTitle';
+import { UnsavedGuard } from './admin/UnsavedGuard';
 
 const link = 'flex min-h-11 items-center gap-3 rounded-field px-3 text-sm font-medium';
 const active = 'bg-primary text-primary-content';
 
-/** The desktop frame (15:658): a sidebar by area, a title bar, the page. Empty until the admin pages exist. */
+/** The desktop frame (15:658, 97:21): a sidebar — *Overview* first, then by area — a title bar, the page. */
 export async function AdminShell({
   me,
   children,
@@ -21,14 +33,14 @@ export async function AdminShell({
       key: 'menu',
       items: [
         { href: '/admin/categories', icon: LayoutGrid, label: 'categories' },
-        { href: '/admin/products', icon: Package, label: 'products' },
+        { href: '/admin/products', icon: Coffee, label: 'products' },
         { href: '/admin/toppings', icon: Tag, label: 'toppings' },
       ],
     },
     {
       key: 'sales',
       items: [
-        { href: '/admin/promotions', icon: Tag, label: 'promotions' },
+        { href: '/admin/promotions', icon: Ticket, label: 'promotions' },
         { href: '/admin/orders', icon: Receipt, label: 'orders' },
       ],
     },
@@ -54,6 +66,10 @@ export async function AdminShell({
             {t('admin.badge')}
           </span>
         </div>
+        <NavLink href="/admin" exact className={link} activeClass={active}>
+          <ChartColumn aria-hidden size={18} />
+          {t('admin.nav.overview')}
+        </NavLink>
         {groups.map((group) => (
           <div key={group.key} className="flex flex-col gap-1">
             <p className="px-3 text-xs font-bold tracking-wide uppercase">
@@ -74,7 +90,7 @@ export async function AdminShell({
       </nav>
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="border-base-300 flex items-center gap-3 border-b px-6 py-3">
-          <h1 className="text-2xl font-semibold">{t('admin.pageTitle')}</h1>
+          <AdminBarTitle />
           <div className="ml-auto flex items-center gap-3">
             <LanguageSwitch />
             <AccountMenu
@@ -84,6 +100,7 @@ export async function AdminShell({
         </header>
         <main className="p-6">{children}</main>
       </div>
+      <UnsavedGuard />
     </div>
   );
 }

@@ -4,8 +4,11 @@ import {
   businessDay,
   businessDayCount,
   businessDayRange,
+  endOfBusinessDay,
+  instantToVietnamLocal,
   isBusinessDay,
   listBusinessDays,
+  vietnamLocalToInstant,
   zBusinessDayRange,
 } from './business-day.js';
 
@@ -83,5 +86,56 @@ describe('zBusinessDayRange', () => {
     expect(zBusinessDayRange.safeParse({ from: '2026-10-01', to: '2026-10-01' }).success).toBe(
       true,
     );
+  });
+});
+
+describe('endOfBusinessDay', () => {
+  it('is the start of the next Vietnam day: 17:00 UTC', () => {
+    expect(endOfBusinessDay('2026-10-20').toISOString()).toBe('2026-10-20T17:00:00.000Z');
+  });
+
+  it('crosses month and year ends', () => {
+    expect(endOfBusinessDay('2026-10-31').toISOString()).toBe('2026-10-31T17:00:00.000Z');
+    expect(endOfBusinessDay('2026-12-31').toISOString()).toBe('2026-12-31T17:00:00.000Z');
+  });
+
+  it('is exactly where businessDay flips to the next day', () => {
+    const end = endOfBusinessDay('2026-10-20');
+    expect(businessDay(new Date(end.getTime() - 1))).toBe('2026-10-20');
+    expect(businessDay(end)).toBe('2026-10-21');
+  });
+});
+
+describe('vietnamLocalToInstant', () => {
+  it('reads the input as Vietnam time and answers a UTC ISO string ending in Z', () => {
+    expect(vietnamLocalToInstant('2026-06-01T00:00')).toBe('2026-05-31T17:00:00.000Z');
+    expect(vietnamLocalToInstant('2026-06-01T23:59')).toBe('2026-06-01T16:59:00.000Z');
+    expect(vietnamLocalToInstant('2026-06-01T07:00')).toBe('2026-06-01T00:00:00.000Z');
+  });
+
+  it('puts either side of Vietnam midnight on different business days', () => {
+    expect(businessDay(new Date(vietnamLocalToInstant('2026-10-20T23:59')))).toBe('2026-10-20');
+    expect(businessDay(new Date(vietnamLocalToInstant('2026-10-21T00:00')))).toBe('2026-10-21');
+  });
+
+  it.each(['', '2026-06-01', '2026-06-01 00:00', '2026-02-30T10:00', '2026-06-01T25:00', 'nope'])(
+    'refuses %j',
+    (value) => {
+      expect(() => vietnamLocalToInstant(value)).toThrow(RangeError);
+    },
+  );
+});
+
+describe('instantToVietnamLocal', () => {
+  it('shows an instant as the Vietnam wall clock', () => {
+    expect(instantToVietnamLocal('2026-05-31T17:00:00.000Z')).toBe('2026-06-01T00:00');
+    expect(instantToVietnamLocal('2026-06-01T16:59:00Z')).toBe('2026-06-01T23:59');
+    expect(instantToVietnamLocal('2026-06-01T17:00:00Z')).toBe('2026-06-02T00:00');
+  });
+
+  it('round-trips with vietnamLocalToInstant', () => {
+    for (const local of ['2026-01-01T00:00', '2026-10-20T23:59', '2026-12-31T12:30']) {
+      expect(instantToVietnamLocal(vietnamLocalToInstant(local))).toBe(local);
+    }
   });
 });

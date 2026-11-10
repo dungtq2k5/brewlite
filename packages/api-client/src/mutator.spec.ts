@@ -46,6 +46,15 @@ describe('apiFetch', () => {
     expect(headers.get('Idempotency-Key')).toBe('k-1');
   });
 
+  it('leaves a FormData body without a Content-Type, so fetch adds the multipart boundary', async () => {
+    fetchMock.mockResolvedValueOnce(json(200, { data: {} }));
+    const body = new FormData();
+    body.append('file', new Blob(['x']), 'x.png');
+    await apiFetch('/admin/products/1/image', { method: 'PUT', body });
+    const headers = new Headers((fetchMock.mock.calls[0] as [string, RequestInit])[1].headers);
+    expect(headers.has('Content-Type')).toBe(false);
+  });
+
   it('returns Orval’s { data, status, headers } with the envelope left whole', async () => {
     fetchMock.mockResolvedValueOnce(json(200, { data: [1], meta: { nextCursor: null } }));
     const result = await apiFetch<{ data: unknown; status: number; headers: Headers }>('/x');

@@ -1,9 +1,26 @@
 import type { Page } from '@playwright/test';
-import { expect, publicMenu, register, storedCart, test, vnd } from './support';
+import {
+  expect,
+  pickProduct,
+  register,
+  storedCart,
+  test,
+  vnd,
+  type ProductDetail,
+} from './support';
 
-async function addFromMenu(page: Page, name: string, options: { size?: RegExp } = {}) {
-  const { products } = await publicMenu();
-  const product = products.find((p) => p.name.en === name)!;
+// What the specs add, picked from the API — the seed switches some products off on purpose.
+let withSizes: ProductDetail; // offers S and L
+let one: ProductDetail;
+let other: ProductDetail;
+
+test.beforeAll(async () => {
+  withSizes = await pickProduct({ sizes: ['S', 'L'] });
+  one = await pickProduct({ skip: [withSizes.id] });
+  other = await pickProduct({ skip: [withSizes.id, one.id] });
+});
+
+async function addFromMenu(page: Page, product: ProductDetail, options: { size?: RegExp } = {}) {
   await page.goto(`/products/${product.id}`);
   if (options.size) await page.getByRole('radio', { name: options.size }).check({ force: true });
   await page.getByRole('button', { name: /^Add to cart/ }).click();
@@ -16,9 +33,9 @@ const cartLines = (page: Page) =>
 test('the same drink twice merges; another size is its own line; the total follows', async ({
   page,
 }) => {
-  await addFromMenu(page, 'Iced milk coffee');
-  await addFromMenu(page, 'Iced milk coffee');
-  await addFromMenu(page, 'Iced milk coffee', { size: /^L · Large/ });
+  await addFromMenu(page, withSizes);
+  await addFromMenu(page, withSizes);
+  await addFromMenu(page, withSizes, { size: /^L · Large/ });
   await page.goto('/cart');
 
   await expect(cartLines(page)).toHaveCount(2);
@@ -36,25 +53,25 @@ test('the same drink twice merges; another size is its own line; the total follo
 });
 
 test('Remove is instant and Undo puts the line back in its place', async ({ page }) => {
-  await addFromMenu(page, 'Espresso');
-  await addFromMenu(page, 'Americano');
+  await addFromMenu(page, one);
+  await addFromMenu(page, other);
   await page.goto('/cart');
   await expect(cartLines(page)).toHaveCount(2);
 
-  await page.getByRole('button', { name: 'Remove Espresso' }).click();
+  await page.getByRole('button', { name: `Remove ${one.name.en}` }).click();
   await expect(cartLines(page)).toHaveCount(1);
-  await expect(page.getByText('Removed Espresso')).toBeVisible();
+  await expect(page.getByText(`Removed ${one.name.en}`)).toBeVisible();
   await page.getByRole('button', { name: 'Undo' }).click();
   await expect(cartLines(page)).toHaveCount(2);
-  await expect(cartLines(page).first()).toContainText('Espresso');
+  await expect(cartLines(page).first()).toContainText(one.name.en);
 });
 
 test('the Undo row lasts five seconds', async ({ page }) => {
-  await addFromMenu(page, 'Espresso');
+  await addFromMenu(page, one);
   await page.goto('/cart');
-  await page.getByRole('button', { name: 'Remove Espresso' }).click();
-  await expect(page.getByText('Removed Espresso')).toBeVisible();
-  await expect(page.getByText('Removed Espresso')).toBeHidden({ timeout: 8000 });
+  await page.getByRole('button', { name: `Remove ${one.name.en}` }).click();
+  await expect(page.getByText(`Removed ${one.name.en}`)).toBeVisible();
+  await expect(page.getByText(`Removed ${one.name.en}`)).toBeHidden({ timeout: 8000 });
   await expect(page.getByText('Nothing here yet — what are you craving?')).toBeVisible();
   await expect(page.getByRole('link', { name: 'Browse the menu' })).toBeVisible();
 });
@@ -65,7 +82,7 @@ test('an empty cart says so', async ({ page }) => {
 });
 
 test('the cart survives a reload, a language switch and signing in', async ({ page }) => {
-  await addFromMenu(page, 'Espresso');
+  await addFromMenu(page, one);
   await page.goto('/cart');
   await expect(cartLines(page)).toHaveCount(1);
   await page.reload();
@@ -74,7 +91,7 @@ test('the cart survives a reload, a language switch and signing in', async ({ pa
   await page.getByRole('button', { name: 'Tiếng Việt' }).click();
   await expect(page.getByRole('heading', { name: 'Giỏ hàng', level: 1 })).toBeVisible();
   await expect(cartLines(page)).toHaveCount(1);
-  await expect(cartLines(page).first()).toContainText('Espresso'); // the seed names it Espresso in both
+  await expect(cartLines(page).first()).toContainText(one.name.vi); // the snapshot holds both languages
 
   await page.getByRole('button', { name: 'English' }).click(); // the form below is in English
   await expect(page.getByRole('heading', { name: 'Your cart', level: 1 })).toBeVisible();
@@ -85,7 +102,7 @@ test('the cart survives a reload, a language switch and signing in', async ({ pa
 
 test('sign-out clears the cart', async ({ page }) => {
   await register(page);
-  await addFromMenu(page, 'Espresso');
+  await addFromMenu(page, one);
   await page.getByRole('button', { name: 'Open account menu' }).click();
   await page
     .getByRole('dialog', { name: 'Account' })
@@ -106,7 +123,7 @@ test('a guest checks out through sign-in and comes back with the cart intact', a
     .click();
   await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible();
 
-  await addFromMenu(page, 'Espresso');
+  await addFromMenu(page, one);
   await page.goto('/cart');
   await page.getByRole('link', { name: 'Sign in to check out' }).click();
   await expect(page).toHaveURL(/\/login\?next=%2Fcheckout$/);
@@ -120,28 +137,25 @@ test('a guest checks out through sign-in and comes back with the cart intact', a
 
 test('a signed-in customer sees "Check out"', async ({ page }) => {
   await register(page);
-  await addFromMenu(page, 'Espresso');
+  await addFromMenu(page, one);
   await page.goto('/cart');
   await expect(page.getByRole('link', { name: 'Check out' })).toHaveAttribute('href', '/checkout');
 });
 
 test.describe('the 20-line limit', () => {
   test.beforeEach(async ({ page }) => {
-    // 19 lines for drinks that do not exist, plus Iced milk coffee in S: 20 distinct lines.
-    const { products } = await publicMenu();
-    const coffee = products.find((p) => p.name.en === 'Iced milk coffee')!;
+    // 19 lines for drinks that do not exist, plus a real drink in S: 20 distinct lines.
+    const coffee = withSizes;
     const lines = Array.from({ length: 19 }, (_, i) => ({ productId: `fake-${i}`, quantity: 1 }));
     await page.goto('/');
     await page.evaluate(
       (cart) => localStorage.setItem('bl_cart', cart),
-      storedCart([...lines, { productId: coffee.id, quantity: 1, name: 'Iced milk coffee' }]),
+      storedCart([...lines, { productId: coffee.id, quantity: 1, name: coffee.name.en }]),
     );
   });
 
   test('a new combination is refused before the tap; a matching line is not', async ({ page }) => {
-    const { products } = await publicMenu();
-    const espresso = products.find((p) => p.name.en === 'Espresso')!;
-    await page.goto(`/products/${espresso.id}`);
+    await page.goto(`/products/${one.id}`);
     await expect(
       page.getByText(
         'Your cart is full — 20 different drinks is the most. Check out or remove one first.',
@@ -149,8 +163,7 @@ test.describe('the 20-line limit', () => {
     ).toBeVisible();
     await expect(page.getByRole('button', { name: /^Add to cart/ })).toBeDisabled();
 
-    const coffee = products.find((p) => p.name.en === 'Iced milk coffee')!;
-    await page.goto(`/products/${coffee.id}`);
+    await page.goto(`/products/${withSizes.id}`);
     await expect(page.getByRole('button', { name: /^Add to cart/ })).toBeEnabled(); // same line: only raises it
     await page.getByRole('radio', { name: /^L · Large/ }).check({ force: true });
     await expect(page.getByRole('button', { name: /^Add to cart/ })).toBeDisabled(); // a new line
