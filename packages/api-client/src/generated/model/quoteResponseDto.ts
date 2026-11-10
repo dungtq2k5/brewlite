@@ -5,6 +5,7 @@
  * OpenAPI spec version: 1
  */
 import type { QuoteResponseDtoLinesItem } from './quoteResponseDtoLinesItem.js';
+import type { QuoteResponseDtoPointsCapReason } from './quoteResponseDtoPointsCapReason.js';
 
 export interface QuoteResponseDto {
   lines: QuoteResponseDtoLinesItem[];
@@ -35,4 +36,20 @@ export interface QuoteResponseDto {
    * @maximum 9007199254740991
    */
   pointsEarnable: number;
+  /**
+   * @minimum -9007199254740991
+   * @maximum 9007199254740991
+   */
+  pointsBalance: number;
+  /**
+   * @minimum -9007199254740991
+   * @maximum 9007199254740991
+   */
+  pointsRedeemable: number;
+  pointsCapReason: QuoteResponseDtoPointsCapReason;
+  /**
+   * @minimum -9007199254740991
+   * @maximum 9007199254740991
+   */
+  pointsRedeemed: number;
 }

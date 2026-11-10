@@ -3,12 +3,15 @@ import {
   DEFAULT_LOCALE,
   newId,
   normalizeEmail,
+  zPassword,
   zText,
   type Locale,
   type Role,
 } from '@brewlite/contracts';
 import { live, requireUser, rpcError, type Caller } from '@brewlite/nest-common';
 import type {
+  ChangePasswordRequest,
+  ChangePasswordResponse,
   GetMeResponse,
   Me,
   UpdateMeRequest,
@@ -16,7 +19,7 @@ import type {
 } from '@brewlite/contracts/generated/brewlite/identity/user_service.js';
 import type { Prisma } from '../../../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { hashPassword } from '../auth/domain/password.js';
+import { hashPassword, verifyPassword } from '../auth/domain/password.js';
 import { ME_SELECT, toProtoMe, type MeRow } from './user.mapper.js';
 
 const zFullName = zText(100);
@@ -70,6 +73,48 @@ export class UsersService {
       },
     });
     return { me: await this.findMe(caller) };
+  }
+
+  /**
+   * api §1.2 `PATCH /users/me/password`. An account with a password must prove it
+   * (`CURRENT_PASSWORD_INCORRECT`); a Google-only account (no hash) sets its first one and
+   * `currentPassword` is ignored. The new hash and the end of every *other* session commit
+   * together — the caller's own session (`sessionId`, the token's `sid`) stays signed in.
+   */
+  async changePassword(
+    caller: Caller,
+    request: ChangePasswordRequest,
+  ): Promise<ChangePasswordResponse> {
+    const { userId } = requireUser(caller);
+    for (const [path, value] of [
+      ['/newPassword', request.newPassword],
+      ...(request.currentPassword !== undefined
+        ? ([['/currentPassword', request.currentPassword]] as const)
+        : []),
+    ] as const) {
+      if (!zPassword.safeParse(value).success) {
+        throw rpcError('VALIDATION_FAILED', { issues: [{ path, code: 'custom' }] });
+      }
+    }
+
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, ...live },
+      select: { passwordHash: true },
+    });
+    if (!user) throw rpcError('UNAUTHENTICATED');
+    if (user.passwordHash !== null) {
+      const current = request.currentPassword;
+      if (current === undefined || !(await verifyPassword(current, user.passwordHash))) {
+        throw rpcError('CURRENT_PASSWORD_INCORRECT');
+      }
+    }
+
+    const passwordHash = await hashPassword(request.newPassword);
+    await this.prisma.$transaction([
+      this.prisma.user.update({ where: { id: userId }, data: { passwordHash } }),
+      this.prisma.session.deleteMany({ where: { userId, id: { not: request.sessionId } } }),
+    ]);
+    return {};
   }
 
   private async findMe(caller: Caller): Promise<Me> {

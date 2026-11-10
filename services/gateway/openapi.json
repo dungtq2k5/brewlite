@@ -433,6 +433,105 @@
         "tags": ["Users"]
       }
     },
+    "/users/me/password": {
+      "patch": {
+        "operationId": "UsersController_changePassword",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePasswordDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "example": "VALIDATION_FAILED"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "example": "UNAUTHENTICATED"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "CURRENT_PASSWORD_INCORRECT",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "example": "CURRENT_PASSWORD_INCORRECT"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": ["Users"]
+      }
+    },
     "/admin/users": {
       "get": {
         "operationId": "AdminUsersController_list",
@@ -5791,6 +5890,19 @@
         },
         "additionalProperties": false
       },
+      "ChangePasswordDto": {
+        "type": "object",
+        "properties": {
+          "currentPassword": {
+            "type": "string"
+          },
+          "newPassword": {
+            "type": "string"
+          }
+        },
+        "required": ["newPassword"],
+        "additionalProperties": false
+      },
       "AdminUserResponseDto": {
         "type": "object",
         "properties": {
@@ -6045,6 +6157,11 @@
             "minimum": -9007199254740991,
             "maximum": 9007199254740991
           },
+          "pointsRedeemed": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
           "currentPaymentId": {
             "type": ["string", "null"]
           },
@@ -6099,6 +6216,7 @@
           "cancelledAt",
           "refundStatus",
           "pointsEarned",
+          "pointsRedeemed",
           "currentPaymentId",
           "history",
           "userId",
@@ -6254,6 +6372,11 @@
             "minimum": -9007199254740991,
             "maximum": 9007199254740991
           },
+          "pointsRedeemed": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
           "currentPaymentId": {
             "type": ["string", "null"]
           },
@@ -6379,6 +6502,7 @@
           "cancelledAt",
           "refundStatus",
           "pointsEarned",
+          "pointsRedeemed",
           "currentPaymentId",
           "history",
           "userId",
@@ -7530,6 +7654,25 @@
             "type": "integer",
             "minimum": -9007199254740991,
             "maximum": 9007199254740991
+          },
+          "pointsBalance": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "pointsRedeemable": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "pointsCapReason": {
+            "type": "string",
+            "enum": ["BALANCE", "PERCENT", "FLOOR"]
+          },
+          "pointsRedeemed": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
           }
         },
         "required": [
@@ -7539,7 +7682,11 @@
           "pointsDiscountVnd",
           "totalVnd",
           "promoCode",
-          "pointsEarnable"
+          "pointsEarnable",
+          "pointsBalance",
+          "pointsRedeemable",
+          "pointsCapReason",
+          "pointsRedeemed"
         ]
       },
       "QuoteDto": {
@@ -7578,6 +7725,11 @@
           },
           "promoCode": {
             "type": "string"
+          },
+          "pointsToRedeem": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000000
           }
         },
         "required": ["items"],
@@ -7732,6 +7884,11 @@
             "minimum": -9007199254740991,
             "maximum": 9007199254740991
           },
+          "pointsRedeemed": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
           "currentPaymentId": {
             "type": ["string", "null"]
           },
@@ -7780,6 +7937,7 @@
           "cancelledAt",
           "refundStatus",
           "pointsEarned",
+          "pointsRedeemed",
           "currentPaymentId",
           "history"
         ]
@@ -7820,6 +7978,11 @@
           },
           "promoCode": {
             "type": "string"
+          },
+          "pointsToRedeem": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000000
           },
           "note": {
             "type": "string"

@@ -80,6 +80,7 @@ export function toProtoOrder(
     cancelNote: order.cancelNote ?? undefined,
     refundStatus: order.refundStatus,
     pointsEarned: order.pointsEarned,
+    pointsRedeemed: order.pointsRedeemed,
     history: history.map(toHistoryEntry),
     currentPaymentId: order.currentPaymentId ?? undefined,
     cancelledAt: order.cancelledAt?.toISOString(),

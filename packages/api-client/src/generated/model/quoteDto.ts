@@ -13,4 +13,9 @@ export interface QuoteDto {
    */
   items: QuoteDtoItemsItem[];
   promoCode?: string;
+  /**
+   * @minimum 1
+   * @maximum 1000000
+   */
+  pointsToRedeem?: number;
 }

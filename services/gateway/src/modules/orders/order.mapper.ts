@@ -1,4 +1,4 @@
-import type { ProductSize } from '@brewlite/contracts';
+import { parseEnum, PointsCapReason, type ProductSize } from '@brewlite/contracts';
 import type {
   Order as OrderProto,
   OrderHistoryEntry as OrderHistoryEntryProto,
@@ -42,6 +42,10 @@ export function toQuoteResponseDto(proto: QuoteResponseProto): QuoteResponseDto 
     totalVnd: Number(proto.totalVnd),
     promoCode: proto.promoCode ?? null,
     pointsEarnable: proto.pointsEarnable,
+    pointsBalance: proto.pointsBalance,
+    pointsRedeemable: proto.pointsRedeemable,
+    pointsCapReason: parseEnum(PointsCapReason, proto.pointsCapReason),
+    pointsRedeemed: proto.pointsRedeemed,
   };
 }
 
@@ -66,6 +70,7 @@ export function toOrderResponseDto(proto: OrderProto): OrderResponseDto {
     cancelledAt: proto.cancelledAt ?? null,
     refundStatus: proto.refundStatus,
     pointsEarned: proto.pointsEarned,
+    pointsRedeemed: proto.pointsRedeemed,
     currentPaymentId: proto.currentPaymentId ?? null,
     history: proto.history.map(toHistoryEntryDto),
   };

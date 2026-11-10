@@ -5,6 +5,7 @@ import {
   MAX_TOPPINGS_PER_LINE,
   ORDER_NOTE_MAX_LENGTH,
   ORDER_STATUSES,
+  POINTS_CAP_REASONS,
   PRODUCT_SIZES,
   PROMO_CODE_PATTERN,
   zCursorQuery,
@@ -30,19 +31,23 @@ const zPromoCode = z
   .transform((s) => s.trim().toUpperCase())
   .pipe(z.string().regex(PROMO_CODE_PATTERN));
 
+// Points to spend (ADR 0035): above the cap the quote clips; above the balance placing refuses.
+const zPointsToRedeem = z.number().int().min(1).max(1_000_000);
+
 export const quoteSchema = z
   .object({
     items: z.array(zCartLine).min(1).max(MAX_LINES_PER_ORDER),
     promoCode: zPromoCode.optional(),
+    pointsToRedeem: zPointsToRedeem.optional(),
   })
   .strict();
 export class QuoteDto extends createZodDto(quoteSchema) {}
 
-// No `pointsToRedeem` — P1; `.strict()` refuses it until then (conventions §1.3).
 export const placeOrderSchema = z
   .object({
     items: z.array(zCartLine).min(1).max(MAX_LINES_PER_ORDER),
     promoCode: zPromoCode.optional(),
+    pointsToRedeem: zPointsToRedeem.optional(),
     note: zText(ORDER_NOTE_MAX_LENGTH).optional(),
   })
   .strict();
@@ -69,7 +74,8 @@ const orderLineResponseSchema = z.object({
   lineTotalVnd: z.number().int(),
 });
 
-export const quoteResponseSchema = z.object({
+// What a quote and an order share (api-endpoints-plan §3.1).
+const pricedResponseSchema = z.object({
   lines: z.array(orderLineResponseSchema),
   subtotalVnd: z.number().int(),
   promoDiscountVnd: z.number().int(),
@@ -77,6 +83,15 @@ export const quoteResponseSchema = z.object({
   totalVnd: z.number().int(),
   promoCode: z.string().nullable(),
   pointsEarnable: z.number().int(),
+});
+
+export const quoteResponseSchema = pricedResponseSchema.extend({
+  // The caller's balance, the most this cart can take and which limit set it — shown even when
+  // no points were asked for — and the points actually applied.
+  pointsBalance: z.number().int(),
+  pointsRedeemable: z.number().int(),
+  pointsCapReason: z.enum(POINTS_CAP_REASONS),
+  pointsRedeemed: z.number().int(),
 });
 export class QuoteResponseDto extends createZodDto(quoteResponseSchema) {}
 
@@ -89,7 +104,7 @@ export const orderHistoryEntryResponseSchema = z.object({
 });
 
 // `Order = Quote & {...}` (api-endpoints-plan §3.1) — `history` is `[]` on a list row.
-export const orderResponseSchema = quoteResponseSchema.extend({
+export const orderResponseSchema = pricedResponseSchema.extend({
   id: zUuidV7,
   orderNo: z.string(),
   status: z.string(),
@@ -103,6 +118,8 @@ export const orderResponseSchema = quoteResponseSchema.extend({
   cancelledAt: z.string().nullable(),
   refundStatus: z.string(),
   pointsEarned: z.number().int(),
+  // O-1 `points_redeemed` — points spent on this order; their value is `pointsDiscountVnd`.
+  pointsRedeemed: z.number().int(),
   // The payment in progress, or the one that paid it (`GET /payments/:id`).
   currentPaymentId: zUuidV7.nullable(),
   history: z.array(orderHistoryEntryResponseSchema),

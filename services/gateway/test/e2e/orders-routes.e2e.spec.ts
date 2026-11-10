@@ -45,6 +45,7 @@ function orderProto(overrides: Partial<Record<string, unknown>> = {}) {
     cancelNote: undefined,
     refundStatus: 'NONE',
     pointsEarned: 0,
+    pointsRedeemed: 0,
     currentPaymentId: undefined,
     history: [],
     userId: newId(), // ordering sends it; the customer's routes must not pass it on
@@ -112,15 +113,65 @@ describe('gateway e2e — /orders routes', () => {
     expect(replayed.status).toBe(200);
   });
 
-  it('pointsToRedeem in the body — 400 VALIDATION_FAILED (.strict() refuses it)', async () => {
-    const res = await request(app.getHttpServer())
+  it('pointsToRedeem is passed to ordering on place; 0, a fraction or a string is 400', async () => {
+    orderingClientStub.placeOrder.mockResolvedValueOnce({
+      order: orderProto({ pointsRedeemed: 10, pointsDiscountVnd: 10_000 }),
+      created: true,
+    });
+    const ok = await request(app.getHttpServer())
       .post('/api/v1/orders')
       .set('Authorization', `Bearer ${e2e.tokenFor('CUSTOMER')}`)
       .set('Idempotency-Key', newId())
       .send({ ...validBody, pointsToRedeem: 10 });
-    expect(res.status).toBe(400);
-    expect(res.body.error.code).toBe('VALIDATION_FAILED');
-    expect(orderingClientStub.placeOrder).not.toHaveBeenCalled();
+    expect(ok.status).toBe(201);
+    expect(ok.body.data).toMatchObject({ pointsRedeemed: 10, pointsDiscountVnd: 10_000 });
+    expect(orderingClientStub.placeOrder.mock.calls[0]![1]).toMatchObject({ pointsToRedeem: 10 });
+
+    for (const pointsToRedeem of [0, 1.5, '10']) {
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/orders')
+        .set('Authorization', `Bearer ${e2e.tokenFor('CUSTOMER')}`)
+        .set('Idempotency-Key', newId())
+        .send({ ...validBody, pointsToRedeem });
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('VALIDATION_FAILED');
+    }
+    expect(orderingClientStub.placeOrder).toHaveBeenCalledTimes(1);
+  });
+
+  it('POST /orders/quote returns the points fields and refuses pointsToRedeem: 0', async () => {
+    orderingClientStub.quote.mockResolvedValueOnce({
+      lines: [orderLineProto()],
+      subtotalVnd: '236000',
+      promoDiscountVnd: 0,
+      pointsDiscountVnd: 60_000,
+      totalVnd: '176000',
+      promoCode: undefined,
+      pointsEarnable: 17,
+      pointsBalance: 60,
+      pointsRedeemable: 60,
+      pointsCapReason: 'BALANCE',
+      pointsRedeemed: 60,
+    });
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/orders/quote')
+      .set('Authorization', `Bearer ${e2e.tokenFor('CUSTOMER')}`)
+      .send({ ...validBody, pointsToRedeem: 60 });
+    expect(res.status).toBe(200);
+    expect(res.body.data).toMatchObject({
+      totalVnd: 176_000,
+      pointsBalance: 60,
+      pointsRedeemable: 60,
+      pointsCapReason: 'BALANCE',
+      pointsRedeemed: 60,
+    });
+    expect(orderingClientStub.quote.mock.calls[0]![1]).toMatchObject({ pointsToRedeem: 60 });
+
+    const zero = await request(app.getHttpServer())
+      .post('/api/v1/orders/quote')
+      .set('Authorization', `Bearer ${e2e.tokenFor('CUSTOMER')}`)
+      .send({ ...validBody, pointsToRedeem: 0 });
+    expect(zero.status).toBe(400);
   });
 
   it('GET /orders/me is not parsed as an order id', async () => {

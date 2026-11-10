@@ -130,7 +130,7 @@ Use these words in code, tickets and commit messages.
 | **Reservation** | Stock set aside for an order between placing and paying; released if the order is cancelled ([ADR 0018](./decisions/0018-stock-is-reserved-at-order-creation-under-optimistic-locking.md)). |
 | **Sold out** | A product staff switched off for now. Different from stock reaching zero, which sells it out automatically. |
 | **Promotion** / **promo code** | A discount a customer types at checkout — `WELCOME10`. |
-| **Loyalty points** | Earned when an order is paid; spent as a discount *(P1)* ([ADR 0021](./decisions/0021-promotions-and-loyalty-live-in-the-ordering-service.md)). |
+| **Loyalty points** | Earned when an order is paid; spent as a discount ([ADR 0021](./decisions/0021-promotions-and-loyalty-live-in-the-ordering-service.md)). |
 | **Idempotency key** | A client-generated UUIDv7 that makes a retried *place order* or *pay* request harmless ([ADR 0020](./decisions/0020-idempotency-keys-are-enforced-by-a-unique-constraint.md)). |
 | **Order board** | The staff page listing paid, preparing and ready orders, live. |
 
@@ -166,7 +166,7 @@ Use these words in code, tickets and commit messages.
 - Sessions: short access token, long-lived refresh token, sign-out. The session stays alive across the Stripe payment round trip.
 - Guests browse and build a cart; checkout, orders and account pages require sign-in, and sign-in returns the customer to where they were with the cart intact (§6.8).
 - A locked or deactivated account cannot sign in (§6.9).
-- *(P1)* Change password; *(P2)* forgot password by email.
+- Change password, or set a first one on a Google-only account (P1 — built); *(P2)* forgot password by email.
 
 ### F4 — Checkout and orders (P0)
 
@@ -205,11 +205,11 @@ Use these words in code, tickets and commit messages.
 - **(P0)** Promotions: create, edit, switch off, delete and restore (§6.5).
 - **(P0)** All orders with filters, each with its customer, who moved it and its payments; the *Overview* with today's sales, a range by day and the top products. Read-only — cancelling stays at the counter.
 
-### F9 — Promotions and loyalty (P0 promotions and earning; P1 redeeming)
+### F9 — Promotions and loyalty (P0 promotions and earning; P1 redeeming — built)
 
 - Promo codes applied at checkout, validated by the server (§6.5).
 - Points earned automatically when an order is paid, reversed if that order is refunded (§6.6).
-- *(P1)* Spend points as a discount at checkout.
+- Spend points as a discount at checkout (P1 — built).
 
 ### F10 — Backend business rules (P0 — course Task 10)
 
@@ -243,7 +243,7 @@ Every amount is an **integer number of Vietnamese đồng**, in every layer — 
 unit price  = product base price + size delta + Σ topping prices
 line total  = unit price × quantity
 subtotal    = Σ line totals
-discount    = promotion discount (§6.5) + points discount (§6.6, P1)
+discount    = promotion discount (§6.5) + points discount (§6.6, after the promotion)
 total       = subtotal − discount          (never below MIN_PAYABLE_VND)
 ```
 
@@ -305,7 +305,8 @@ Rules:
 
 - **Earn** `floor(total / LOYALTY_EARN_STEP_VND)` points when an order becomes `PAID` — 1 point per 10,000₫ paid. Credited in the same transaction as the status change, exactly once per order.
 - **Reverse** those points if a paid order is cancelled and refunded.
-- *(P1)* **Redeem** at checkout: 1 point = `LOYALTY_POINT_VALUE_VND` off, at most `LOYALTY_MAX_REDEEM_PERCENT` of the subtotal. Redeemed points are returned if the order is cancelled.
+- **Redeem** at checkout: 1 point = `LOYALTY_POINT_VALUE_VND` off, applied **after** the promotion, in whole points, at most `LOYALTY_MAX_REDEEM_PERCENT` of the **subtotal** and never pushing the total below `MIN_PAYABLE_VND`. Points are taken when the order is placed and returned whole if it is cancelled; a refund returns the money charged, never the points' value as money. Earning is on the amount paid (after points). ([ADR 0035](./decisions/0035-points-are-spent-after-the-promotion-and-come-back-whole-but-a-reversal-never-goes-below-zero.md))
+- **Reversing** points the customer has already spent removes only what the balance still holds; the rest is forgiven.
 - A balance never goes negative. There are no tiers, no expiry, no campaigns.
 
 ### 6.7 Idempotency
@@ -409,8 +410,8 @@ Product decisions, not implementation details. Each is one constant in `packages
 | `MIN_PAYABLE_VND` | 15,000₫ | No free or near-free charges after discounts, and above Stripe's minimum charge in VND — about 12,900₫ (US$0.50 converted), checked in test mode; 15,000₫ leaves a margin for the exchange rate. |
 | `MAX_ORDER_TOTAL_VND` | 5,000,000₫ | A café order above this is a mistake or abuse, not a real cart; also keeps the total well under the `INT` column's overflow point. |
 | `LOYALTY_EARN_STEP_VND` | 10,000₫ | 1 point per 10,000₫ paid. |
-| `LOYALTY_POINT_VALUE_VND` | 1,000₫ | *(P1)* 1 point = 1,000₫ off — 10% back. |
-| `LOYALTY_MAX_REDEEM_PERCENT` | 50% | *(P1)* Points pay at most half an order. |
+| `LOYALTY_POINT_VALUE_VND` | 1,000₫ | 1 point = 1,000₫ off — 10% back. |
+| `LOYALTY_MAX_REDEEM_PERCENT` | 50% | Points pay at most half an order. |
 | `ACCESS_TOKEN_TTL_MS` | 15 min | Short enough that a role change or lock bites fast. |
 | `REFRESH_TOKEN_TTL_MS` | 30 days | A regular customer should not sign in weekly. |
 | `MENU_CACHE_TTL_MS` | 5 min | Backstop only — every menu write invalidates at once. |

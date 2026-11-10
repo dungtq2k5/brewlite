@@ -74,6 +74,9 @@ export const adminOrdersControllerListResponseDataItemPointsEarnableMax = 900719
 export const adminOrdersControllerListResponseDataItemPointsEarnedMin = -9007199254740991;
 export const adminOrdersControllerListResponseDataItemPointsEarnedMax = 9007199254740991;
 
+export const adminOrdersControllerListResponseDataItemPointsRedeemedMin = -9007199254740991;
+export const adminOrdersControllerListResponseDataItemPointsRedeemedMax = 9007199254740991;
+
 export const AdminOrdersControllerListResponse = zod.object({
   data: zod
     .array(
@@ -149,6 +152,10 @@ export const AdminOrdersControllerListResponse = zod.object({
           .int()
           .min(adminOrdersControllerListResponseDataItemPointsEarnedMin)
           .max(adminOrdersControllerListResponseDataItemPointsEarnedMax),
+        pointsRedeemed: zod
+          .int()
+          .min(adminOrdersControllerListResponseDataItemPointsRedeemedMin)
+          .max(adminOrdersControllerListResponseDataItemPointsRedeemedMax),
         currentPaymentId: zod.string().nullable(),
         history: zod.array(
           zod.object({
@@ -208,6 +215,9 @@ export const adminOrdersControllerGetResponseDataPointsEarnableMax = 90071992547
 
 export const adminOrdersControllerGetResponseDataPointsEarnedMin = -9007199254740991;
 export const adminOrdersControllerGetResponseDataPointsEarnedMax = 9007199254740991;
+
+export const adminOrdersControllerGetResponseDataPointsRedeemedMin = -9007199254740991;
+export const adminOrdersControllerGetResponseDataPointsRedeemedMax = 9007199254740991;
 
 export const adminOrdersControllerGetResponseDataPaymentsOneItemAmountVndMin = -9007199254740991;
 export const adminOrdersControllerGetResponseDataPaymentsOneItemAmountVndMax = 9007199254740991;
@@ -286,6 +296,10 @@ export const AdminOrdersControllerGetResponse = zod.object({
         .int()
         .min(adminOrdersControllerGetResponseDataPointsEarnedMin)
         .max(adminOrdersControllerGetResponseDataPointsEarnedMax),
+      pointsRedeemed: zod
+        .int()
+        .min(adminOrdersControllerGetResponseDataPointsRedeemedMin)
+        .max(adminOrdersControllerGetResponseDataPointsRedeemedMax),
       currentPaymentId: zod.string().nullable(),
       history: zod.array(
         zod.object({

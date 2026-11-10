@@ -37,12 +37,27 @@ export interface UpdateMeResponse {
   me: Me | undefined;
 }
 
+export interface ChangePasswordRequest {
+  /** the access token's `sid` — the one session kept */
+  sessionId: string;
+  /** required when the account has a password */
+  currentPassword?: string | undefined;
+  newPassword: string;
+}
+
+export interface ChangePasswordResponse {
+}
+
 export const BREWLITE_IDENTITY_PACKAGE_NAME = "brewlite.identity";
 
 export interface UserServiceClient {
   getMe(request: GetMeRequest, metadata?: Metadata): Observable<GetMeResponse>;
 
   updateMe(request: UpdateMeRequest, metadata?: Metadata): Observable<UpdateMeResponse>;
+
+  /** Sets the caller's password; every session but `session_id` (the caller's own) is deleted. */
+
+  changePassword(request: ChangePasswordRequest, metadata?: Metadata): Observable<ChangePasswordResponse>;
 }
 
 export interface UserServiceController {
@@ -52,11 +67,18 @@ export interface UserServiceController {
     request: UpdateMeRequest,
     metadata?: Metadata,
   ): Promise<UpdateMeResponse> | Observable<UpdateMeResponse> | UpdateMeResponse;
+
+  /** Sets the caller's password; every session but `session_id` (the caller's own) is deleted. */
+
+  changePassword(
+    request: ChangePasswordRequest,
+    metadata?: Metadata,
+  ): Promise<ChangePasswordResponse> | Observable<ChangePasswordResponse> | ChangePasswordResponse;
 }
 
 export function UserServiceControllerMethods() {
   return function (constructor: Function) {
-    const grpcMethods: string[] = ["getMe", "updateMe"];
+    const grpcMethods: string[] = ["getMe", "updateMe", "changePassword"];
     for (const method of grpcMethods) {
       const descriptor: any = Reflect.getOwnPropertyDescriptor(constructor.prototype, method);
       GrpcMethod("UserService", method)(constructor.prototype[method], method, descriptor);

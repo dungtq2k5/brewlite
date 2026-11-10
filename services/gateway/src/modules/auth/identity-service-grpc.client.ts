@@ -15,6 +15,8 @@ import type {
   SignInWithFirebaseResponse,
 } from '@brewlite/contracts/generated/brewlite/identity/auth_service.js';
 import type {
+  ChangePasswordRequest,
+  ChangePasswordResponse,
   GetMeRequest,
   GetMeResponse,
   UpdateMeRequest,
@@ -91,6 +93,12 @@ class UserGrpcClient extends BaseGrpcClient {
     opts: { requestId?: string; caller: Caller },
   ): Promise<UpdateMeResponse> {
     return this.call('updateMe', request, opts);
+  }
+  changePassword(
+    request: ChangePasswordRequest,
+    opts: { requestId?: string; caller: Caller },
+  ): Promise<ChangePasswordResponse> {
+    return this.call('changePassword', request, opts);
   }
 }
 
@@ -195,6 +203,13 @@ export class IdentityServiceGrpcClient {
     requestId?: string,
   ): Promise<UpdateMeResponse> {
     return this.users.updateMe(request, { requestId, caller });
+  }
+  changePassword(
+    caller: Caller,
+    request: ChangePasswordRequest,
+    requestId?: string,
+  ): Promise<ChangePasswordResponse> {
+    return this.users.changePassword(request, { requestId, caller });
   }
   listUsers(
     caller: Caller,

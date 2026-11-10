@@ -96,6 +96,14 @@ export enum LoyaltyKind {
 }
 export const LOYALTY_KINDS = Object.values(LoyaltyKind);
 
+/** Which limit sets the most points an order can take (ADR 0035), in the order they are judged. */
+export enum PointsCapReason {
+  BALANCE = 'BALANCE',
+  PERCENT = 'PERCENT',
+  FLOOR = 'FLOOR',
+}
+export const POINTS_CAP_REASONS = Object.values(PointsCapReason);
+
 /** P-1 `provider` */
 export enum PaymentProvider {
   STRIPE = 'STRIPE',

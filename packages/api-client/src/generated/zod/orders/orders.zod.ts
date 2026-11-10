@@ -12,6 +12,8 @@ export const ordersControllerQuoteBodyItemsItemQtyMax = 10;
 
 export const ordersControllerQuoteBodyItemsMax = 20;
 
+export const ordersControllerQuoteBodyPointsToRedeemMax = 1000000;
+
 export const OrdersControllerQuoteBody = zod.object({
   items: zod
     .array(
@@ -25,6 +27,7 @@ export const OrdersControllerQuoteBody = zod.object({
     .min(1)
     .max(ordersControllerQuoteBodyItemsMax),
   promoCode: zod.string().optional(),
+  pointsToRedeem: zod.int().min(1).max(ordersControllerQuoteBodyPointsToRedeemMax).optional(),
 });
 
 export const ordersControllerQuoteResponseDataLinesItemToppingsItemPriceVndMin = -9007199254740991;
@@ -53,6 +56,15 @@ export const ordersControllerQuoteResponseDataTotalVndMax = 9007199254740991;
 
 export const ordersControllerQuoteResponseDataPointsEarnableMin = -9007199254740991;
 export const ordersControllerQuoteResponseDataPointsEarnableMax = 9007199254740991;
+
+export const ordersControllerQuoteResponseDataPointsBalanceMin = -9007199254740991;
+export const ordersControllerQuoteResponseDataPointsBalanceMax = 9007199254740991;
+
+export const ordersControllerQuoteResponseDataPointsRedeemableMin = -9007199254740991;
+export const ordersControllerQuoteResponseDataPointsRedeemableMax = 9007199254740991;
+
+export const ordersControllerQuoteResponseDataPointsRedeemedMin = -9007199254740991;
+export const ordersControllerQuoteResponseDataPointsRedeemedMax = 9007199254740991;
 
 export const OrdersControllerQuoteResponse = zod.object({
   data: zod
@@ -113,6 +125,19 @@ export const OrdersControllerQuoteResponse = zod.object({
         .int()
         .min(ordersControllerQuoteResponseDataPointsEarnableMin)
         .max(ordersControllerQuoteResponseDataPointsEarnableMax),
+      pointsBalance: zod
+        .int()
+        .min(ordersControllerQuoteResponseDataPointsBalanceMin)
+        .max(ordersControllerQuoteResponseDataPointsBalanceMax),
+      pointsRedeemable: zod
+        .int()
+        .min(ordersControllerQuoteResponseDataPointsRedeemableMin)
+        .max(ordersControllerQuoteResponseDataPointsRedeemableMax),
+      pointsCapReason: zod.enum(['BALANCE', 'PERCENT', 'FLOOR']),
+      pointsRedeemed: zod
+        .int()
+        .min(ordersControllerQuoteResponseDataPointsRedeemedMin)
+        .max(ordersControllerQuoteResponseDataPointsRedeemedMax),
     })
     .optional(),
 });
@@ -131,6 +156,8 @@ export const ordersControllerPlaceOrderBodyItemsItemQtyMax = 10;
 
 export const ordersControllerPlaceOrderBodyItemsMax = 20;
 
+export const ordersControllerPlaceOrderBodyPointsToRedeemMax = 1000000;
+
 export const OrdersControllerPlaceOrderBody = zod.object({
   items: zod
     .array(
@@ -146,6 +173,7 @@ export const OrdersControllerPlaceOrderBody = zod.object({
     .min(1)
     .max(ordersControllerPlaceOrderBodyItemsMax),
   promoCode: zod.string().optional(),
+  pointsToRedeem: zod.int().min(1).max(ordersControllerPlaceOrderBodyPointsToRedeemMax).optional(),
   note: zod.string().optional(),
 });
 
@@ -179,6 +207,9 @@ export const ordersControllerPlaceOrderResponseDataPointsEarnableMax = 900719925
 
 export const ordersControllerPlaceOrderResponseDataPointsEarnedMin = -9007199254740991;
 export const ordersControllerPlaceOrderResponseDataPointsEarnedMax = 9007199254740991;
+
+export const ordersControllerPlaceOrderResponseDataPointsRedeemedMin = -9007199254740991;
+export const ordersControllerPlaceOrderResponseDataPointsRedeemedMax = 9007199254740991;
 
 export const OrdersControllerPlaceOrderResponse = zod.object({
   data: zod
@@ -254,6 +285,10 @@ export const OrdersControllerPlaceOrderResponse = zod.object({
         .int()
         .min(ordersControllerPlaceOrderResponseDataPointsEarnedMin)
         .max(ordersControllerPlaceOrderResponseDataPointsEarnedMax),
+      pointsRedeemed: zod
+        .int()
+        .min(ordersControllerPlaceOrderResponseDataPointsRedeemedMin)
+        .max(ordersControllerPlaceOrderResponseDataPointsRedeemedMax),
       currentPaymentId: zod.string().nullable(),
       history: zod.array(
         zod.object({
@@ -324,6 +359,9 @@ export const ordersControllerListMyOrdersResponseDataItemPointsEarnableMax = 900
 
 export const ordersControllerListMyOrdersResponseDataItemPointsEarnedMin = -9007199254740991;
 export const ordersControllerListMyOrdersResponseDataItemPointsEarnedMax = 9007199254740991;
+
+export const ordersControllerListMyOrdersResponseDataItemPointsRedeemedMin = -9007199254740991;
+export const ordersControllerListMyOrdersResponseDataItemPointsRedeemedMax = 9007199254740991;
 
 export const OrdersControllerListMyOrdersResponse = zod.object({
   data: zod
@@ -402,6 +440,10 @@ export const OrdersControllerListMyOrdersResponse = zod.object({
           .int()
           .min(ordersControllerListMyOrdersResponseDataItemPointsEarnedMin)
           .max(ordersControllerListMyOrdersResponseDataItemPointsEarnedMax),
+        pointsRedeemed: zod
+          .int()
+          .min(ordersControllerListMyOrdersResponseDataItemPointsRedeemedMin)
+          .max(ordersControllerListMyOrdersResponseDataItemPointsRedeemedMax),
         currentPaymentId: zod.string().nullable(),
         history: zod.array(
           zod.object({
@@ -456,6 +498,9 @@ export const ordersControllerGetOrderResponseDataPointsEarnableMax = 90071992547
 
 export const ordersControllerGetOrderResponseDataPointsEarnedMin = -9007199254740991;
 export const ordersControllerGetOrderResponseDataPointsEarnedMax = 9007199254740991;
+
+export const ordersControllerGetOrderResponseDataPointsRedeemedMin = -9007199254740991;
+export const ordersControllerGetOrderResponseDataPointsRedeemedMax = 9007199254740991;
 
 export const OrdersControllerGetOrderResponse = zod.object({
   data: zod
@@ -531,6 +576,10 @@ export const OrdersControllerGetOrderResponse = zod.object({
         .int()
         .min(ordersControllerGetOrderResponseDataPointsEarnedMin)
         .max(ordersControllerGetOrderResponseDataPointsEarnedMax),
+      pointsRedeemed: zod
+        .int()
+        .min(ordersControllerGetOrderResponseDataPointsRedeemedMin)
+        .max(ordersControllerGetOrderResponseDataPointsRedeemedMax),
       currentPaymentId: zod.string().nullable(),
       history: zod.array(
         zod.object({
@@ -579,6 +628,9 @@ export const ordersControllerCancelOrderResponseDataPointsEarnableMax = 90071992
 
 export const ordersControllerCancelOrderResponseDataPointsEarnedMin = -9007199254740991;
 export const ordersControllerCancelOrderResponseDataPointsEarnedMax = 9007199254740991;
+
+export const ordersControllerCancelOrderResponseDataPointsRedeemedMin = -9007199254740991;
+export const ordersControllerCancelOrderResponseDataPointsRedeemedMax = 9007199254740991;
 
 export const OrdersControllerCancelOrderResponse = zod.object({
   data: zod
@@ -654,6 +706,10 @@ export const OrdersControllerCancelOrderResponse = zod.object({
         .int()
         .min(ordersControllerCancelOrderResponseDataPointsEarnedMin)
         .max(ordersControllerCancelOrderResponseDataPointsEarnedMax),
+      pointsRedeemed: zod
+        .int()
+        .min(ordersControllerCancelOrderResponseDataPointsRedeemedMin)
+        .max(ordersControllerCancelOrderResponseDataPointsRedeemedMax),
       currentPaymentId: zod.string().nullable(),
       history: zod.array(
         zod.object({

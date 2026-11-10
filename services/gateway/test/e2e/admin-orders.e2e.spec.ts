@@ -39,6 +39,7 @@ function orderProto(overrides: Record<string, unknown> = {}) {
     cancelledAt: undefined,
     refundStatus: 'NONE',
     pointsEarned: 2,
+    pointsRedeemed: 0,
     currentPaymentId: undefined,
     history: [],
     ...overrides,

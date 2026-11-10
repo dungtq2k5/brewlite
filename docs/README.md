@@ -78,6 +78,7 @@ Each title is an **assertion**, not a topic, so this index reads as the rules th
 | [0019](./decisions/0019-order-status-changes-only-through-the-state-machine.md) | Order status changes only through the state machine, as conditional updates |
 | [0020](./decisions/0020-idempotency-keys-are-enforced-by-a-unique-constraint.md) | Idempotency keys are enforced by a unique constraint, not a cache |
 | [0021](./decisions/0021-promotions-and-loyalty-live-in-the-ordering-service.md) | Promotions and loyalty points live in the ordering service |
+| [0035](./decisions/0035-points-are-spent-after-the-promotion-and-come-back-whole-but-a-reversal-never-goes-below-zero.md) | Points are spent after the promotion, come back whole, and a reversal never goes below zero |
 
 ### Identity and access
 

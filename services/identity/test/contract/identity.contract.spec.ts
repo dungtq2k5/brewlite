@@ -27,6 +27,8 @@ import type {
   SignInWithFirebaseResponse,
 } from '@brewlite/contracts/generated/brewlite/identity/auth_service.js';
 import type {
+  ChangePasswordRequest,
+  ChangePasswordResponse,
   GetMeRequest,
   GetMeResponse,
   UpdateMeRequest,
@@ -158,6 +160,12 @@ class TestUsersClient extends BaseGrpcClient {
   getMe(request: GetMeRequest, opts: { caller: Caller }): Promise<GetMeResponse> {
     return this.call('getMe', request, opts);
   }
+  changePassword(
+    request: ChangePasswordRequest,
+    opts: { caller: Caller },
+  ): Promise<ChangePasswordResponse> {
+    return this.call('changePassword', request, opts);
+  }
   updateMe(request: UpdateMeRequest, opts: { caller: Caller }): Promise<UpdateMeResponse> {
     return this.call('updateMe', request, opts);
   }
@@ -230,6 +238,36 @@ describe('identity gRPC contract', () => {
       fullName: 'Contract Logout',
     });
     await expect(authClient.logout({ refreshToken: registered.refreshToken })).resolves.toEqual({});
+  });
+
+  it('completes a real ChangePassword round trip; a wrong current password arrives as CURRENT_PASSWORD_INCORRECT', async () => {
+    const registered = await authClient.register({
+      email: 'contract-password@brewlite.test',
+      password: 'password123',
+      fullName: 'Contract Password',
+    });
+    const caller: Caller = { kind: 'USER', userId: registered.user!.id, role: Role.CUSTOMER };
+    const sessionId = (
+      JSON.parse(
+        Buffer.from(registered.accessToken.split('.')[1]!, 'base64url').toString('utf8'),
+      ) as { sid: string }
+    ).sid;
+
+    await expect(
+      usersClient.changePassword(
+        { sessionId, currentPassword: 'password123', newPassword: 'password456' },
+        { caller },
+      ),
+    ).resolves.toEqual({});
+    const refused = await usersClient
+      .changePassword(
+        { sessionId, currentPassword: 'password123', newPassword: 'password789' },
+        { caller },
+      )
+      .catch((e: unknown) => e);
+    expect(isGrpcServiceError(refused) && readErrorCode(refused)).toBe(
+      'CURRENT_PASSWORD_INCORRECT',
+    );
   });
 
   it('completes a real GetMe round trip, with the caller forwarded as metadata', async () => {

@@ -58,6 +58,11 @@ export interface AdminOrderListItemResponseDto {
    * @maximum 9007199254740991
    */
   pointsEarned: number;
+  /**
+   * @minimum -9007199254740991
+   * @maximum 9007199254740991
+   */
+  pointsRedeemed: number;
   /** @nullable */
   currentPaymentId: string | null;
   history: AdminOrderListItemResponseDtoHistoryItem[];

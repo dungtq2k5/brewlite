@@ -160,7 +160,7 @@ Me = { id; email; fullName; role: 'CUSTOMER' | 'STAFF' | 'ADMIN'; permissions: s
 | :---- | :---- | :---- | :---- |
 | GET | `/users/me` | `Me`. `permissions` is `ROLE_PERMISSIONS[role]` — the web app uses it to show or hide staff and admin links. A deactivated account holding a still-valid access token gets `401 UNAUTHENTICATED`, not `404` — the account is gone for them, and `401` is what makes the web server clear the cookies. | USER |
 | PATCH | `/users/me` | `{ fullName?, preferredLocale? }` → `Me`. Nothing else is self-service. | USER |
-| PATCH | `/users/me/password` *(P1)* | `{ currentPassword?, newPassword }` → `204`. `currentPassword` required when the account has one (`403 CURRENT_PASSWORD_INCORRECT`); a Google-only account may set a first password. Deletes every *other* session. | USER · `AUTH` |
+| PATCH | `/users/me/password` | `{ currentPassword?, newPassword }` (each 8–72 bytes) → `204`. `currentPassword` required when the account has one (`403 CURRENT_PASSWORD_INCORRECT`); a Google-only account may set a first password (`currentPassword` ignored). Deletes every *other* session — their refresh tokens stop working at once, their access tokens lapse within 15 minutes; the caller's session (the token's `sid`) is kept. `AUTH`'s limit is counted **per IP address only** here — the body has no email. | USER · `AUTH` |
 
 ### 1.3 User administration — `/admin/users`
 
@@ -268,6 +268,10 @@ Quote = {
   subtotalVnd; promoDiscountVnd; pointsDiscountVnd; totalVnd;
   promoCode: string | null;
   pointsEarnable: number;                 // what paying this total would earn
+  pointsBalance: number;                  // the caller's balance (0 with no account row)
+  pointsRedeemable: number;               // the cap: min(balance, 50 % of the subtotal, what keeps the total ≥ MIN_PAYABLE_VND)
+  pointsCapReason: 'BALANCE' | 'PERCENT' | 'FLOOR';   // the first limit, in that order, equal to the cap
+  pointsRedeemed: number;                 // applied: min(pointsToRedeem ?? 0, pointsRedeemable)
 }
 
 Order = Quote & {
@@ -287,8 +291,8 @@ Order = Quote & {
 
 | Method | Path | Description | Auth |
 | :---- | :---- | :---- | :---- |
-| POST | `/orders/quote` | `{ items: CartLine[], promoCode?, pointsToRedeem? }` → `Quote`. Prices through catalog and validates the code; **writes nothing and reserves nothing**. Refusals, in this order: `422 PRODUCT_UNAVAILABLE` (`details.productIds`), `422 OPTION_INVALID` (`details.lineIndex`, `details.reason: SIZE \| TOPPING \| TOO_MANY_TOPPINGS`), `409 OUT_OF_STOCK` (read-only check, `details.products`), `422 PROMO_CODE_INVALID` (`details.reason`, rdm-spec O-4), `422 POINTS_INSUFFICIENT` *(P1)*, `422 ORDER_TOTAL_TOO_LOW` (judged on the **subtotal** — a valid code's discount is capped at `subtotal − MIN_PAYABLE_VND`, so it never causes this), `422 ORDER_TOTAL_TOO_HIGH` (`details.maximumVnd`, on the total after the discount). The web app marks the named lines unavailable. | USER · `ORDER_WRITE` |
-| POST | `/orders` ⟳ | `{ items, promoCode?, pointsToRedeem?, note? }` → `201 Order` (`PENDING`). The same refusals as the quote, where `OUT_OF_STOCK` now comes from the actual reservation, plus `409 STOCK_CONTENDED` when the optimistic lock kept losing (retry with the same key). The sequence is §6.1. | USER · `ORDER_WRITE` |
+| POST | `/orders/quote` | `{ items: CartLine[], promoCode?, pointsToRedeem? }` → `Quote`. Prices through catalog and validates the code; **writes nothing and reserves nothing**. Refusals, in this order: `422 PRODUCT_UNAVAILABLE` (`details.productIds`), `422 OPTION_INVALID` (`details.lineIndex`, `details.reason: SIZE \| TOPPING \| TOO_MANY_TOPPINGS`), `409 OUT_OF_STOCK` (read-only check, `details.products`), `422 PROMO_CODE_INVALID` (`details.reason`, rdm-spec O-4), `422 ORDER_TOTAL_TOO_LOW` (judged on the **subtotal** — a valid code's discount is capped at `subtotal − MIN_PAYABLE_VND`, so it never causes this), `422 ORDER_TOTAL_TOO_HIGH` (`details.maximumVnd`, on the total after the discount). `pointsToRedeem` (≥ 1) is applied **after** the promotion and **clipped** to `pointsRedeemable` — never refused here ([ADR 0035](./decisions/0035-points-are-spent-after-the-promotion-and-come-back-whole-but-a-reversal-never-goes-below-zero.md)). The web app marks the named lines unavailable. | USER · `ORDER_WRITE` |
+| POST | `/orders` ⟳ | `{ items, promoCode?, pointsToRedeem?, note? }` → `201 Order` (`PENDING`). The same refusals as the quote, plus `422 POINTS_INSUFFICIENT` (`details.balance`) when `pointsToRedeem` exceeds the balance — the points are taken under a lock on the loyalty account, after the promotion's, and returned whole on any cancel; where `OUT_OF_STOCK` now comes from the actual reservation, plus `409 STOCK_CONTENDED` when the optimistic lock kept losing (retry with the same key). The sequence is §6.1. | USER · `ORDER_WRITE` |
 | GET | `/orders/me` | Cursor style, newest first, `?status=` optional. Each item is the `Order` without `history`. | USER |
 | GET | `/orders/:id` | `Order`. Someone else's → `404`. | USER |
 | POST | `/orders/:id/cancel` | → `Order` (`CANCELLED`, reason `CUSTOMER`). Only from `PENDING` or `PAYMENT_FAILED`; otherwise `409 INVALID_STATE` (`details.status`). | USER · `ORDER_WRITE` |
@@ -464,7 +468,7 @@ Every code is one entry in `ERRORS` in `packages/contracts`: HTTP status, gRPC s
 | `ACCOUNT_LOCKED` | 403 | `lockedUntil: string \| null` — never the reason | identity |
 | `ACCOUNT_DEACTIVATED` | 403 | — | identity |
 | `SELF_ACTION_FORBIDDEN` | 403 | — | identity |
-| `CURRENT_PASSWORD_INCORRECT` | 403 | — | identity *(P1)* |
+| `CURRENT_PASSWORD_INCORRECT` | 403 | — | identity |
 | `ROUTE_NOT_FOUND` | 404 | — | gateway; payment (`fake-confirm` when disabled) |
 | `RESOURCE_NOT_FOUND` | 404 | `resource: USER \| CATEGORY \| PRODUCT \| TOPPING \| ORDER \| PROMOTION \| PAYMENT` | any service |
 | `INVALID_STATE` | 409 | `status` — the current status | ordering, payment, catalog (`DELETED` \| `ACTIVE` \| `CATEGORY_DELETED`) |
@@ -482,7 +486,7 @@ Every code is one entry in `ERRORS` in `packages/contracts`: HTTP status, gRPC s
 | `OPTION_INVALID` | 422 | `lineIndex`, `reason: SIZE \| TOPPING \| TOO_MANY_TOPPINGS` | catalog → ordering |
 | `PROMO_CODE_INVALID` | 422 | `reason: NOT_FOUND \| INACTIVE \| NOT_STARTED \| EXPIRED \| MIN_SUBTOTAL \| EXHAUSTED \| PER_USER_LIMIT`, `minSubtotalVnd?` | ordering |
 | `PROMO_MAX_USES_BELOW_USED` | 422 | `usedCount` | ordering |
-| `POINTS_INSUFFICIENT` | 422 | `balance` | ordering *(P1)* |
+| `POINTS_INSUFFICIENT` | 422 | `balance` | ordering — at placing only |
 | `ORDER_TOTAL_TOO_LOW` | 422 | `minimumVnd` | ordering |
 | `ORDER_TOTAL_TOO_HIGH` | 422 | `maximumVnd` | ordering |
 | `IMAGE_INVALID` | 422 | `reason: TYPE \| SIZE` | gateway, catalog |
@@ -599,9 +603,9 @@ Every service serves these — backend services on `OPS_PORT`, the gateway on it
 | **A — backend (P0)** | §0 · §1.1, §1.2 (not the password route), §1.3 · §2 · §3.1–3.3, §3.5, §3.6 · §4 · §5 · §6 · §7 · §8 · §9 · §10 · §11 |
 | **B — frontend** | consumes Phase A through the generated client; no new routes |
 | **C — handover** | no new routes; the Compose `apps` profile runs everything, the README, the J1 demo |
-| **P1** | `PATCH /users/me/password` · `pointsToRedeem` on quote and order — §3.4 admin orders and reports and `ListPaymentsForOrder` were built with the admin pages' needs |
+| **P1** | built: `PATCH /users/me/password` · `pointsToRedeem` on quote and order — §3.4 admin orders and reports and `ListPaymentsForOrder` came earlier, with the admin pages' needs |
 
-**Phase A is done.** Audited at the end of the phase: every §1–§4 route is built and documented (58 operations), each with this plan's marker and rate-limit class; every `ERRORS` code is raised except the two P1 ones. A guard keeps this plan and `openapi.json` in sync from here on.
+**Phase A is done.** Audited at the end of the phase: every §1–§4 route is built and documented (58 operations), each with this plan's marker and rate-limit class; every `ERRORS` code is raised (the two P1 codes since BE batch 06). A guard keeps this plan and `openapi.json` in sync from here on.
 
 ---
 
