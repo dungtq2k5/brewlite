@@ -1,5 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import { healthReport, LOCAL_OPS_URLS, nameFor, parseOpsUrls } from './smoke-lib.mjs';
+import {
+  healthReport,
+  LOCAL_OPS_URLS,
+  nameFor,
+  parseOpsUrls,
+  stripTrailingSlashes,
+} from './smoke-lib.mjs';
+
+describe('stripTrailingSlashes', () => {
+  it('removes every trailing slash and nothing else', () => {
+    expect(stripTrailingSlashes('http://x/')).toBe('http://x');
+    expect(stripTrailingSlashes('http://x///')).toBe('http://x');
+    expect(stripTrailingSlashes('http://x')).toBe('http://x');
+    expect(stripTrailingSlashes('')).toBe('');
+  });
+});
 
 describe('parseOpsUrls', () => {
   it('defaults to the four local ops ports when unset', () => {

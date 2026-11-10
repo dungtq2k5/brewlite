@@ -16,11 +16,11 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readEnvText } from './seed-dev-lib.mjs';
-import { healthReport, nameFor, parseOpsUrls } from './smoke-lib.mjs';
+import { healthReport, nameFor, parseOpsUrls, stripTrailingSlashes } from './smoke-lib.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const BASE = (process.env.SMOKE_BASE_URL ?? 'http://localhost:23000').replace(/\/+$/, '');
-const API = (process.env.SMOKE_API_URL ?? 'http://localhost:23100').replace(/\/+$/, '');
+const BASE = stripTrailingSlashes(process.env.SMOKE_BASE_URL ?? 'http://localhost:23000');
+const API = stripTrailingSlashes(process.env.SMOKE_API_URL ?? 'http://localhost:23100');
 const OPS = parseOpsUrls(process.env.SMOKE_OPS_URLS);
 
 function staffPassword() {

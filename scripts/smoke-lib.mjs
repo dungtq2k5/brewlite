@@ -13,6 +13,13 @@ const OPS_NAMES = new Map([
   ['23104', 'payment'],
 ]);
 
+/** Trailing `/`s removed — a loop, not `/\/+$/` (a regex tried from every position is quadratic). */
+export function stripTrailingSlashes(s) {
+  let end = s.length;
+  while (end > 0 && s[end - 1] === '/') end--;
+  return s.slice(0, end);
+}
+
 /**
  * `SMOKE_OPS_URLS`: unset → the four local ops ports; empty → none (a deployment where the
  * services are not reachable, so only the gateway's readiness is checked); otherwise a
@@ -22,7 +29,7 @@ export function parseOpsUrls(raw) {
   if (raw === undefined) return [...LOCAL_OPS_URLS];
   return raw
     .split(',')
-    .map((s) => s.trim().replace(/\/+$/, ''))
+    .map((s) => stripTrailingSlashes(s.trim()))
     .filter((s) => s !== '');
 }
 

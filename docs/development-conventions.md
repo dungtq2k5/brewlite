@@ -607,6 +607,7 @@ Every durable consumer is a `JetStreamConsumer` subclass, started from the servi
 - `pino` through `nestjs-pino`, JSON, one logger per class; every line carries `requestId`.
 - Levels: `debug` developer aid; `info` lifecycle (boot, job run); `warn` handled-but-suspicious (a poison message, a late payment refunded); `error` a bug or a failed dependency, with the error object.
 - **MUST NOT** log inside a loop over rows; log the summary.
+- **Every long-lived Redis client is made with `createRedis(url, options, { name })`** (`packages/nest-common`), and every BullMQ `Queue` and `Worker` gets `watchRedisErrors(…, client)`. An outage logs **one** `error` line (`redis unreachable`, with `client` and `code`) and **one** `log` line when it ends (`redis reconnected`, with `downMs`) — never a line per retry, never raw stderr. BullMQ's errors are sorted by kind: a connection failure joins the outage's line (or is dropped once the client is back — BullMQ's second, blocking connection reconnects a moment later); any other error is logged on its own. A test that checks this spies on `console.error` (ioredis and BullMQ fall back to it; Vitest captures it before stderr).
 
 ### 13.2 Handling
 
