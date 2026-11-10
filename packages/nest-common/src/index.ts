@@ -36,6 +36,7 @@ export * from './jetstream/consumer.js';
 export * from './jetstream/dead-letter.js';
 export * from './jetstream/connected-check.js';
 export * from './jobs/jobs.module.js';
+export * from './redis/create-redis.js';
 
 /**
  * Re-exported from nest-common's own resolved copy — a service importing `nestjs-zod`

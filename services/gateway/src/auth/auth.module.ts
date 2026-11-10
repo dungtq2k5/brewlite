@@ -2,7 +2,8 @@ import { Inject, Module, type OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { APP_GUARD, DiscoveryModule } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
-import { Redis } from 'ioredis';
+import { createRedis } from '@brewlite/nest-common';
+import type { Redis } from 'ioredis';
 import type { Env } from '../config/env.schema.js';
 import { AuthGuard } from './auth.guard.js';
 import { PermissionGuard } from './permission.guard.js';
@@ -18,11 +19,11 @@ import { RouteMarkersCheck } from './route-markers.check.js';
       inject: [ConfigService],
       // Fail-fast like catalog's — a stopped Redis must not queue the request for seconds.
       useFactory: (config: ConfigService<Env, true>): Redis =>
-        new Redis(config.get('REDIS_URL', { infer: true }), {
-          maxRetriesPerRequest: 1,
-          enableOfflineQueue: false,
-          connectTimeout: 1000,
-        }),
+        createRedis(
+          config.get('REDIS_URL', { infer: true }),
+          { maxRetriesPerRequest: 1, enableOfflineQueue: false, connectTimeout: 1000 },
+          { name: 'gateway-rate-limit' },
+        ),
     },
     { provide: APP_GUARD, useClass: AuthGuard },
     { provide: APP_GUARD, useClass: PermissionGuard },

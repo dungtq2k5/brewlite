@@ -11,7 +11,8 @@ import {
 import { ModuleRef } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { Queue, Worker } from 'bullmq';
-import { Redis } from 'ioredis';
+import type { Redis } from 'ioredis';
+import { createRedis, watchRedisErrors } from '../redis/create-redis.js';
 
 /** A job is a class with `run(now)` — tests call it directly, no worker involved (conventions §8.3). */
 export interface RunnableJob {
@@ -51,6 +52,7 @@ class JobsRunner implements OnModuleInit, OnModuleDestroy {
   async onModuleInit(): Promise<void> {
     if (this.definitions.length === 0) return;
     this.queue = new Queue(this.queueName, { connection: this.connection });
+    watchRedisErrors(this.queue, this.connection);
     for (const def of this.definitions) {
       await this.queue.upsertJobScheduler(def.name, { every: def.everyMs }, { name: def.name });
     }
@@ -65,6 +67,7 @@ class JobsRunner implements OnModuleInit, OnModuleDestroy {
       },
       { connection: this.connection },
     );
+    watchRedisErrors(this.worker, this.connection);
   }
 
   /**
@@ -104,7 +107,11 @@ export class JobsModule {
           provide: JOBS_REDIS_CLIENT,
           inject: [ConfigService],
           useFactory: (config: ConfigService<{ REDIS_URL: string }, true>): Redis =>
-            new Redis(config.get('REDIS_URL', { infer: true }), { maxRetriesPerRequest: null }),
+            createRedis(
+              config.get('REDIS_URL', { infer: true }),
+              { maxRetriesPerRequest: null },
+              { name: 'jobs' },
+            ),
         },
         JobsRunner,
       ],

@@ -1,6 +1,7 @@
 import { Inject, Module, type OnModuleDestroy } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { Redis } from 'ioredis';
+import { createRedis } from '@brewlite/nest-common';
+import type { Redis } from 'ioredis';
 import type { Env } from '../../config/env.schema.js';
 
 export const REDIS_CLIENT = Symbol('REDIS_CLIENT');
@@ -19,11 +20,11 @@ export const REDIS_CLIENT = Symbol('REDIS_CLIENT');
       provide: REDIS_CLIENT,
       inject: [ConfigService],
       useFactory: (config: ConfigService<Env, true>): Redis =>
-        new Redis(config.get('REDIS_URL', { infer: true }), {
-          maxRetriesPerRequest: 1,
-          enableOfflineQueue: false,
-          connectTimeout: 1000,
-        }),
+        createRedis(
+          config.get('REDIS_URL', { infer: true }),
+          { maxRetriesPerRequest: 1, enableOfflineQueue: false, connectTimeout: 1000 },
+          { name: 'catalog-cache' },
+        ),
     },
   ],
   exports: [REDIS_CLIENT],
