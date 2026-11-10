@@ -1,7 +1,12 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { Search } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { MenuSection } from '@/lib/menu';
+import { useMenuQuery } from './MenuQuery';
+import { useFilteredSections } from './MenuSections';
+import { MenuSearch } from './MenuSearch';
 
 export interface CategoryNavItem {
   id: string;
@@ -18,10 +23,21 @@ const NAV_VAR = '--bl-nav-h';
  * variables this sets (header and bar heights), so the heading lands below both.
  */
 export function CategoryNav({
-  items,
+  items: allItems,
+  sections,
   title,
-}: Readonly<{ items: CategoryNavItem[]; title: string }>) {
+}: Readonly<{ items: CategoryNavItem[]; sections: MenuSection[]; title: string }>) {
   const { t } = useTranslation('menu');
+  const { query, focusField } = useMenuQuery();
+  // While searching, the chips narrow to the categories with results (none → no chips at all).
+  const shown = useFilteredSections(sections);
+  const searching = query.trim() !== '';
+  const count = shown.reduce((sum, s) => sum + s.products.length, 0);
+  const items = useMemo(() => {
+    if (!searching) return allItems;
+    const ids = new Set(shown.map((s) => s.category.id));
+    return allItems.filter((item) => ids.has(item.id));
+  }, [allItems, shown, searching]);
   const [current, setCurrent] = useState(items[0]?.id);
   const bar = useRef<HTMLElement>(null);
   const chips = useRef(new Map<string, HTMLAnchorElement>());
@@ -111,12 +127,28 @@ export function CategoryNav({
   return (
     <div className="contents lg:block lg:sticky lg:top-[calc(var(--bl-header-h,3.5rem)+1.5rem)] lg:self-start">
       <h1 className="sr-only text-3xl font-bold lg:not-sr-only lg:mb-4">{title}</h1>
+      {/* On a desktop the field heads the sticky list; on a phone it sits above the first section. */}
+      <MenuSearch count={count} className="hidden lg:mb-4 lg:block" />
       <nav
         ref={bar}
         aria-label={t('nav.label')}
         className="bg-base-100 border-base-300 sticky top-(--bl-header-h,3.5rem) z-20 -mx-4 -mt-6 border-b px-4 lg:static lg:mx-0 lg:mt-0 lg:border-0 lg:px-0"
       >
-        <ul className="flex gap-2 overflow-x-auto py-3 scrollbar-none lg:flex-col lg:gap-1 lg:overflow-visible lg:py-0">
+        <ul
+          className={`flex gap-2 overflow-x-auto py-3 scrollbar-none lg:flex-col lg:gap-1 lg:overflow-visible lg:py-0 ${
+            items.length === 0 ? 'hidden' : ''
+          }`}
+        >
+          <li className="shrink-0 lg:hidden">
+            <button
+              type="button"
+              aria-label={t('search.open')}
+              onClick={focusField}
+              className="border-base-300 grid size-11 place-items-center rounded-full border"
+            >
+              <Search aria-hidden size={18} />
+            </button>
+          </li>
           {items.map((item) => {
             const active = item.id === current;
             return (

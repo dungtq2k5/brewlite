@@ -56,5 +56,14 @@
       "action": "Back to menu"
     }
   },
-  "title": "Menu"
+  "title": "Menu",
+  "search": {
+    "label": "Search the menu",
+    "clear": "Clear search",
+    "open": "Search the menu",
+    "results_one": "{{count}} result",
+    "results_other": "{{count}} results",
+    "none": "Nothing called \"{{q}}\" on the menu",
+    "hint": "Try another word — English or Vietnamese, accents optional."
+  }
 }

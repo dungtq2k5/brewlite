@@ -13,6 +13,11 @@ import { formatVnd, localized } from '@/i18n/format';
 import type { Locale } from '@/i18n/settings';
 import { useCart } from '@/lib/cart/CartProvider';
 import {
+  choiceAfterBalanceChange,
+  pointsToRedeemFor,
+  type PointsChoice,
+} from '@/lib/checkout/points';
+import {
   mapRefusal,
   stockLeftFor,
   toQuoteItems,
@@ -24,6 +29,7 @@ import { CartLine, type LinePricing } from '../cart/CartLine';
 import { UndoRow } from '../cart/UndoRow';
 import { useUndoableRemove } from '../cart/useUndoableRemove';
 import { NoteField } from './NoteField';
+import { PointsControl } from './PointsControl';
 import { PromoField } from './PromoField';
 import { QuoteSummary } from './QuoteSummary';
 
@@ -55,6 +61,11 @@ export function CheckoutView() {
     null,
   );
   const [note, setNote] = useState('');
+  // Kept across re-quotes and a language switch; *all* is re-clipped by every quote (D06 decision 4).
+  const [points, setPoints] = useState<PointsChoice>({ mode: 'off' });
+  const [pointsWarning, setPointsWarning] = useState<string | null>(null);
+  const [announceVnd, setAnnounceVnd] = useState<number | null>(null);
+  const pointsChanged = useRef(false);
   const [quote, setQuote] = useState<QuoteState>({ status: 'idle' });
   const [lastPriced, setLastPriced] = useState<QuoteResponseDto | null>(null);
   const [retry, setRetry] = useState(0);
@@ -64,7 +75,17 @@ export function CheckoutView() {
   const sequence = useRef(0);
   const immediate = useRef(false);
   const idempotency = useRef<{ key: string; intent: string } | null>(null);
-  const signature = JSON.stringify({ items, promo: appliedCode });
+  const balance = lastPriced?.pointsBalance ?? 0;
+  const pointsToRedeem = pointsToRedeemFor(points, balance);
+  const signature = JSON.stringify({ items, promo: appliedCode, points: pointsToRedeem ?? 0 });
+
+  /** The balance moved under us (`POINTS_INSUFFICIENT`): reset to what is left, say so, re-quote. */
+  const onBalanceChanged = (left: number) => {
+    setPoints(choiceAfterBalanceChange(left));
+    setPointsWarning(t('points.changed', { count: left }));
+    setLastPriced((prev) => (prev ? { ...prev, pointsBalance: left } : prev));
+    immediate.current = true;
+  };
 
   // Quote after every change, 400 ms after the last one; a stale answer is dropped.
   useEffect(() => {
@@ -77,14 +98,29 @@ export function CheckoutView() {
     const delay = immediate.current ? 0 : DEBOUNCE_MS;
     immediate.current = false;
     const timer = setTimeout(async () => {
-      const result = await quoteCart({ items, promoCode: appliedCode ?? undefined });
+      const result = await quoteCart({
+        items,
+        promoCode: appliedCode ?? undefined,
+        pointsToRedeem,
+      });
       if (mine !== sequence.current) return;
       if (result.ok) {
         setQuote({ status: 'ok', sig: signature, data: result.data });
         setLastPriced(result.data);
+        if (pointsChanged.current) {
+          pointsChanged.current = false;
+          setAnnounceVnd(result.data.totalVnd);
+        }
         return;
       }
       const refusal = mapRefusal(result.code, result.details, lines);
+      if (refusal.kind === 'points') {
+        // Same as `onBalanceChanged` below — written out so the effect needs no function dependency.
+        setPoints(choiceAfterBalanceChange(refusal.balance));
+        setPointsWarning(t('points.changed', { count: refusal.balance }));
+        immediate.current = true;
+        return;
+      }
       if (refusal.kind === 'promo') {
         // The field says why; the summary is priced again at once, without the code.
         setPromoRefusal(refusal);
@@ -99,7 +135,7 @@ export function CheckoutView() {
       );
     }, delay);
     return () => clearTimeout(timer);
-  }, [ready, signature, retry, items, appliedCode, lines, router]);
+  }, [ready, signature, retry, items, appliedCode, pointsToRedeem, lines, router, t]);
 
   const fresh = quote.status !== 'idle' && quote.sig === signature;
   const refusal = fresh && quote.status === 'refused' ? quote.refusal : null;
@@ -146,12 +182,17 @@ export function CheckoutView() {
     if (!canPlace) return;
     // One tap, one intent: the key is made at the tap and kept until the intent changes
     // (lines, code or note), so a double tap or a retry is the same order (conventions §11.1).
-    const intent = JSON.stringify({ items, promo: appliedCode, note: note.trim() });
+    const intent = JSON.stringify({
+      items,
+      promo: appliedCode,
+      points: pointsToRedeem ?? 0,
+      note: note.trim(),
+    });
     if (idempotency.current?.intent !== intent) idempotency.current = { key: newId(), intent };
     setPlacing(true);
     setContended(false);
     const result = await placeOrder(
-      { items, promoCode: appliedCode ?? undefined, note },
+      { items, promoCode: appliedCode ?? undefined, pointsToRedeem, note },
       idempotency.current.key,
     );
     if (result.ok) {
@@ -165,7 +206,9 @@ export function CheckoutView() {
       return;
     }
     const mapped = mapRefusal(result.code, result.details, lines);
-    if (mapped.kind === 'promo') {
+    if (mapped.kind === 'points') {
+      onBalanceChanged(mapped.balance);
+    } else if (mapped.kind === 'promo') {
       setPromoRefusal(mapped);
       immediate.current = true;
       setAppliedCode(null);
@@ -286,6 +329,21 @@ export function CheckoutView() {
             appliedLabel={appliedLabel}
             error={promoError}
           />
+          {priced && (
+            <PointsControl
+              quote={priced}
+              choice={points}
+              warning={pointsWarning}
+              onChange={(next) => {
+                setPointsWarning(null);
+                pointsChanged.current = true;
+                setPoints(next);
+              }}
+            />
+          )}
+          <p className="sr-only" aria-live="polite">
+            {announceVnd !== null && t('points.total', { total: formatVnd(announceVnd, locale) })}
+          </p>
           <NoteField value={note} onChange={setNote} />
           <div aria-busy={busy} className={busy ? 'opacity-60' : undefined}>
             {refusal?.kind === 'total' ? (
@@ -304,6 +362,8 @@ export function CheckoutView() {
                 subtotalVnd={priced?.subtotalVnd ?? null}
                 promoCode={priced?.promoCode ?? null}
                 promoDiscountVnd={priced?.promoDiscountVnd ?? 0}
+                pointsRedeemed={priced?.pointsRedeemed ?? 0}
+                pointsDiscountVnd={priced?.pointsDiscountVnd ?? 0}
                 totalVnd={priced?.totalVnd ?? null}
                 pointsEarnable={priced?.pointsEarnable ?? null}
                 showPoints
@@ -330,7 +390,9 @@ export function CheckoutView() {
                   ? t('refusal.contended')
                   : blocked
                     ? t('place.blocked')
-                    : t('place.hold', { minutes: ORDER_UNPAID_TTL_MS / 60_000 })}
+                    : (priced?.pointsRedeemed ?? 0) > 0
+                      ? t('place.pointsHint')
+                      : t('place.hold', { minutes: ORDER_UNPAID_TTL_MS / 60_000 })}
               </p>
             </div>
           </div>

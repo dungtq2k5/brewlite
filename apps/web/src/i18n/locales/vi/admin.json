@@ -466,6 +466,8 @@
     "total": "Tổng",
     "pointsEarned": "Đã tích {{count}} điểm",
     "pointsReversed": "Đã trừ lại {{count}} điểm",
+    "pointsSpent": "Đã dùng {{count}} điểm",
+    "pointsCount": "Điểm · {{count}}",
     "actor": {
       "CUSTOMER": "khách",
       "STAFF": "nhân viên",

@@ -472,6 +472,8 @@
     "total": "Total",
     "pointsEarned": "{{count}} points earned",
     "pointsReversed": "{{count}} points reversed",
+    "pointsSpent": "{{count}} points spent",
+    "pointsCount": "Points · {{count}}",
     "actor": {
       "CUSTOMER": "customer",
       "STAFF": "staff",

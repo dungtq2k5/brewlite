@@ -14,6 +14,7 @@ interface Props {
   defaultValue?: string;
   autoComplete?: string;
   required?: boolean;
+  onChange?: (event: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
 /** Label above, help or error below (announced politely); a password gets a 44 px show/hide. */

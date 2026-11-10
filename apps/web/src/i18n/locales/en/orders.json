@@ -135,6 +135,10 @@
     "placed": "Placed · {{date}}",
     "yourOrder": "Your order",
     "items_one": "{{count}} item",
-    "items_other": "{{count}} items"
+    "items_other": "{{count}} items",
+    "pointsReturned_one": "{{count}} point returned to your balance.",
+    "pointsReturned_other": "{{count}} points returned to your balance.",
+    "pointsBack_one": "Your {{count}} point is back in your balance.",
+    "pointsBack_other": "Your {{count}} points are back in your balance."
   }
 }

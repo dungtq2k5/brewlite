@@ -131,6 +131,8 @@
     },
     "placed": "Đặt lúc · {{date}}",
     "yourOrder": "Đơn của bạn",
-    "items_other": "{{count}} món"
+    "items_other": "{{count}} món",
+    "pointsReturned_other": "Đã hoàn {{count}} điểm vào tài khoản.",
+    "pointsBack_other": "{{count}} điểm đã trở lại tài khoản của bạn."
   }
 }

@@ -9,14 +9,16 @@
     "unpriced": "—",
     "earn_one": "You'll earn {{count}} point",
     "earn_other": "You'll earn {{count}} points",
-    "earnLater": "Points shown once your order is priced"
+    "earnLater": "Points shown once your order is priced",
+    "points": "Points · {{count}}"
   },
   "place": {
     "label": "Place order · {{price}}",
     "labelUnpriced": "Place order",
     "placing": "Placing order…",
     "hold": "We hold your order for {{minutes}} minutes while you pay.",
-    "blocked": "Remove or change the drink above to continue."
+    "blocked": "Remove or change the drink above to continue.",
+    "pointsHint": "Points are taken when you place the order and come back if it's cancelled."
   },
   "refusal": {
     "products_one": "{{count}} item sold out since you added it. Remove it to continue.",
@@ -49,5 +51,28 @@
     "placeholder": "e.g. Less ice, less sugar",
     "counter": "{{count}} / {{max}}"
   },
-  "yourOrder": "Your order"
+  "yourOrder": "Your order",
+  "points": {
+    "use_one": "Use {{count}} point · −{{amount}}",
+    "use_other": "Use {{count}} points · −{{amount}}",
+    "using_one": "Using {{count}} point · −{{amount}}",
+    "using_other": "Using {{count}} points · −{{amount}}",
+    "have_one": "You have {{count}} point",
+    "have_other": "You have {{count}} points",
+    "fewer": "Use fewer",
+    "upTo": "of up to {{max}} · tap the number to type",
+    "switch_one": "Use points, {{count}} available",
+    "switch_other": "Use points, {{count}} available",
+    "number": "Points to use",
+    "less": "One point fewer",
+    "more": "One point more",
+    "cap": {
+      "BALANCE": "That's all your points.",
+      "PERCENT": "Up to 50% of your order can be paid with points.",
+      "FLOOR": "Points can't bring the total below {{min}}."
+    },
+    "changed_one": "Your balance changed — you now have {{count}} point.",
+    "changed_other": "Your balance changed — you now have {{count}} points.",
+    "total": "New total {{total}}"
+  }
 }

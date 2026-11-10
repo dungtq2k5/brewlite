@@ -21,14 +21,28 @@
     "none": "No points yet — your first paid order starts them.",
     "earned": "Earned on order #{{no}}",
     "reversed": "Reversed — order #{{no}} refunded",
-    "redeemed": "Used on order #{{no}}",
-    "returned": "Returned — order #{{no}} cancelled"
+    "redeemed": "Spent on order #{{no}}",
+    "returned": "Returned — order #{{no}} cancelled",
+    "value": "1 point = {{value}} off at checkout."
   },
   "signIn": {
     "heading": "Sign-in",
     "google": "You sign in with Google",
-    "password": "Email and password",
-    "later": "Password changes are coming later."
+    "password": "You sign in with email and password",
+    "change": "Change password",
+    "set": "Set a password",
+    "setHint": "Then you can also sign in with your email.",
+    "current": "Current password",
+    "new": "New password",
+    "newHelp": "8 or more characters",
+    "cancel": "Cancel",
+    "update": "Update password",
+    "setSubmit": "Set password",
+    "saving": "Saving…",
+    "incorrect": "That isn't your current password.",
+    "currentEmpty": "Enter your current password",
+    "changed": "Password changed. You've been signed out on your other devices.",
+    "setDone": "Password set. You can now sign in with Google or your email."
   },
   "failed": {
     "title": "We couldn't load your account",

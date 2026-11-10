@@ -17,21 +17,26 @@ import { toResult, type ActionResult } from '@/lib/action-result';
 export interface OrderItemsInput {
   items: { productId: string; size: ProductSize; toppingIds: string[]; qty: number }[];
   promoCode?: string;
+  /** Points to spend; the server clips to the cap (ADR 0035). */
+  pointsToRedeem?: number;
   note?: string;
 }
 
-const body = ({ items, promoCode, note }: OrderItemsInput) =>
+const body = ({ items, promoCode, pointsToRedeem, note }: OrderItemsInput) =>
   ({
     items,
     ...(promoCode !== undefined && promoCode !== '' && { promoCode }),
+    ...(pointsToRedeem !== undefined && pointsToRedeem >= 1 && { pointsToRedeem }),
     ...(note !== undefined &&
       note.trim() !== '' && { note: note.trim().slice(0, ORDER_NOTE_MAX_LENGTH) }),
   }) as Parameters<typeof ordersControllerPlaceOrder>[0];
 
 /** Prices the cart on the server; writes and reserves nothing. */
 export async function quoteCart(input: OrderItemsInput): Promise<ActionResult<QuoteResponseDto>> {
-  const { items, promoCode } = input;
-  const result = await toResult(() => ordersControllerQuote(body({ items, promoCode })));
+  const { items, promoCode, pointsToRedeem } = input;
+  const result = await toResult(() =>
+    ordersControllerQuote(body({ items, promoCode, pointsToRedeem })),
+  );
   if (!result.ok) return result;
   const data = result.data.status === 200 ? result.data.data.data : undefined;
   return data ? { ok: true, data } : { ok: false, code: 'INTERNAL' };

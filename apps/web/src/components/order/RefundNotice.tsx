@@ -17,6 +17,8 @@ export function RefundNotice({ order }: Readonly<{ order: OrderResponseDto }>) {
         amount: formatVnd(order.totalVnd, i18n.language as Locale),
         no: `#${order.orderNo}`,
       })}
+      {/* The points spent come back whole with any paid cancel (ADR 0035). */}
+      {order.pointsRedeemed > 0 && ` ${t('order.pointsBack', { count: order.pointsRedeemed })}`}
     </Alert>
   );
 }

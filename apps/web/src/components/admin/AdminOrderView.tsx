@@ -201,7 +201,7 @@ export function AdminOrderView({
               )}
               {order.pointsDiscountVnd > 0 && (
                 <div className="flex justify-between">
-                  <dt>{t('orders.points')}</dt>
+                  <dt>{t('orders.pointsCount', { count: order.pointsRedeemed })}</dt>
                   <dd className="tabular-nums">−{formatVnd(order.pointsDiscountVnd, locale)}</dd>
                 </div>
               )}
@@ -219,11 +219,18 @@ export function AdminOrderView({
             </section>
           )}
 
-          {order.pointsEarned > 0 && (
+          {(order.pointsEarned > 0 || order.pointsRedeemed > 0) && (
             <p className={dim}>
-              {t(reversed ? 'orders.pointsReversed' : 'orders.pointsEarned', {
-                count: order.pointsEarned,
-              })}
+              {[
+                order.pointsEarned > 0 &&
+                  t(reversed ? 'orders.pointsReversed' : 'orders.pointsEarned', {
+                    count: order.pointsEarned,
+                  }),
+                order.pointsRedeemed > 0 &&
+                  t('orders.pointsSpent', { count: order.pointsRedeemed }),
+              ]
+                .filter(Boolean)
+                .join(' · ')}
             </p>
           )}
         </div>

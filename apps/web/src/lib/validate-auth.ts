@@ -38,3 +38,12 @@ export function validateRegister(input: {
   else if (size > PASSWORD_MAX_BYTES) errors.password = 'passwordTooLong';
   return orUndefined(errors);
 }
+
+/** A new password's rule, in **bytes** (bcrypt reads 72): `undefined` when it passes. */
+export function validateNewPassword(value: string): FieldErrorKey | undefined {
+  const size = bytes(value);
+  if (value === '') return 'passwordEmpty';
+  if (size < PASSWORD_MIN_BYTES) return 'passwordTooShort';
+  if (size > PASSWORD_MAX_BYTES) return 'passwordTooLong';
+  return undefined;
+}

@@ -18,6 +18,7 @@ export type Refusal =
   | { kind: 'stock'; available: ReadonlyMap<string, number> }
   | { kind: 'promo'; reason: PromoReason; minSubtotalVnd?: number }
   | { kind: 'total'; side: 'low' | 'high'; limitVnd: number }
+  | { kind: 'points'; balance: number }
   | { kind: 'failed'; code: string };
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null;
@@ -61,6 +62,8 @@ export function mapRefusal(code: string, details: unknown, lines: readonly CartL
         reason: d.reason as PromoReason,
         ...(typeof d.minSubtotalVnd === 'number' && { minSubtotalVnd: d.minSubtotalVnd }),
       };
+    case 'POINTS_INSUFFICIENT':
+      return { kind: 'points', balance: typeof d.balance === 'number' ? d.balance : 0 };
     case 'ORDER_TOTAL_TOO_LOW':
       return {
         kind: 'total',

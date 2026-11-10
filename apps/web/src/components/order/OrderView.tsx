@@ -196,6 +196,11 @@ export function OrderView({
           </div>
 
           <RefundNotice order={order} />
+          {status === 'CANCELLED' && !order.paidAt && order.pointsRedeemed > 0 && (
+            <Alert type="success">
+              {t('order.pointsReturned', { count: order.pointsRedeemed })}
+            </Alert>
+          )}
           {cancelError && <Alert type="error">{cancelError}</Alert>}
 
           {payable && order.expiresAt && (
@@ -257,6 +262,8 @@ export function OrderView({
             subtotalVnd={order.subtotalVnd}
             promoCode={order.promoCode}
             promoDiscountVnd={order.promoDiscountVnd}
+            pointsRedeemed={order.pointsRedeemed}
+            pointsDiscountVnd={order.pointsDiscountVnd}
             totalVnd={order.totalVnd}
           />
         </section>

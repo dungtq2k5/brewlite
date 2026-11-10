@@ -6,13 +6,15 @@ import { formatVnd } from '@/i18n/format';
 import type { Locale } from '@/i18n/settings';
 
 /**
- * Subtotal, promo, total — the server's numbers (a quote, or a placed order's). With `null`
+ * Subtotal, promo, points, total — the server's numbers (a quote, or a placed order's). With `null`
  * amounts nothing is priced and the summary says so; `pointsEarnable` is shown only at checkout.
  */
 export function QuoteSummary({
   subtotalVnd,
   promoCode,
   promoDiscountVnd,
+  pointsRedeemed = 0,
+  pointsDiscountVnd = 0,
   totalVnd,
   pointsEarnable,
   showPoints = false,
@@ -20,6 +22,8 @@ export function QuoteSummary({
   subtotalVnd: number | null;
   promoCode: string | null;
   promoDiscountVnd: number;
+  pointsRedeemed?: number;
+  pointsDiscountVnd?: number;
   totalVnd: number | null;
   pointsEarnable?: number | null;
   showPoints?: boolean;
@@ -40,6 +44,12 @@ export function QuoteSummary({
           <div className="text-success flex justify-between font-medium">
             <dt>{t('summary.promo', { code: promoCode })}</dt>
             <dd className="tabular-nums">−{formatVnd(promoDiscountVnd, locale)}</dd>
+          </div>
+        )}
+        {pointsRedeemed > 0 && (
+          <div className="text-primary flex justify-between font-medium">
+            <dt>{t('summary.points', { count: pointsRedeemed })}</dt>
+            <dd className="tabular-nums">−{formatVnd(pointsDiscountVnd, locale)}</dd>
           </div>
         )}
         <div className="border-base-300 flex items-baseline justify-between border-t pt-2">

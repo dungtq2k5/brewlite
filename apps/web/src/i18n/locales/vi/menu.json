@@ -56,5 +56,13 @@
       "action": "Về thực đơn"
     }
   },
-  "title": "Thực đơn"
+  "title": "Thực đơn",
+  "search": {
+    "label": "Tìm trong thực đơn",
+    "clear": "Xóa tìm kiếm",
+    "open": "Tìm trong thực đơn",
+    "results_other": "{{count}} kết quả",
+    "none": "Thực đơn không có món nào tên \"{{q}}\"",
+    "hint": "Thử từ khác, có dấu hay không dấu đều được."
+  }
 }

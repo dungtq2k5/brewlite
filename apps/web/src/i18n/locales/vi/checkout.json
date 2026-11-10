@@ -8,14 +8,16 @@
     "total": "Tổng cộng",
     "unpriced": "—",
     "earn_other": "Bạn sẽ nhận {{count}} điểm",
-    "earnLater": "Điểm hiển thị khi đơn được tính giá"
+    "earnLater": "Điểm hiển thị khi đơn được tính giá",
+    "points": "Điểm · {{count}}"
   },
   "place": {
     "label": "Đặt món · {{price}}",
     "labelUnpriced": "Đặt món",
     "placing": "Đang đặt món…",
     "hold": "Đơn được giữ {{minutes}} phút trong lúc bạn thanh toán.",
-    "blocked": "Bỏ hoặc chỉnh món ở trên để tiếp tục."
+    "blocked": "Bỏ hoặc chỉnh món ở trên để tiếp tục.",
+    "pointsHint": "Điểm được trừ khi đặt món và hoàn lại nếu đơn bị hủy."
   },
   "refusal": {
     "products_other": "{{count}} món đã hết từ lúc bạn thêm vào. Bỏ chúng để tiếp tục.",
@@ -47,5 +49,23 @@
     "placeholder": "vd. Ít đá, ít ngọt",
     "counter": "{{count}} / {{max}}"
   },
-  "yourOrder": "Đơn của bạn"
+  "yourOrder": "Đơn của bạn",
+  "points": {
+    "use_other": "Dùng {{count}} điểm · −{{amount}}",
+    "using_other": "Đang dùng {{count}} điểm · −{{amount}}",
+    "have_other": "Bạn có {{count}} điểm",
+    "fewer": "Dùng ít hơn",
+    "upTo": "tối đa {{max}} · chạm số để nhập",
+    "switch_other": "Dùng điểm, có {{count}} điểm",
+    "number": "Số điểm muốn dùng",
+    "less": "Bớt một điểm",
+    "more": "Thêm một điểm",
+    "cap": {
+      "BALANCE": "Đó là toàn bộ điểm của bạn.",
+      "PERCENT": "Điểm chỉ trả được tối đa 50% giá trị đơn.",
+      "FLOOR": "Điểm không thể làm tổng dưới {{min}}."
+    },
+    "changed_other": "Số điểm đã thay đổi — giờ bạn còn {{count}} điểm.",
+    "total": "Tổng mới {{total}}"
+  }
 }

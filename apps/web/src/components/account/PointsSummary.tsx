@@ -1,5 +1,5 @@
 import type { LoyaltyResponseDto } from '@brewlite/api-client';
-import { LOYALTY_EARN_STEP_VND } from '@brewlite/contracts';
+import { LOYALTY_EARN_STEP_VND, LOYALTY_POINT_VALUE_VND } from '@brewlite/contracts';
 import { formatVnd } from '@/i18n/format';
 import { getLocale, getT } from '@/i18n/server';
 import { LedgerRow } from './LedgerRow';
@@ -14,7 +14,8 @@ export async function PointsSummary({ loyalty }: Readonly<{ loyalty: LoyaltyResp
       </h2>
       <p className="text-base-content/70 text-sm">
         {t('points.lifetime')}: {loyalty.lifetimeEarned} ·{' '}
-        {t('points.rule', { step: formatVnd(LOYALTY_EARN_STEP_VND, locale) })}
+        {t('points.rule', { step: formatVnd(LOYALTY_EARN_STEP_VND, locale) })}{' '}
+        {t('points.value', { value: formatVnd(LOYALTY_POINT_VALUE_VND, locale) })}
       </p>
       {loyalty.recent.length === 0 ? (
         <p>{t('points.none')}</p>

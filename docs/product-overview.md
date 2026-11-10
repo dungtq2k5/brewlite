@@ -146,7 +146,7 @@ Use these words in code, tickets and commit messages.
 - Product detail: description, size picker (only offered sizes), topping picker (only allowed toppings, at most `MAX_TOPPINGS_PER_LINE`), quantity, price recalculated live on every choice.
 - A product that is sold out, deleted, or out of stock cannot be added. A sold-out product still opens — its page shows why it cannot be added.
 - **No account needed:** every menu page works for a guest.
-- *(P1)* Search by name.
+- Search by name (P1 — built): English or Vietnamese, accents, case and `đ` ignored; filtered on the device, no server call. Results stay grouped by category.
 
 **Acceptance:** the menu renders from the API with 30 products in under 1 s on a mid-range phone; a sold-out product shows its badge and a disabled *Add to cart*.
 

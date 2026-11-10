@@ -29,7 +29,13 @@ export async function LedgerRow({
           </span>
         </span>
         <span
-          className={`font-bold tabular-nums ${entry.points < 0 ? 'text-error' : 'text-success'}`}
+          className={`font-bold tabular-nums ${
+            entry.kind === 'REDEEM'
+              ? 'text-base-content/60' // spending is not a loss — muted, not red (D06 decision 7)
+              : entry.points < 0
+                ? 'text-error'
+                : 'text-success'
+          }`}
         >
           {entry.points > 0 ? `+${entry.points}` : entry.points}
         </span>
