@@ -23,7 +23,7 @@ export class PaymentsController {
   @Post()
   @ApiIdempotencyKey()
   @RateLimit('PAYMENT')
-  @ApiEnvelope(PaymentResponseDto)
+  @ApiEnvelope(PaymentResponseDto, { status: 201, alsoStatus: [200] })
   @ApiErrors(
     'RESOURCE_NOT_FOUND',
     'ORDER_NOT_PAYABLE',

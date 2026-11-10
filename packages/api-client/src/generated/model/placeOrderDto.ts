@@ -13,5 +13,10 @@ export interface PlaceOrderDto {
    */
   items: PlaceOrderDtoItemsItem[];
   promoCode?: string;
+  /**
+   * @minimum 1
+   * @maximum 1000000
+   */
+  pointsToRedeem?: number;
   note?: string;
 }

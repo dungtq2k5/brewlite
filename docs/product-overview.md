@@ -88,16 +88,16 @@ Every page's header carries the **language switch** (EN / VI), the cart badge, a
 | Route | Screen |
 | :---- | :---- |
 | `/staff` | **Order board** — three live columns: *Paid* → *Preparing* → *Ready*; one tap moves an order forward; cancel-with-refund on a paid order |
-| `/staff/products` | Sold-out toggle and stock count per product; availability toggle per topping |
+| `/staff/products` | Two tabs. **Products:** sold-out toggle and stock count per product, each saying what the customer sees and why (switched off, or the count reached 0). **Toppings:** an availability toggle each |
 
 ### 3.3 Admin pages (A4)
 
 | Route | Screen |
 | :---- | :---- |
-| `/admin` | Dashboard — today's orders and revenue *(P1)* |
+| `/admin` | **Overview** — today's orders, revenue and average order; sales over a range (≤ 93 days) by day; the top 10 products |
 | `/admin/products`, `/admin/categories`, `/admin/toppings` | Menu CRUD, sizes and allowed toppings per product, image upload |
 | `/admin/promotions` | Promo codes |
-| `/admin/orders` | Every order, filterable |
+| `/admin/orders` | Every order, filterable by status, date, order number and customer; the detail shows who did what and every payment |
 | `/admin/users` | Users, role changes, lock / unlock |
 
 An admin can open the staff pages too. A staff member cannot open the admin pages.
@@ -130,7 +130,7 @@ Use these words in code, tickets and commit messages.
 | **Reservation** | Stock set aside for an order between placing and paying; released if the order is cancelled ([ADR 0018](./decisions/0018-stock-is-reserved-at-order-creation-under-optimistic-locking.md)). |
 | **Sold out** | A product staff switched off for now. Different from stock reaching zero, which sells it out automatically. |
 | **Promotion** / **promo code** | A discount a customer types at checkout — `WELCOME10`. |
-| **Loyalty points** | Earned when an order is paid; spent as a discount *(P1)* ([ADR 0021](./decisions/0021-promotions-and-loyalty-live-in-the-ordering-service.md)). |
+| **Loyalty points** | Earned when an order is paid; spent as a discount ([ADR 0021](./decisions/0021-promotions-and-loyalty-live-in-the-ordering-service.md)). |
 | **Idempotency key** | A client-generated UUIDv7 that makes a retried *place order* or *pay* request harmless ([ADR 0020](./decisions/0020-idempotency-keys-are-enforced-by-a-unique-constraint.md)). |
 | **Order board** | The staff page listing paid, preparing and ready orders, live. |
 
@@ -142,11 +142,11 @@ Use these words in code, tickets and commit messages.
 
 ### F1 — Menu (P0)
 
-- Menu grid by category: image, name, price from (the smallest size), *sold out* badge. Loading and empty states.
+- Menu grid by category: image, name, price from (the smallest size), *sold out* badge. Loading and empty states. A category with no products is hidden.
 - Product detail: description, size picker (only offered sizes), topping picker (only allowed toppings, at most `MAX_TOPPINGS_PER_LINE`), quantity, price recalculated live on every choice.
-- A product that is sold out, deleted, or out of stock cannot be added.
+- A product that is sold out, deleted, or out of stock cannot be added. A sold-out product still opens — its page shows why it cannot be added.
 - **No account needed:** every menu page works for a guest.
-- *(P1)* Search by name.
+- Search by name (P1 — built): English or Vietnamese, accents, case and `đ` ignored; filtered on the device, no server call. Results stay grouped by category.
 
 **Acceptance:** the menu renders from the API with 30 products in under 1 s on a mid-range phone; a sold-out product shows its badge and a disabled *Add to cart*.
 
@@ -162,11 +162,11 @@ Use these words in code, tickets and commit messages.
 ### F3 — Accounts and sign-in (P0)
 
 - Register with email + password; sign in with email + password.
-- *Continue with Google* (P0) and *Continue with Apple* (P1 — needs a paid Apple developer account, §12) through Firebase Authentication, exchanged for a BrewLite session ([ADR 0013](./decisions/0013-identity-issues-brewlite-tokens-and-firebase-only-proves-sign-ins.md)).
+- *Continue with Google* (P0) and *Continue with Apple* (**deferred** — it needs a paid Apple Developer account, §12; built behind `NEXT_PUBLIC_APPLE_SIGN_IN_ENABLED`, off) through Firebase Authentication, exchanged for a BrewLite session ([ADR 0013](./decisions/0013-identity-issues-brewlite-tokens-and-firebase-only-proves-sign-ins.md)).
 - Sessions: short access token, long-lived refresh token, sign-out. The session stays alive across the Stripe payment round trip.
 - Guests browse and build a cart; checkout, orders and account pages require sign-in, and sign-in returns the customer to where they were with the cart intact (§6.8).
 - A locked or deactivated account cannot sign in (§6.9).
-- *(P1)* Change password; *(P2)* forgot password by email.
+- Change password, or set a first one on a Google-only account (P1 — built); *(P2)* forgot password by email.
 
 ### F4 — Checkout and orders (P0)
 
@@ -193,22 +193,23 @@ Use these words in code, tickets and commit messages.
 ### F7 — Staff order board (P0)
 
 - Live board of `PAID`, `PREPARING` and `READY` orders, oldest first, each with its lines, toppings and note.
-- One tap moves an order `PAID → PREPARING → READY → COMPLETED`. Any other move is refused.
+- One tap moves an order `PAID → PREPARING → READY → COMPLETED`. Any other move is refused. *Ready* and *Collected* can be taken back for **5 seconds** — the move is sent only when that ends (there is no move back once it reaches the customer); *Start* is sent at once.
+- Each card shows how long the customer has waited since paying, flagged after `STAFF_ORDER_WAIT_WARN_MINUTES`. A new paid order is marked for a minute and announced, with an optional chime while the board is open.
 - Cancel a paid order (e.g. an ingredient ran out) with a reason; the customer is refunded automatically.
 - Sold-out toggle and stock count per product.
 
-### F8 — Admin back office (P0 menu and roles; P1 the rest)
+### F8 — Admin back office (P0)
 
 - **(P0)** Products, categories, toppings: create, edit, delete and restore (soft delete, §6.9); sizes and allowed toppings per product; image upload.
 - **(P0)** Users: list, search, change role, lock (with a reason, optionally until a date) / unlock, deactivate / restore. Nobody can do any of these to the last active admin, or to themselves.
 - **(P0)** Promotions: create, edit, switch off, delete and restore (§6.5).
-- *(P1)* All orders with filters; dashboard with today's orders, revenue and top products.
+- **(P0)** All orders with filters, each with its customer, who moved it and its payments; the *Overview* with today's sales, a range by day and the top products. Read-only — cancelling stays at the counter.
 
-### F9 — Promotions and loyalty (P0 promotions and earning; P1 redeeming)
+### F9 — Promotions and loyalty (P0 promotions and earning; P1 redeeming — built)
 
 - Promo codes applied at checkout, validated by the server (§6.5).
 - Points earned automatically when an order is paid, reversed if that order is refunded (§6.6).
-- *(P1)* Spend points as a discount at checkout.
+- Spend points as a discount at checkout (P1 — built).
 
 ### F10 — Backend business rules (P0 — course Task 10)
 
@@ -242,7 +243,7 @@ Every amount is an **integer number of Vietnamese đồng**, in every layer — 
 unit price  = product base price + size delta + Σ topping prices
 line total  = unit price × quantity
 subtotal    = Σ line totals
-discount    = promotion discount (§6.5) + points discount (§6.6, P1)
+discount    = promotion discount (§6.5) + points discount (§6.6, after the promotion)
 total       = subtotal − discount          (never below MIN_PAYABLE_VND)
 ```
 
@@ -304,7 +305,8 @@ Rules:
 
 - **Earn** `floor(total / LOYALTY_EARN_STEP_VND)` points when an order becomes `PAID` — 1 point per 10,000₫ paid. Credited in the same transaction as the status change, exactly once per order.
 - **Reverse** those points if a paid order is cancelled and refunded.
-- *(P1)* **Redeem** at checkout: 1 point = `LOYALTY_POINT_VALUE_VND` off, at most `LOYALTY_MAX_REDEEM_PERCENT` of the subtotal. Redeemed points are returned if the order is cancelled.
+- **Redeem** at checkout: 1 point = `LOYALTY_POINT_VALUE_VND` off, applied **after** the promotion, in whole points, at most `LOYALTY_MAX_REDEEM_PERCENT` of the **subtotal** and never pushing the total below `MIN_PAYABLE_VND`. Points are taken when the order is placed and returned whole if it is cancelled; a refund returns the money charged, never the points' value as money. Earning is on the amount paid (after points). ([ADR 0035](./decisions/0035-points-are-spent-after-the-promotion-and-come-back-whole-but-a-reversal-never-goes-below-zero.md))
+- **Reversing** points the customer has already spent removes only what the balance still holds; the rest is forgiven.
 - A balance never goes negative. There are no tiers, no expiry, no campaigns.
 
 ### 6.7 Idempotency
@@ -408,13 +410,14 @@ Product decisions, not implementation details. Each is one constant in `packages
 | `MIN_PAYABLE_VND` | 15,000₫ | No free or near-free charges after discounts, and above Stripe's minimum charge in VND — about 12,900₫ (US$0.50 converted), checked in test mode; 15,000₫ leaves a margin for the exchange rate. |
 | `MAX_ORDER_TOTAL_VND` | 5,000,000₫ | A café order above this is a mistake or abuse, not a real cart; also keeps the total well under the `INT` column's overflow point. |
 | `LOYALTY_EARN_STEP_VND` | 10,000₫ | 1 point per 10,000₫ paid. |
-| `LOYALTY_POINT_VALUE_VND` | 1,000₫ | *(P1)* 1 point = 1,000₫ off — 10% back. |
-| `LOYALTY_MAX_REDEEM_PERCENT` | 50% | *(P1)* Points pay at most half an order. |
+| `LOYALTY_POINT_VALUE_VND` | 1,000₫ | 1 point = 1,000₫ off — 10% back. |
+| `LOYALTY_MAX_REDEEM_PERCENT` | 50% | Points pay at most half an order. |
 | `ACCESS_TOKEN_TTL_MS` | 15 min | Short enough that a role change or lock bites fast. |
 | `REFRESH_TOKEN_TTL_MS` | 30 days | A regular customer should not sign in weekly. |
 | `MENU_CACHE_TTL_MS` | 5 min | Backstop only — every menu write invalidates at once. |
 | `PRODUCT_IMAGE_MAX_BYTES` | 2 MB | JPEG, PNG or WebP. |
 | `STAFF_BOARD_STATUSES` | `PAID`, `PREPARING`, `READY` | What the counter works on. |
+| `STAFF_ORDER_WAIT_WARN_MINUTES` | 10 min | A paid order waiting this long since payment is flagged on the board. |
 | `SUPPORTED_LOCALES` / `DEFAULT_LOCALE` | `en`, `vi` / `en` | §F11. |
 | `LOCK_REASON_MAX_LENGTH` | 255 chars | A sentence for the next admin, not an essay. |
 | `MAX_LOCK_DURATION_DAYS` | 365 | A longer lock is a deactivation. |
@@ -487,7 +490,7 @@ Capability → owning service. Detail in [`architecture-and-tech-stack.md`](./ar
 
 **Phase B — Frontend.** Generated client, then customer pages (J1 end to end), then staff board, then admin pages.
 
-**Phase C — Handover.** `docker compose` runs web + services + infrastructure, the README, the recorded demo of J1, the Sprint Review.
+**Phase C — Handover.** `docker compose` runs web + services + infrastructure, the README, the recorded demo of J1, the Sprint Review. Delivered: the root `README.md` (quick start, demo accounts, commands), the MIT `LICENSE` ([ADR 0034](./decisions/0034-the-repository-is-shared-under-the-mit-licence.md)), `pnpm seed:dev` / `seed:dev:apply` for a demo café, and the J1 script in [demo.md](./demo.md).
 
 Then P1, in the order the Product Owner prioritises.
 

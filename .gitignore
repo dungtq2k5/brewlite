@@ -10,3 +10,9 @@ services/*/generated/
 .env.sonar
 .mcp.json
 .sonar-config.json
+.next/
+next-env.d.ts
+tsconfig.tsbuildinfo
+test-results/
+playwright-report/
+.playwright-mcp/

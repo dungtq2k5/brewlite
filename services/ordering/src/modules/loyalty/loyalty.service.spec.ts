@@ -7,6 +7,7 @@ function buildTx() {
     loyaltyTransaction: { create: vi.fn(), findUnique: vi.fn() },
     loyaltyAccount: { upsert: vi.fn(), update: vi.fn() },
     order: { update: vi.fn() },
+    $queryRaw: vi.fn(),
   };
 }
 
@@ -69,6 +70,7 @@ describe('LoyaltyService.reverse', () => {
   it('inserts EARN_REVERSED with -points and decrements the balance', async () => {
     const tx = buildTx();
     tx.loyaltyTransaction.findUnique.mockResolvedValueOnce({ points: 5 });
+    tx.$queryRaw.mockResolvedValueOnce([{ balance: 12 }]); // the locked balance covers it
     const service = new LoyaltyService({} as never);
     const order = { id: newId(), userId: newId() };
 
@@ -83,5 +85,35 @@ describe('LoyaltyService.reverse', () => {
       where: { userId: order.userId },
       data: { balance: { decrement: 5 } },
     });
+  });
+
+  it('removes only what the balance holds — the shortfall is forgiven (ADR 0035)', async () => {
+    const tx = buildTx();
+    tx.loyaltyTransaction.findUnique.mockResolvedValueOnce({ points: 17 });
+    tx.$queryRaw.mockResolvedValueOnce([{ balance: 7 }]);
+    const service = new LoyaltyService({} as never);
+    const order = { id: newId(), userId: newId() };
+
+    await service.reverse(tx as never, order);
+
+    expect(tx.loyaltyTransaction.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ points: -7 }) }),
+    );
+    expect(tx.loyaltyAccount.update).toHaveBeenCalledWith({
+      where: { userId: order.userId },
+      data: { balance: { decrement: 7 } },
+    });
+  });
+
+  it('writes no row when the balance is already zero', async () => {
+    const tx = buildTx();
+    tx.loyaltyTransaction.findUnique.mockResolvedValueOnce({ points: 17 });
+    tx.$queryRaw.mockResolvedValueOnce([{ balance: 0 }]);
+    const service = new LoyaltyService({} as never);
+
+    await service.reverse(tx as never, { id: newId(), userId: newId() });
+
+    expect(tx.loyaltyTransaction.create).not.toHaveBeenCalled();
+    expect(tx.loyaltyAccount.update).not.toHaveBeenCalled();
   });
 });

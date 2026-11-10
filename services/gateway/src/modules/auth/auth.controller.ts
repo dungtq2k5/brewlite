@@ -34,7 +34,7 @@ export class AuthController {
 
   @Post('firebase')
   @RateLimit('AUTH')
-  @ApiEnvelope(SessionResponseDto)
+  @ApiEnvelope(SessionResponseDto, { status: 201, alsoStatus: [200] })
   @ApiErrors('FIREBASE_TOKEN_INVALID', 'ACCOUNT_LOCKED', 'ACCOUNT_DEACTIVATED')
   @Header('Cache-Control', 'private, no-store')
   async firebase(

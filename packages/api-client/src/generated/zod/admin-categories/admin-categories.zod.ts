@@ -27,8 +27,8 @@ export const AdminCategoriesControllerListResponse = zod.object({
           .min(adminCategoriesControllerListResponseDataItemSortOrderMin)
           .max(adminCategoriesControllerListResponseDataItemSortOrderMax),
         isActive: zod.boolean(),
-        deletedAt: zod.array(zod.string()),
-        deletedById: zod.array(zod.string()),
+        deletedAt: zod.string().nullable(),
+        deletedById: zod.string().nullable(),
         createdAt: zod.string(),
       }),
     )
@@ -67,8 +67,8 @@ export const AdminCategoriesControllerCreateResponse = zod.object({
         .min(adminCategoriesControllerCreateResponseDataSortOrderMin)
         .max(adminCategoriesControllerCreateResponseDataSortOrderMax),
       isActive: zod.boolean(),
-      deletedAt: zod.array(zod.string()),
-      deletedById: zod.array(zod.string()),
+      deletedAt: zod.string().nullable(),
+      deletedById: zod.string().nullable(),
       createdAt: zod.string(),
     })
     .optional(),
@@ -112,8 +112,8 @@ export const AdminCategoriesControllerUpdateResponse = zod.object({
         .min(adminCategoriesControllerUpdateResponseDataSortOrderMin)
         .max(adminCategoriesControllerUpdateResponseDataSortOrderMax),
       isActive: zod.boolean(),
-      deletedAt: zod.array(zod.string()),
-      deletedById: zod.array(zod.string()),
+      deletedAt: zod.string().nullable(),
+      deletedById: zod.string().nullable(),
       createdAt: zod.string(),
     })
     .optional(),
@@ -145,8 +145,8 @@ export const AdminCategoriesControllerRestoreResponse = zod.object({
         .min(adminCategoriesControllerRestoreResponseDataSortOrderMin)
         .max(adminCategoriesControllerRestoreResponseDataSortOrderMax),
       isActive: zod.boolean(),
-      deletedAt: zod.array(zod.string()),
-      deletedById: zod.array(zod.string()),
+      deletedAt: zod.string().nullable(),
+      deletedById: zod.string().nullable(),
       createdAt: zod.string(),
     })
     .optional(),

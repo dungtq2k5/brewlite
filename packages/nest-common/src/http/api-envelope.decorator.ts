@@ -4,9 +4,20 @@ import { ZodSerializerDto, type ZodDto } from 'nestjs-zod';
 
 export interface ApiEnvelopeOptions {
   status?: number;
+  /**
+   * Further success statuses the handler can answer with the same body — a create route that
+   * returns `200` when it replays an existing result documents `{ status: 201, alsoStatus: [200] }`.
+   */
+  alsoStatus?: readonly number[];
   list?: boolean;
   /** The handler returns a `Paged` — `data` is documented as a list, plus a `meta` page block. */
   paged?: boolean;
+  /**
+   * Properties of an optional `meta` object beside `data` on a single resource — what a
+   * handler returns with `WithMeta.of(data, meta)`. On a `paged` list they are added to the page
+   * block (`page`, `pageSize`, `total`) as optional properties — `Paged.page(items, { …, degraded })`.
+   */
+  meta?: Record<string, unknown>;
   /** The handler returns a `Paged.cursor` — `data` is a list, plus a `meta.nextCursor` block. */
   cursor?: boolean;
 }
@@ -18,40 +29,52 @@ export interface ApiEnvelopeOptions {
  */
 export function ApiEnvelope(
   dto: ZodDto,
-  { status = 200, list = false, paged = false, cursor = false }: ApiEnvelopeOptions = {},
+  {
+    status = 200,
+    alsoStatus = [],
+    meta,
+    list = false,
+    paged = false,
+    cursor = false,
+  }: ApiEnvelopeOptions = {},
 ) {
   const isList = list || paged || cursor;
   return applyDecorators(
     ZodSerializerDto(isList ? [dto] : dto),
     ApiExtraModels(dto),
     HttpCode(status),
-    ApiResponse({
-      status,
-      schema: {
-        properties: {
-          data: isList
-            ? { type: 'array', items: { $ref: getSchemaPath(dto) } }
-            : { $ref: getSchemaPath(dto) },
-          ...(paged && {
-            meta: {
-              type: 'object',
-              properties: {
-                page: { type: 'integer' },
-                pageSize: { type: 'integer' },
-                total: { type: 'integer' },
+    ...[status, ...alsoStatus].map((code) =>
+      ApiResponse({
+        status: code,
+        schema: {
+          properties: {
+            data: isList
+              ? { type: 'array', items: { $ref: getSchemaPath(dto) } }
+              : { $ref: getSchemaPath(dto) },
+            ...(paged && {
+              meta: {
+                type: 'object',
+                properties: {
+                  page: { type: 'integer' },
+                  pageSize: { type: 'integer' },
+                  total: { type: 'integer' },
+                  ...(meta as object),
+                },
+                required: ['page', 'pageSize', 'total'],
               },
-              required: ['page', 'pageSize', 'total'],
-            },
-          }),
-          ...(cursor && {
-            meta: {
-              type: 'object',
-              properties: { nextCursor: { type: 'string', nullable: true } },
-              required: ['nextCursor'],
-            },
-          }),
+            }),
+            ...(!paged && meta && { meta: { type: 'object', properties: meta as never } }),
+            ...(cursor && {
+              meta: {
+                type: 'object',
+                // OpenAPI 3.1 (`type: [.., "null"]`) — Nest's typings still describe 3.0.
+                properties: { nextCursor: { type: ['string', 'null'] } as never },
+                required: ['nextCursor'],
+              },
+            }),
+          },
         },
-      },
-    }),
+      }),
+    ),
   );
 }

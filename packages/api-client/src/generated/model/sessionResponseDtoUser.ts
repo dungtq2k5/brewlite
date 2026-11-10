@@ -15,6 +15,7 @@ export type SessionResponseDtoUser = {
   role: SessionResponseDtoUserRole;
   permissions: SessionResponseDtoUserPermissionsItem[];
   hasPassword: boolean;
+  signsInWithGoogle: boolean;
   preferredLocale: SessionResponseDtoUserPreferredLocale;
   createdAt: string;
 };

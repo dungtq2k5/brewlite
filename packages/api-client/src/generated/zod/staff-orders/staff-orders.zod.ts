@@ -43,6 +43,9 @@ export const staffOrdersControllerListBoardResponseDataItemPointsEarnableMax = 9
 export const staffOrdersControllerListBoardResponseDataItemPointsEarnedMin = -9007199254740991;
 export const staffOrdersControllerListBoardResponseDataItemPointsEarnedMax = 9007199254740991;
 
+export const staffOrdersControllerListBoardResponseDataItemPointsRedeemedMin = -9007199254740991;
+export const staffOrdersControllerListBoardResponseDataItemPointsRedeemedMax = 9007199254740991;
+
 export const StaffOrdersControllerListBoardResponse = zod.object({
   data: zod
     .array(
@@ -102,7 +105,7 @@ export const StaffOrdersControllerListBoardResponse = zod.object({
           .int()
           .min(staffOrdersControllerListBoardResponseDataItemTotalVndMin)
           .max(staffOrdersControllerListBoardResponseDataItemTotalVndMax),
-        promoCode: zod.array(zod.string()),
+        promoCode: zod.string().nullable(),
         pointsEarnable: zod
           .int()
           .min(staffOrdersControllerListBoardResponseDataItemPointsEarnableMin)
@@ -110,17 +113,23 @@ export const StaffOrdersControllerListBoardResponse = zod.object({
         id: zod.string(),
         orderNo: zod.string(),
         status: zod.string(),
-        note: zod.array(zod.string()),
-        expiresAt: zod.array(zod.string()),
-        paidAt: zod.array(zod.string()),
+        note: zod.string().nullable(),
+        expiresAt: zod.string().nullable(),
+        paidAt: zod.string().nullable(),
         createdAt: zod.string(),
-        cancelReason: zod.array(zod.string()),
-        cancelNote: zod.array(zod.string()),
+        cancelReason: zod.string().nullable(),
+        cancelNote: zod.string().nullable(),
+        cancelledAt: zod.string().nullable(),
         refundStatus: zod.string(),
         pointsEarned: zod
           .int()
           .min(staffOrdersControllerListBoardResponseDataItemPointsEarnedMin)
           .max(staffOrdersControllerListBoardResponseDataItemPointsEarnedMax),
+        pointsRedeemed: zod
+          .int()
+          .min(staffOrdersControllerListBoardResponseDataItemPointsRedeemedMin)
+          .max(staffOrdersControllerListBoardResponseDataItemPointsRedeemedMax),
+        currentPaymentId: zod.string().nullable(),
         history: zod.array(
           zod.object({
             fromStatus: zod.string().nullable(),
@@ -175,6 +184,9 @@ export const staffOrdersControllerAdvanceStatusResponseDataPointsEarnableMax = 9
 
 export const staffOrdersControllerAdvanceStatusResponseDataPointsEarnedMin = -9007199254740991;
 export const staffOrdersControllerAdvanceStatusResponseDataPointsEarnedMax = 9007199254740991;
+
+export const staffOrdersControllerAdvanceStatusResponseDataPointsRedeemedMin = -9007199254740991;
+export const staffOrdersControllerAdvanceStatusResponseDataPointsRedeemedMax = 9007199254740991;
 
 export const StaffOrdersControllerAdvanceStatusResponse = zod.object({
   data: zod
@@ -232,7 +244,7 @@ export const StaffOrdersControllerAdvanceStatusResponse = zod.object({
         .int()
         .min(staffOrdersControllerAdvanceStatusResponseDataTotalVndMin)
         .max(staffOrdersControllerAdvanceStatusResponseDataTotalVndMax),
-      promoCode: zod.array(zod.string()),
+      promoCode: zod.string().nullable(),
       pointsEarnable: zod
         .int()
         .min(staffOrdersControllerAdvanceStatusResponseDataPointsEarnableMin)
@@ -240,17 +252,23 @@ export const StaffOrdersControllerAdvanceStatusResponse = zod.object({
       id: zod.string(),
       orderNo: zod.string(),
       status: zod.string(),
-      note: zod.array(zod.string()),
-      expiresAt: zod.array(zod.string()),
-      paidAt: zod.array(zod.string()),
+      note: zod.string().nullable(),
+      expiresAt: zod.string().nullable(),
+      paidAt: zod.string().nullable(),
       createdAt: zod.string(),
-      cancelReason: zod.array(zod.string()),
-      cancelNote: zod.array(zod.string()),
+      cancelReason: zod.string().nullable(),
+      cancelNote: zod.string().nullable(),
+      cancelledAt: zod.string().nullable(),
       refundStatus: zod.string(),
       pointsEarned: zod
         .int()
         .min(staffOrdersControllerAdvanceStatusResponseDataPointsEarnedMin)
         .max(staffOrdersControllerAdvanceStatusResponseDataPointsEarnedMax),
+      pointsRedeemed: zod
+        .int()
+        .min(staffOrdersControllerAdvanceStatusResponseDataPointsRedeemedMin)
+        .max(staffOrdersControllerAdvanceStatusResponseDataPointsRedeemedMax),
+      currentPaymentId: zod.string().nullable(),
       history: zod.array(
         zod.object({
           fromStatus: zod.string().nullable(),
@@ -304,6 +322,9 @@ export const staffOrdersControllerCancelPaidResponseDataPointsEarnableMax = 9007
 
 export const staffOrdersControllerCancelPaidResponseDataPointsEarnedMin = -9007199254740991;
 export const staffOrdersControllerCancelPaidResponseDataPointsEarnedMax = 9007199254740991;
+
+export const staffOrdersControllerCancelPaidResponseDataPointsRedeemedMin = -9007199254740991;
+export const staffOrdersControllerCancelPaidResponseDataPointsRedeemedMax = 9007199254740991;
 
 export const StaffOrdersControllerCancelPaidResponse = zod.object({
   data: zod
@@ -359,7 +380,7 @@ export const StaffOrdersControllerCancelPaidResponse = zod.object({
         .int()
         .min(staffOrdersControllerCancelPaidResponseDataTotalVndMin)
         .max(staffOrdersControllerCancelPaidResponseDataTotalVndMax),
-      promoCode: zod.array(zod.string()),
+      promoCode: zod.string().nullable(),
       pointsEarnable: zod
         .int()
         .min(staffOrdersControllerCancelPaidResponseDataPointsEarnableMin)
@@ -367,17 +388,23 @@ export const StaffOrdersControllerCancelPaidResponse = zod.object({
       id: zod.string(),
       orderNo: zod.string(),
       status: zod.string(),
-      note: zod.array(zod.string()),
-      expiresAt: zod.array(zod.string()),
-      paidAt: zod.array(zod.string()),
+      note: zod.string().nullable(),
+      expiresAt: zod.string().nullable(),
+      paidAt: zod.string().nullable(),
       createdAt: zod.string(),
-      cancelReason: zod.array(zod.string()),
-      cancelNote: zod.array(zod.string()),
+      cancelReason: zod.string().nullable(),
+      cancelNote: zod.string().nullable(),
+      cancelledAt: zod.string().nullable(),
       refundStatus: zod.string(),
       pointsEarned: zod
         .int()
         .min(staffOrdersControllerCancelPaidResponseDataPointsEarnedMin)
         .max(staffOrdersControllerCancelPaidResponseDataPointsEarnedMax),
+      pointsRedeemed: zod
+        .int()
+        .min(staffOrdersControllerCancelPaidResponseDataPointsRedeemedMin)
+        .max(staffOrdersControllerCancelPaidResponseDataPointsRedeemedMax),
+      currentPaymentId: zod.string().nullable(),
       history: zod.array(
         zod.object({
           fromStatus: zod.string().nullable(),

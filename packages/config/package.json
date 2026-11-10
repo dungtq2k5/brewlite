@@ -2,6 +2,7 @@
   "name": "@brewlite/config",
   "version": "0.0.0",
   "private": true,
+  "license": "MIT",
   "main": "./tsconfig.base.json",
   "bin": {
     "brewlite-fix-prisma-imports": "./bin/fix-prisma-imports.mjs"

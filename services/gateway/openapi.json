@@ -171,6 +171,20 @@
               }
             }
           },
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SessionResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
           "401": {
             "description": "FIREBASE_TOKEN_INVALID",
             "content": {
@@ -396,6 +410,105 @@
                         "code": {
                           "type": "string",
                           "example": "UNAUTHENTICATED"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": ["Users"]
+      }
+    },
+    "/users/me/password": {
+      "patch": {
+        "operationId": "UsersController_changePassword",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePasswordDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "example": "VALIDATION_FAILED"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "example": "UNAUTHENTICATED"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "CURRENT_PASSWORD_INCORRECT",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "example": "CURRENT_PASSWORD_INCORRECT"
                         },
                         "message": {
                           "type": "string"
@@ -1132,6 +1245,477 @@
           }
         ],
         "tags": ["AdminUsers"]
+      }
+    },
+    "/admin/orders": {
+      "get": {
+        "operationId": "AdminOrdersController_list",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 9007199254740991,
+              "default": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "-createdAt",
+              "type": "string",
+              "enum": ["createdAt", "totalVnd", "-createdAt", "-totalVnd"]
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PENDING",
+                "PAYMENT_FAILED",
+                "PAID",
+                "PREPARING",
+                "READY",
+                "COMPLETED",
+                "CANCELLED"
+              ]
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "orderNo",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maximum": 9007199254740991,
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "userId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/AdminOrderListItemResponseDto"
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "page": {
+                          "type": "integer"
+                        },
+                        "pageSize": {
+                          "type": "integer"
+                        },
+                        "total": {
+                          "type": "integer"
+                        },
+                        "degraded": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": ["identity"]
+                          }
+                        }
+                      },
+                      "required": ["page", "pageSize", "total"]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "example": "VALIDATION_FAILED"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": ["AdminOrders"]
+      }
+    },
+    "/admin/orders/{id}": {
+      "get": {
+        "operationId": "AdminOrdersController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminOrderDetailResponseDto"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "degraded": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": ["payment", "identity"]
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "example": "VALIDATION_FAILED"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "RESOURCE_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "example": "RESOURCE_NOT_FOUND"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": ["AdminOrders"]
+      }
+    },
+    "/admin/reports/sales": {
+      "get": {
+        "operationId": "AdminReportsController_sales",
+        "parameters": [
+          {
+            "name": "from",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SalesReportResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "example": "VALIDATION_FAILED"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": ["AdminReports"]
+      }
+    },
+    "/admin/users/{id}/loyalty": {
+      "get": {
+        "operationId": "AdminUserActivityController_loyalty",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/LoyaltyResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "example": "VALIDATION_FAILED"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": ["AdminUserActivity"]
+      }
+    },
+    "/admin/users/{id}/staff-stats": {
+      "get": {
+        "operationId": "AdminUserActivityController_staffStats",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/StaffStatsResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "example": "VALIDATION_FAILED"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": ["AdminUserActivity"]
       }
     },
     "/categories": {
@@ -3631,6 +4215,20 @@
               }
             }
           },
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/OrderResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
           "400": {
             "description": "IDEMPOTENCY_KEY_REQUIRED",
             "content": {
@@ -3776,8 +4374,7 @@
                       "type": "object",
                       "properties": {
                         "nextCursor": {
-                          "type": "string",
-                          "nullable": true
+                          "type": ["string", "null"]
                         }
                       },
                       "required": ["nextCursor"]
@@ -3997,6 +4594,20 @@
         },
         "responses": {
           "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/PaymentResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "201": {
             "description": "",
             "content": {
               "application/json": {
@@ -5100,6 +5711,9 @@
               "hasPassword": {
                 "type": "boolean"
               },
+              "signsInWithGoogle": {
+                "type": "boolean"
+              },
               "preferredLocale": {
                 "type": "string",
                 "enum": ["en", "vi"]
@@ -5115,6 +5729,7 @@
               "role",
               "permissions",
               "hasPassword",
+              "signsInWithGoogle",
               "preferredLocale",
               "createdAt"
             ]
@@ -5247,6 +5862,9 @@
           "hasPassword": {
             "type": "boolean"
           },
+          "signsInWithGoogle": {
+            "type": "boolean"
+          },
           "preferredLocale": {
             "type": "string",
             "enum": ["en", "vi"]
@@ -5262,6 +5880,7 @@
           "role",
           "permissions",
           "hasPassword",
+          "signsInWithGoogle",
           "preferredLocale",
           "createdAt"
         ]
@@ -5277,6 +5896,19 @@
             "enum": ["en", "vi"]
           }
         },
+        "additionalProperties": false
+      },
+      "ChangePasswordDto": {
+        "type": "object",
+        "properties": {
+          "currentPassword": {
+            "type": "string"
+          },
+          "newPassword": {
+            "type": "string"
+          }
+        },
+        "required": ["newPassword"],
         "additionalProperties": false
       },
       "AdminUserResponseDto": {
@@ -5326,34 +5958,19 @@
             "type": "boolean"
           },
           "lockedUntil": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           },
           "lockReason": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           },
           "deletedAt": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           },
           "deletedById": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           },
           "lastLoginAt": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           }
         },
         "required": [
@@ -5399,6 +6016,650 @@
         "required": ["reason"],
         "additionalProperties": false
       },
+      "AdminOrderListItemResponseDto": {
+        "type": "object",
+        "properties": {
+          "lines": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "productId": {
+                  "type": "string"
+                },
+                "productName": {
+                  "type": "object",
+                  "properties": {
+                    "en": {
+                      "type": "string"
+                    },
+                    "vi": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["en", "vi"]
+                },
+                "size": {
+                  "type": "string",
+                  "enum": ["S", "M", "L"]
+                },
+                "toppings": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "toppingId": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "object",
+                        "properties": {
+                          "en": {
+                            "type": "string"
+                          },
+                          "vi": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["en", "vi"]
+                      },
+                      "priceVnd": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": ["toppingId", "name", "priceVnd"]
+                  }
+                },
+                "unitPriceVnd": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "qty": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "lineTotalVnd": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "productId",
+                "productName",
+                "size",
+                "toppings",
+                "unitPriceVnd",
+                "qty",
+                "lineTotalVnd"
+              ]
+            }
+          },
+          "subtotalVnd": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "promoDiscountVnd": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "pointsDiscountVnd": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "totalVnd": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "promoCode": {
+            "type": ["string", "null"]
+          },
+          "pointsEarnable": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "id": {
+            "type": "string"
+          },
+          "orderNo": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "note": {
+            "type": ["string", "null"]
+          },
+          "expiresAt": {
+            "type": ["string", "null"]
+          },
+          "paidAt": {
+            "type": ["string", "null"]
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "cancelReason": {
+            "type": ["string", "null"]
+          },
+          "cancelNote": {
+            "type": ["string", "null"]
+          },
+          "cancelledAt": {
+            "type": ["string", "null"]
+          },
+          "refundStatus": {
+            "type": "string"
+          },
+          "pointsEarned": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "pointsRedeemed": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "currentPaymentId": {
+            "type": ["string", "null"]
+          },
+          "history": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "fromStatus": {
+                  "type": ["string", "null"]
+                },
+                "toStatus": {
+                  "type": "string"
+                },
+                "actorType": {
+                  "type": "string"
+                },
+                "note": {
+                  "type": ["string", "null"]
+                },
+                "createdAt": {
+                  "type": "string"
+                }
+              },
+              "required": ["fromStatus", "toStatus", "actorType", "note", "createdAt"]
+            }
+          },
+          "userId": {
+            "type": "string"
+          },
+          "customerName": {
+            "type": ["string", "null"]
+          }
+        },
+        "required": [
+          "lines",
+          "subtotalVnd",
+          "promoDiscountVnd",
+          "pointsDiscountVnd",
+          "totalVnd",
+          "promoCode",
+          "pointsEarnable",
+          "id",
+          "orderNo",
+          "status",
+          "note",
+          "expiresAt",
+          "paidAt",
+          "createdAt",
+          "cancelReason",
+          "cancelNote",
+          "cancelledAt",
+          "refundStatus",
+          "pointsEarned",
+          "pointsRedeemed",
+          "currentPaymentId",
+          "history",
+          "userId",
+          "customerName"
+        ]
+      },
+      "AdminOrderDetailResponseDto": {
+        "type": "object",
+        "properties": {
+          "lines": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "productId": {
+                  "type": "string"
+                },
+                "productName": {
+                  "type": "object",
+                  "properties": {
+                    "en": {
+                      "type": "string"
+                    },
+                    "vi": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["en", "vi"]
+                },
+                "size": {
+                  "type": "string",
+                  "enum": ["S", "M", "L"]
+                },
+                "toppings": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "toppingId": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "object",
+                        "properties": {
+                          "en": {
+                            "type": "string"
+                          },
+                          "vi": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["en", "vi"]
+                      },
+                      "priceVnd": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": ["toppingId", "name", "priceVnd"]
+                  }
+                },
+                "unitPriceVnd": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "qty": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "lineTotalVnd": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "productId",
+                "productName",
+                "size",
+                "toppings",
+                "unitPriceVnd",
+                "qty",
+                "lineTotalVnd"
+              ]
+            }
+          },
+          "subtotalVnd": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "promoDiscountVnd": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "pointsDiscountVnd": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "totalVnd": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "promoCode": {
+            "type": ["string", "null"]
+          },
+          "pointsEarnable": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "id": {
+            "type": "string"
+          },
+          "orderNo": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "note": {
+            "type": ["string", "null"]
+          },
+          "expiresAt": {
+            "type": ["string", "null"]
+          },
+          "paidAt": {
+            "type": ["string", "null"]
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "cancelReason": {
+            "type": ["string", "null"]
+          },
+          "cancelNote": {
+            "type": ["string", "null"]
+          },
+          "cancelledAt": {
+            "type": ["string", "null"]
+          },
+          "refundStatus": {
+            "type": "string"
+          },
+          "pointsEarned": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "pointsRedeemed": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "currentPaymentId": {
+            "type": ["string", "null"]
+          },
+          "history": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "fromStatus": {
+                  "type": ["string", "null"]
+                },
+                "toStatus": {
+                  "type": "string"
+                },
+                "actorType": {
+                  "type": "string"
+                },
+                "note": {
+                  "type": ["string", "null"]
+                },
+                "createdAt": {
+                  "type": "string"
+                },
+                "actorUserId": {
+                  "type": ["string", "null"]
+                },
+                "actorName": {
+                  "type": ["string", "null"]
+                }
+              },
+              "required": [
+                "fromStatus",
+                "toStatus",
+                "actorType",
+                "note",
+                "createdAt",
+                "actorUserId",
+                "actorName"
+              ]
+            }
+          },
+          "userId": {
+            "type": "string"
+          },
+          "customerName": {
+            "type": ["string", "null"]
+          },
+          "payments": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "orderId": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["PENDING", "SUCCEEDED", "FAILED", "EXPIRED"]
+                    },
+                    "provider": {
+                      "type": "string",
+                      "enum": ["STRIPE", "FAKE"]
+                    },
+                    "amountVnd": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "method": {
+                      "type": ["string", "null"]
+                    },
+                    "clientSecret": {
+                      "type": ["string", "null"]
+                    },
+                    "expiresAt": {
+                      "type": ["string", "null"]
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "orderId",
+                    "status",
+                    "provider",
+                    "amountVnd",
+                    "method",
+                    "clientSecret",
+                    "expiresAt",
+                    "createdAt"
+                  ]
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "lines",
+          "subtotalVnd",
+          "promoDiscountVnd",
+          "pointsDiscountVnd",
+          "totalVnd",
+          "promoCode",
+          "pointsEarnable",
+          "id",
+          "orderNo",
+          "status",
+          "note",
+          "expiresAt",
+          "paidAt",
+          "createdAt",
+          "cancelReason",
+          "cancelNote",
+          "cancelledAt",
+          "refundStatus",
+          "pointsEarned",
+          "pointsRedeemed",
+          "currentPaymentId",
+          "history",
+          "userId",
+          "customerName",
+          "payments"
+        ]
+      },
+      "SalesReportResponseDto": {
+        "type": "object",
+        "properties": {
+          "days": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "day": {
+                  "type": "string"
+                },
+                "orders": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "revenueVnd": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": ["day", "orders", "revenueVnd"]
+            }
+          },
+          "topProducts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "productId": {
+                  "type": "string"
+                },
+                "productName": {
+                  "type": "object",
+                  "properties": {
+                    "en": {
+                      "type": "string"
+                    },
+                    "vi": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["en", "vi"]
+                },
+                "qty": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "revenueVnd": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": ["productId", "productName", "qty", "revenueVnd"]
+            }
+          }
+        },
+        "required": ["days", "topProducts"]
+      },
+      "LoyaltyResponseDto": {
+        "type": "object",
+        "properties": {
+          "balance": {
+            "type": "number"
+          },
+          "lifetimeEarned": {
+            "type": "number"
+          },
+          "recent": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "orderId": {
+                  "type": "string"
+                },
+                "orderNo": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": ["EARN", "EARN_REVERSED", "REDEEM", "REDEEM_RETURNED"]
+                },
+                "points": {
+                  "type": "number"
+                },
+                "at": {
+                  "type": "string"
+                }
+              },
+              "required": ["orderId", "orderNo", "kind", "points", "at"]
+            }
+          }
+        },
+        "required": ["balance", "lifetimeEarned", "recent"]
+      },
+      "StaffStatsResponseDto": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          },
+          "ordersHandled": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "transitions": {
+            "type": "object",
+            "properties": {
+              "PREPARING": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "READY": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "COMPLETED": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "CANCELLED": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": ["PREPARING", "READY", "COMPLETED", "CANCELLED"]
+          }
+        },
+        "required": ["from", "to", "ordersHandled", "transitions"]
+      },
       "CategoryResponseDto": {
         "type": "object",
         "properties": {
@@ -5442,10 +6703,7 @@
             "required": ["en", "vi"]
           },
           "imageUrl": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           },
           "fromPriceVnd": {
             "type": "integer",
@@ -5480,10 +6738,7 @@
             "required": ["en", "vi"]
           },
           "imageUrl": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           },
           "fromPriceVnd": {
             "type": "integer",
@@ -5718,16 +6973,10 @@
             "type": "boolean"
           },
           "deletedAt": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           },
           "deletedById": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           },
           "createdAt": {
             "type": "string"
@@ -5829,10 +7078,7 @@
             "maximum": 9007199254740991
           },
           "imageUrl": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           },
           "isAvailable": {
             "type": "boolean"
@@ -5863,10 +7109,7 @@
             "type": "string"
           },
           "deletedAt": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           }
         },
         "required": [
@@ -5942,10 +7185,7 @@
             "maximum": 9007199254740991
           },
           "imageUrl": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           },
           "isAvailable": {
             "type": "boolean"
@@ -6000,16 +7240,10 @@
             "type": "string"
           },
           "deletedAt": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           },
           "deletedById": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           }
         },
         "required": [
@@ -6215,10 +7449,7 @@
         "type": "object",
         "properties": {
           "imageUrl": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           }
         },
         "required": ["imageUrl"]
@@ -6250,16 +7481,10 @@
             "type": "boolean"
           },
           "deletedAt": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           },
           "deletedById": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           },
           "createdAt": {
             "type": "string"
@@ -6431,12 +7656,28 @@
             "maximum": 9007199254740991
           },
           "promoCode": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           },
           "pointsEarnable": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "pointsBalance": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "pointsRedeemable": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "pointsCapReason": {
+            "type": "string",
+            "enum": ["BALANCE", "PERCENT", "FLOOR"]
+          },
+          "pointsRedeemed": {
             "type": "integer",
             "minimum": -9007199254740991,
             "maximum": 9007199254740991
@@ -6449,7 +7690,11 @@
           "pointsDiscountVnd",
           "totalVnd",
           "promoCode",
-          "pointsEarnable"
+          "pointsEarnable",
+          "pointsBalance",
+          "pointsRedeemable",
+          "pointsCapReason",
+          "pointsRedeemed"
         ]
       },
       "QuoteDto": {
@@ -6488,6 +7733,11 @@
           },
           "promoCode": {
             "type": "string"
+          },
+          "pointsToRedeem": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000000
           }
         },
         "required": ["items"],
@@ -6597,10 +7847,7 @@
             "maximum": 9007199254740991
           },
           "promoCode": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           },
           "pointsEarnable": {
             "type": "integer",
@@ -6617,37 +7864,25 @@
             "type": "string"
           },
           "note": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           },
           "expiresAt": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           },
           "paidAt": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           },
           "createdAt": {
             "type": "string"
           },
           "cancelReason": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           },
           "cancelNote": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
+          },
+          "cancelledAt": {
+            "type": ["string", "null"]
           },
           "refundStatus": {
             "type": "string"
@@ -6656,6 +7891,14 @@
             "type": "integer",
             "minimum": -9007199254740991,
             "maximum": 9007199254740991
+          },
+          "pointsRedeemed": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "currentPaymentId": {
+            "type": ["string", "null"]
           },
           "history": {
             "type": "array",
@@ -6699,8 +7942,11 @@
           "createdAt",
           "cancelReason",
           "cancelNote",
+          "cancelledAt",
           "refundStatus",
           "pointsEarned",
+          "pointsRedeemed",
+          "currentPaymentId",
           "history"
         ]
       },
@@ -6741,6 +7987,11 @@
           "promoCode": {
             "type": "string"
           },
+          "pointsToRedeem": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000000
+          },
           "note": {
             "type": "string"
           }
@@ -6771,22 +8022,13 @@
             "maximum": 9007199254740991
           },
           "method": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           },
           "clientSecret": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           },
           "expiresAt": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           },
           "createdAt": {
             "type": "string"
@@ -6824,10 +8066,7 @@
             "type": "string"
           },
           "description": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": ["string", "null"]
           },
           "discountType": {
             "type": "string",
@@ -6860,19 +8099,13 @@
             "type": "string"
           },
           "maxUses": {
-            "type": "array",
-            "items": {
-              "type": "number"
-            }
+            "type": ["number", "null"]
           },
           "usedCount": {
             "type": "number"
           },
           "perUserLimit": {
-            "type": "array",
-            "items": {
-              "type": "number"
-            }
+            "type": ["number", "null"]
           },
           "isActive": {
             "type": "boolean"
@@ -6938,14 +8171,28 @@
             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
           },
           "maxUses": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 9007199254740991
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "perUserLimit": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 9007199254740991
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "isActive": {
             "type": "boolean"
@@ -6969,57 +8216,34 @@
             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
           },
           "maxUses": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 9007199254740991
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "perUserLimit": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 9007199254740991
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "isActive": {
             "type": "boolean"
           }
         },
         "additionalProperties": false
-      },
-      "LoyaltyResponseDto": {
-        "type": "object",
-        "properties": {
-          "balance": {
-            "type": "number"
-          },
-          "lifetimeEarned": {
-            "type": "number"
-          },
-          "recent": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "orderId": {
-                  "type": "string"
-                },
-                "orderNo": {
-                  "type": "string"
-                },
-                "kind": {
-                  "type": "string",
-                  "enum": ["EARN", "EARN_REVERSED", "REDEEM", "REDEEM_RETURNED"]
-                },
-                "points": {
-                  "type": "number"
-                },
-                "at": {
-                  "type": "string"
-                }
-              },
-              "required": ["orderId", "orderNo", "kind", "points", "at"]
-            }
-          }
-        },
-        "required": ["balance", "lifetimeEarned", "recent"]
       },
       "AdvanceStatusDto": {
         "type": "object",

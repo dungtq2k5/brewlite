@@ -116,7 +116,7 @@ services/gateway/src/modules/orders/
 | SQL Prisma cannot express | `services/<svc>/prisma/sql/schema-objects.sql` |
 | A seed | `services/<svc>/prisma/seed/<scope>.seed.ts` |
 | A page | `apps/web/src/app/<group>/…/page.tsx` |
-| A Server Action | `apps/web/src/app/<group>/…/actions.ts`, beside the page that uses it |
+| A Server Action | `apps/web/src/actions/<area>.ts` (`orders.ts`, `staff.ts`); the admin's per resource in `actions/admin/<resource>.ts` |
 
 ---
 
@@ -255,7 +255,7 @@ throw rpcError('INVALID_STATE', { status: current });
 
 As defined in api-endpoints-plan §0.3. A global interceptor wraps success as `{ data, meta? }`; a global filter builds `{ error: { code, message, details?, requestId } }`.
 
-- Handlers return raw data, or `Paged.cursor(items, next)` / `Paged.page(items, meta)` (`packages/nest-common`) — an offset query is built with `zPageQuery(sortFields, defaultSort?)` (`packages/contracts`), which bounds `page`/`pageSize` and allowlists `sort` (each field, plus `-field` for descending); a cursor query is built with `zCursorQuery` (`cursor?: base64url ≤ 64 chars`, `limit`), for endpoints ordered by id rather than sorted, like `GET /orders/me`. Returning `{ data }` yourself double-wraps.
+- Handlers return raw data, or `Paged.cursor(items, next)` / `Paged.page(items, meta)` (`packages/nest-common`) — `Paged.page` takes extra page-meta fields beside `page`, `pageSize`, `total` (the admin orders list's `degraded`), declared on the route's `ApiEnvelope` so OpenAPI and the client type them — an offset query is built with `zPageQuery(sortFields, defaultSort?)` (`packages/contracts`), which bounds `page`/`pageSize` and allowlists `sort` (each field, plus `-field` for descending); a cursor query is built with `zCursorQuery` (`cursor?: base64url ≤ 64 chars`, `limit`), for endpoints ordered by id rather than sorted, like `GET /orders/me`. Returning `{ data }` yourself double-wraps.
 - Every thrown error carries an `ErrorCode`. A new code is added to `ERRORS`, to api-endpoints-plan §7, and to the web app's `errors` namespace **in both locales** in the same PR.
 - **MUST NOT** put a user-facing sentence in `message`. It is English, for developers.
 - `@SkipEnvelope()` is for ops routes and the SSE streams only.
@@ -270,8 +270,8 @@ As defined in api-endpoints-plan §0.3. A global interceptor wraps success as `{
 - Query and path values arrive as strings: `z.coerce.number()`, the shared `zBooleanParam` — never `Boolean(value)`, which reads `"false"` as `true`.
 - **Nullable and optional are different.** A response field is `.nullable()` (key always present), never `.optional()`. A request field is `.optional()` only when absence means "leave unchanged". A PATCH schema **MUST NOT** default a field — the default would overwrite the stored value on every unrelated update.
 - Every id from outside is parsed with `zUuidV7`, including `Idempotency-Key`.
-- **Import `nestjs-zod` only through `@brewlite/nest-common`**, which re-exports it. pnpm can install two physical copies across workspace packages, and then `instanceof ZodValidationException` is silently `false` and validation errors become `500`s.
-- User-entered text is NFC-normalised by `normalizeText()` before validation.
+- **Import `nestjs-zod` only through `@brewlite/nest-common`**, which re-exports it. pnpm can install two physical copies across workspace packages, and then `instanceof ZodValidationException` is silently `false` and validation errors become `500`s. Its `createZodDto` also keeps a DTO's top-level `.nullable()` fields nullable in the OpenAPI document — `@nestjs/swagger` reads zod's `type: ["string", "null"]` as *array of string*, so nest-common marks those fields before Nest sees them and restores `[type, "null"]` after. A cursor list's `meta.nextCursor` is `string | null` the same way. A route that answers `201` or `200` declares both: `@ApiEnvelope(Dto, { status: 201, alsoStatus: [200] })`.
+- User-entered text is NFC-normalized by `normalizeText()` before validation.
 
 ### 6.3 Auth markers and guards
 
@@ -315,6 +315,7 @@ app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
 - Adding a `NOT NULL` column to a table with rows is: add nullable → backfill → set `NOT NULL`, in separate migrations.
 - A schema change **MUST** update rdm-spec in the same PR — column, type, nullability, default, and **the full value list** of any enumerated column.
 - **Development seeds** (`pnpm seed:dev`) are idempotent — a second run writes nothing — refuse to run when `NODE_ENV=production`, and write through the service's own methods, so events and hashes are real.
+- **The root demo seed** (`scripts/seed-dev.mjs`): `pnpm seed:dev` prints the plan and writes nothing; `pnpm seed:dev:apply` runs the services' base seeds (from their build output — `pnpm build` first), then creates the demo café **through the gateway's API** with the stack running — customers under `@demo.brewlite.test` (their presence makes it idempotent), promotions, orders paid with the **fake provider** (it refuses `PAYMENT_PROVIDER=stripe`), moved through the counter. It orders only products without a stock count, and meets the real rate limits (a distinct `X-Forwarded-For` per sign-in, orders paced per customer). **The one write outside the API:** it then moves each demo order back in time — every timestamp of one order shifted by the same offset, in ordering and payment, through `psql` — so the sales overview shows a month. That changes *when*, never *what*. A failed-payment order cannot be backdated (the expiry job would cancel it at once), so the demo has none — show *Simulate failure* by hand.
 
 ### 7.2 Naming in the schema
 
@@ -515,9 +516,10 @@ Every durable consumer is a `JetStreamConsumer` subclass, started from the servi
 
 [ADR 0014](./decisions/0014-the-web-server-is-the-gateways-only-client.md) · [ADR 0015](./decisions/0015-nextjs-server-features-replace-client-data-libraries.md).
 
-- Data is read in **Server Components** and written in **Server Actions**, through the Orval-generated client in `packages/api-client`. **MUST NOT** hand-write a `fetch` to the API — the one exception is the SSE Route Handlers, which stream a body the generated client cannot — and **MUST NOT** import the client into a Client Component — its mutator imports `server-only`, so doing so fails the build.
-- The mutator reads `bl_at` from `cookies()`, sets `Authorization`, `X-Request-Id` and `X-Forwarded-For`, and prefixes `API_URL`.
-- Every API read is `cache: 'no-store'`. The web app caches no API data (architecture §2.6).
+- Data is read in **Server Components** and written in **Server Actions**, through the Orval-generated client in `packages/api-client`. **MUST NOT** hand-write a `fetch` to the API — three exceptions: the SSE Route Handlers, which stream a body the generated client cannot; `proxy.ts`'s session refresh, which runs before the request scope the client reads its headers from; and the development-only `fake-confirm` Server Action, whose route is left out of OpenAPI on purpose so the generated client never offers it. The two in the request scope share the client's headers (`lib/request-headers.ts`) — and **MUST NOT** import the client into a Client Component — its mutator imports `server-only`, so doing so fails the build.
+- `configureApiClient`'s headers read `bl_at` from `cookies()` and set `Authorization`, `X-Request-Id` and `X-Forwarded-For` — the **rightmost** incoming entry, which only Caddy can have written ([ADR 0033](./decisions/0033-browsers-reach-the-web-app-only-through-caddy-which-sets-the-client-address.md)) — and the base URL is `API_URL`.
+- Every API read is `cache: 'no-store'`. The web app caches no API data (architecture §2.6). A list of links to pages that call the gateway (the menu's product cards) uses `prefetch={false}`: Next would otherwise prefetch every one, one public gateway call each, against `PUBLIC_READ`'s 120 per minute per address.
+- A `'use server'` file exports **only `async function` declarations** — `export const f = (…) => …` makes Turbopack report the module as having no exports.
 - A Server Action returns `{ ok: true, data } | { ok: false, code, details }` — never throws an API error into the UI. The page renders `code` through `t('errors:<CODE>', details)` (§11.6).
 - **Cookies are set only** in `proxy.ts` (refresh) and in the sign-in / sign-out Server Actions — never in a Server Component, where setting one silently does nothing.
 - A Server Action that places an order or starts a payment receives the idempotency key **from the client** (generated with `newId()` when the button is tapped, kept in component state across retries) — never generates it itself, or every retry is a new intent.
@@ -527,14 +529,17 @@ Every durable consumer is a `JetStreamConsumer` subclass, started from the servi
 - The cart is the only client state that outlives a page: `CartProvider` in the `(customer)` layout, persisted to `localStorage` behind `try/catch`.
 - **MUST NOT** copy server data into client state "to cache it". Need it again? Render it on the server again.
 - The cart's total is a preview. The checkout page **MUST** display the server's quote.
-- The cart is cleared only when the order is seen `PAID`.
+- The cart is cleared only when the order it was placed as is seen paid — and only if it was not edited since (architecture §4.3).
 
 ### 11.3 Pages and components
 
+- **Confirm dialogs and sheets are native `<dialog>` elements** opened with `showModal()` — the browser traps focus, closes on `Esc`, draws the backdrop and makes the page inert; a click on the backdrop closes it, and focus starts on the safe choice. The customer side's confirms share one `ConfirmSheet`. Inside a dialog, `autofocus` on the safe choice is HTML's own way to set where focus starts. Outside dialogs, focus moves into a field only from the tap that revealed it — never `autoFocus` on page load.
+- A component that calls a hook (`useTranslation` included) carries its own `'use client'` — a Server Component importing it otherwise fails the build.
 - Server Components by default; `'use client'` only for what needs the browser — the cart, the size and topping pickers, the Firebase popup, Stripe's embedded Checkout, `EventSource`.
 - Every page that loads data has a `loading.tsx` and an `error.tsx`; every list has an empty state.
 - Role-gated sections check the role in their `layout.tsx` on the server. `proxy.ts` redirects early, but the layout is the gate, and the gateway is the real authorization.
 - DaisyUI classes first; custom CSS only when DaisyUI and Tailwind utilities cannot express it.
+- **MUST NOT** pre-render a page statically under the proxy's matcher: its scripts would carry no CSP nonce and be blocked (architecture §4.2). The web e2e suite fails a test on any CSP violation, so a new third-party script or host shows up there first.
 
 ### 11.4 Accessibility
 
@@ -562,6 +567,7 @@ Every durable consumer is a `JetStreamConsumer` subclass, started from the servi
 - Money through `formatVnd`, dates through `formatDateTime` — **MUST NOT** call `toLocaleString()` or `Intl` directly in a component.
 - Menu content from the API is a `LocalizedText` pair and is rendered with `localized(text, locale)` — **MUST NOT** pick `.vi` or `.en` by hand, and **MUST NOT** turn it into a translation key ([ADR 0031](./decisions/0031-menu-content-is-written-in-english-and-vietnamese.md), rdm-spec §2.10).
 - A request schema carrying menu text uses the shared `zLocalizedText` (both languages required, each trimmed, NFC-normalised and bounded) — never two loose string fields.
+- **Admin screens** resolve an error through `admin:error.<CODE>` first (the back office's own sentences) and fall back to `errors:<CODE>`, the shop's generic copy.
 
 ### 11.7 Guests
 
@@ -635,7 +641,7 @@ When `NODE_ENV === 'production'`: the error filter returns a generic message for
 | Enumerated value | `SCREAMING_SNAKE`, stored verbatim | `PAYMENT_FAILED` |
 | Constant | `SCREAMING_SNAKE`, unit suffix when it has one | `ORDER_UNPAID_TTL_MS`, `MIN_PAYABLE_VND` |
 | Next.js route group / page | `(group)/…/page.tsx`; components `PascalCase.tsx` | `(customer)/cart/page.tsx`, `CartLine.tsx` |
-| Server Action | verb first, in `actions.ts` | `placeOrder`, `advanceOrder` |
+| Server Action | verb first, in `actions/<area>.ts` | `placeOrder`, `advanceOrder` |
 
 **Units go in the name:** `totalVnd`, `ttlMs`, `expiresAt`. A bare `timeout` or `price` is a unit bug waiting to happen.
 
@@ -668,7 +674,7 @@ When `NODE_ENV === 'production'`: the error filter returns a generic message for
 | **Contract** | a gRPC server and a real client over the generated code | in-process server, `_test` | `services/<svc>/test/contract/` |
 | **Gateway e2e** | markers, validation, envelope, error mapping, raw webhook body | gRPC peers, the rate limiter's Redis client and the SSE event source stubbed by `createE2eApp` — **no infrastructure**, so it runs in `pnpm test` before anything is started | `services/gateway/test/e2e/` |
 | **Gateway integration** | real rate limiting, the real ordered consumer behind SSE | Redis database 14, the test broker | `services/gateway/test/integration/`, run by `test:integration` |
-| **Web e2e** *(P1)* | J1 end to end | Playwright against Compose, fake payments | `apps/web/e2e/` |
+| **Web e2e** | each web screen's behaviour and states; J1 end to end once checkout exists | Playwright against the running stack, fake payments; selectors by role and accessible name, never CSS classes | `apps/web/e2e/` |
 
 ### 16.2 Rules
 
@@ -677,6 +683,7 @@ When `NODE_ENV === 'production'`: the error filter returns a generic message for
 - **Every conditional update, unique index and `CHECK` has an integration test proving it refuses** — insert or update the violating row and assert the error.
 - **Every consumer has a test delivering the same event twice** and asserting one effect, and one delivering a stale event after a newer state.
 - **Every RPC is exercised by a test in the service that owns it**, against its real database.
+- **Web e2e shares the dev database** with every other spec and whoever is using the app: a spec picks the products it needs from the API (never by name — the seed switches some off on purpose), creates its own rows under a unique `e2e-<run id>` name, restores anything shared (availability, order, a category) in `finally`, and **never changes a seeded account** — not its role, not its language (a signed-in language switch saves `preferredLocale` to the profile). A spec that needs another account registers one. Specs that pay need the fake provider and skip on Stripe; uploads use a real, decodable image — a fake one hides content-type bugs.
 - Integration suites migrate once and `TRUNCATE … RESTART IDENTITY CASCADE` between specs; suites touching one database run serially. A setup reads its service's `.env` into a local object and **never writes `process.env`**.
 - Vitest transforms with `unplugin-swc` with decorator metadata on, or Nest DI resolves `undefined`. Every package's and service's Vitest config — unit and integration — is built from `nestProject(...)` in `packages/config/vitest.preset.ts`, which aliases `@brewlite/contracts` and `@brewlite/nest-common` to **source**: a config that does not would test a shared package's stale build.
 - **The tier is decided by what a spec needs:** one that opens a real Postgres, Redis or NATS connection is an integration spec; one that points a client at a closed port on purpose needs nothing and stays in its no-infrastructure tier.
@@ -701,12 +708,12 @@ A guard spec turns a repo-wide rule into a failing test. Guards live in `package
 | `adr-structure.spec.ts` | every ADR matches `docs/decisions/TEMPLATE.md` and has a row in `docs/README.md` |
 | `archive-references.spec.ts` | no markdown file links into `docs/archive/`; no other tracked file names it or cites an implementation doc |
 | `module-files.spec.ts` | every file under `services/*/src/modules/` has a known role; `domain/` imports no Nest or Prisma; no `*.repository.ts` |
-| `env-contract.spec.ts` | the env schema, `.env.example` and architecture §10 list the same variables |
+| `env-contract.spec.ts` | the env schema, `.env.example` and architecture §10 list the same variables — every service, and `apps/web`; and every **required** variable of `apps/web`'s `serverEnvSchema` is in `turbo.json`'s `globalPassThroughEnv` (exactly or by a trailing `*`) — otherwise `next build` fails its env validation, and only the image build would show it |
 | `rdm-contract-sync.spec.ts` | every enumerated column in rdm-spec §3 (a leading backticked `A \| B` span) equals its enum in `packages/contracts`, and every `…_MAX_LENGTH` constant equals its column's `VARCHAR(n)` |
 | `i18n-keys.spec.ts` | once the web app exists: `apps/web/src/i18n/locales/en` and `vi` have the same namespaces and the same keys (plural suffixes normalised), and every code in `ERRORS` has an `errors` key |
 | `api-contract-sync.spec.ts` | api-endpoints-plan §7, §10 and §0.8 agree with `ERRORS` (codes and HTTP status), `PERMISSIONS` / `ROLE_PERMISSIONS` and `RATE_LIMITS`; §8 against the event registry once it exists · and api-endpoints-plan §1–§4's routes (P1 rows skipped) against the committed `openapi.json`, both ways, with a named exclusion list: ops, `/docs`, the SSE streams, the Stripe webhook, `fake-confirm` |
 | `task10-proofs.spec.ts` | every graded proof name of §16.3 — including `creates ONE payment for two requests with the same Idempotency-Key` — appears in a service's integration specs; a rename or deletion fails and is named |
-| `contract-ports.spec.ts` | every contract spec's fixed gRPC port belongs to one spec file, and is never a port a running service owns (ADR 0027: web 23000, gateway 23100, ops 23101–23104, gRPC 25051–25054) — a collision fails with `EADDRINUSE` only when the timing or the running stack lines up |
+| `contract-ports.spec.ts` | every contract spec's fixed gRPC port belongs to one spec file, and is never a port a running service owns (ADR 0027: web 23000, gateway 23100, ops 23101–23104, gRPC 25051–25054) — a collision fails with `EADDRINUSE` only when the timing or the running stack lines up. The services' e2e and integration specs are read too: one that dials a **closed** port must not pick a service's port or a contract spec's |
 
 ---
 

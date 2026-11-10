@@ -1,3 +1,4 @@
+import type { Metadata } from '@grpc/grpc-js';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
@@ -26,6 +27,8 @@ import type {
   SignInWithFirebaseResponse,
 } from '@brewlite/contracts/generated/brewlite/identity/auth_service.js';
 import type {
+  ChangePasswordRequest,
+  ChangePasswordResponse,
   GetMeRequest,
   GetMeResponse,
   UpdateMeRequest,
@@ -38,6 +41,8 @@ import type {
   DeactivateUserResponse,
   GetUserRequest,
   GetUserResponse,
+  ListUserNamesRequest,
+  ListUserNamesResponse,
   ListUsersRequest,
   ListUsersResponse,
   LockUserRequest,
@@ -116,6 +121,12 @@ class TestAdminUsersClient extends BaseGrpcClient {
   getUser(request: GetUserRequest, opts: { caller: Caller }): Promise<GetUserResponse> {
     return this.call('getUser', request, opts);
   }
+  listUserNames(
+    request: ListUserNamesRequest,
+    opts: { caller: Caller },
+  ): Promise<ListUserNamesResponse> {
+    return this.call('listUserNames', request, opts);
+  }
   changeRole(request: ChangeRoleRequest, opts: { caller: Caller }): Promise<ChangeRoleResponse> {
     return this.call('changeRole', request, opts);
   }
@@ -148,6 +159,12 @@ class TestUsersClient extends BaseGrpcClient {
 
   getMe(request: GetMeRequest, opts: { caller: Caller }): Promise<GetMeResponse> {
     return this.call('getMe', request, opts);
+  }
+  changePassword(
+    request: ChangePasswordRequest,
+    opts: { caller: Caller },
+  ): Promise<ChangePasswordResponse> {
+    return this.call('changePassword', request, opts);
   }
   updateMe(request: UpdateMeRequest, opts: { caller: Caller }): Promise<UpdateMeResponse> {
     return this.call('updateMe', request, opts);
@@ -221,6 +238,36 @@ describe('identity gRPC contract', () => {
       fullName: 'Contract Logout',
     });
     await expect(authClient.logout({ refreshToken: registered.refreshToken })).resolves.toEqual({});
+  });
+
+  it('completes a real ChangePassword round trip; a wrong current password arrives as CURRENT_PASSWORD_INCORRECT', async () => {
+    const registered = await authClient.register({
+      email: 'contract-password@brewlite.test',
+      password: 'password123',
+      fullName: 'Contract Password',
+    });
+    const caller: Caller = { kind: 'USER', userId: registered.user!.id, role: Role.CUSTOMER };
+    const sessionId = (
+      JSON.parse(
+        Buffer.from(registered.accessToken.split('.')[1]!, 'base64url').toString('utf8'),
+      ) as { sid: string }
+    ).sid;
+
+    await expect(
+      usersClient.changePassword(
+        { sessionId, currentPassword: 'password123', newPassword: 'password456' },
+        { caller },
+      ),
+    ).resolves.toEqual({});
+    const refused = await usersClient
+      .changePassword(
+        { sessionId, currentPassword: 'password123', newPassword: 'password789' },
+        { caller },
+      )
+      .catch((e: unknown) => e);
+    expect(isGrpcServiceError(refused) && readErrorCode(refused)).toBe(
+      'CURRENT_PASSWORD_INCORRECT',
+    );
   });
 
   it('completes a real GetMe round trip, with the caller forwarded as metadata', async () => {
@@ -307,6 +354,19 @@ describe('identity gRPC contract', () => {
 
     const got = await adminUsersClient.getUser({ id: caller.userId }, { caller });
     expect(got.user?.id).toBe(caller.userId);
+  });
+
+  it('completes a real ListUserNames round trip: a name per id, an unknown id absent, a bad id refused', async () => {
+    const caller = await adminCaller();
+    const { users } = await adminUsersClient.listUserNames(
+      { ids: [caller.userId, newId()] },
+      { caller },
+    );
+    expect(users).toEqual([{ id: caller.userId, fullName: 'Contract Admin' }]);
+    await expect(adminUsersClient.listUserNames({ ids: ['nope'] }, { caller })).rejects.toSatisfy(
+      (error) =>
+        (error as { metadata: Metadata }).metadata.get('bl-error-code')[0] === 'VALIDATION_FAILED',
+    );
   });
 
   it('completes real ChangeRole, LockUser and UnlockUser round trips', async () => {

@@ -17,8 +17,11 @@ export interface PaymentResponseDto {
    * @maximum 9007199254740991
    */
   amountVnd: number;
-  method: string[];
-  clientSecret: string[];
-  expiresAt: string[];
+  /** @nullable */
+  method: string | null;
+  /** @nullable */
+  clientSecret: string | null;
+  /** @nullable */
+  expiresAt: string | null;
   createdAt: string;
 }

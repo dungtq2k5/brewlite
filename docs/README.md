@@ -44,6 +44,7 @@ Each title is an **assertion**, not a topic, so this index reads as the rules th
 | [0003](./decisions/0003-one-pnpm-turborepo-monorepo-with-a-fixed-layout.md) | The repository is one pnpm + Turborepo monorepo with a fixed layout |
 | [0012](./decisions/0012-swc-compiles-everything-and-nest-packages-are-commonjs.md) | SWC compiles every package; Nest services and shared packages are CommonJS |
 | [0027](./decisions/0027-host-ports-sit-in-the-2xxxx-range.md) | Local host ports sit in the 2xxxx range |
+| [0034](./decisions/0034-the-repository-is-shared-under-the-mit-licence.md) | The repository is shared under the MIT licence |
 
 ### Services and communication
 
@@ -55,6 +56,7 @@ Each title is an **assertion**, not a topic, so this index reads as the rules th
 | [0011](./decisions/0011-zod-is-the-only-schema-language-and-orval-generates-the-client.md) | zod is the only schema language, and the web client is generated from it by Orval |
 | [0022](./decisions/0022-order-updates-reach-browsers-as-server-sent-events.md) | Order updates reach browsers as Server-Sent Events fed from NATS |
 | [0023](./decisions/0023-redis-holds-only-reconstructible-state.md) | Redis holds only reconstructible state: rate limits, cache and job queues |
+| [0033](./decisions/0033-browsers-reach-the-web-app-only-through-caddy-which-sets-the-client-address.md) | Browsers reach the web app only through Caddy, which sets the client address |
 
 ### Data
 
@@ -76,6 +78,7 @@ Each title is an **assertion**, not a topic, so this index reads as the rules th
 | [0019](./decisions/0019-order-status-changes-only-through-the-state-machine.md) | Order status changes only through the state machine, as conditional updates |
 | [0020](./decisions/0020-idempotency-keys-are-enforced-by-a-unique-constraint.md) | Idempotency keys are enforced by a unique constraint, not a cache |
 | [0021](./decisions/0021-promotions-and-loyalty-live-in-the-ordering-service.md) | Promotions and loyalty points live in the ordering service |
+| [0035](./decisions/0035-points-are-spent-after-the-promotion-and-come-back-whole-but-a-reversal-never-goes-below-zero.md) | Points are spent after the promotion, come back whole, and a reversal never goes below zero |
 
 ### Identity and access
 
@@ -98,11 +101,17 @@ Each title is an **assertion**, not a topic, so this index reads as the rules th
 
 ---
 
+## Running and demonstrating it
+
+The repository's [README](../README.md) is the entry point: prerequisites, the quick start, the demo accounts and the day-to-day commands. [demo.md](./demo.md) is the J1 script for a recording or the Sprint Review; `assets/readme/` holds the README's screenshots.
+
+---
+
 ## Working documents and the archive
 
-`docs/archive/` is **git-ignored scratch**: the course brief (`brewlite-requirements.pdf`), reference material from another project (`ref/`), and the numbered implementation docs (`impls/NN-*.md`) with their review notes (`temp/`).
+`docs/archive/` is **git-ignored scratch**: the course brief (`brewlite-requirements.pdf`), reference material from another project (`ref/`), the numbered implementation docs (`impls/NN-*.md`) with their review notes (`temp/`), and the design docs for the web app's screens (`designs/`) with the designer's handoff notes.
 
-An implementation doc exists to carry one slice of work from prose into code, following the loop: *doc written → reviewed → revised → implemented → implementation summary noted → next doc*. It is disposable once its slice is merged. **Nothing durable may link into the archive** — not this folder, not an ADR, not a docblock. Anything in an implementation doc that outlives it moves into an ADR (why) or one of the core documents (what is true now) in the same PR that implements it. `packages/config/guards/archive-references.spec.ts` enforces this.
+An implementation doc exists to carry one slice of work from prose into code, following the loop: *doc written → reviewed → revised → implemented → implementation summary noted → next doc*. It is disposable once its slice is merged. A design doc carries one group of screens from the product docs to a finished design, following *design doc written → designer's handoff → design doc revised → screens designed in Figma → implementation doc written from them*; it says what each screen must show and support, never how it looks, and is disposable once its screens are built. **Nothing durable may link into the archive** — not this folder, not an ADR, not a docblock. Anything in an implementation doc that outlives it moves into an ADR (why) or one of the core documents (what is true now) in the same PR that implements it. `packages/config/guards/archive-references.spec.ts` enforces this.
 
 ---
 

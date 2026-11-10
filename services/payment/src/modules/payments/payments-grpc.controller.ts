@@ -9,6 +9,8 @@ import {
   type FakeConfirmResponse,
   type GetPaymentRequest,
   type GetPaymentResponse,
+  type ListPaymentsForOrderRequest,
+  type ListPaymentsForOrderResponse,
   type PaymentServiceController,
 } from '@brewlite/contracts/generated/brewlite/payment/payment_service.js';
 import { PaymentsService } from './payments.service.js';
@@ -28,6 +30,12 @@ export class PaymentsGrpcController implements PaymentServiceController {
 
   getPayment(request: GetPaymentRequest, metadata?: Metadata): Promise<GetPaymentResponse> {
     return this.payments.getPayment(request, callerFrom(metadata));
+  }
+
+  listPaymentsForOrder(
+    request: ListPaymentsForOrderRequest,
+  ): Promise<ListPaymentsForOrderResponse> {
+    return this.payments.listPaymentsForOrder(request);
   }
 
   fakeConfirm(request: FakeConfirmRequest, metadata?: Metadata): Promise<FakeConfirmResponse> {

@@ -5,7 +5,11 @@
  * OpenAPI spec version: 1
  */
 import type {
+  ChangePasswordDto,
   UpdateMeDto,
+  UsersControllerChangePassword400,
+  UsersControllerChangePassword401,
+  UsersControllerChangePassword403,
   UsersControllerGet200,
   UsersControllerGet401,
   UsersControllerUpdate200,
@@ -99,5 +103,65 @@ export const usersControllerUpdate = async (
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(updateMeDto),
+  });
+};
+
+export type usersControllerChangePasswordResponse400 = {
+  data: UsersControllerChangePassword400;
+  status: 400;
+};
+
+export type usersControllerChangePasswordResponse401 = {
+  data: UsersControllerChangePassword401;
+  status: 401;
+};
+
+export type usersControllerChangePasswordResponse403 = {
+  data: UsersControllerChangePassword403;
+  status: 403;
+};
+
+export type usersControllerChangePasswordResponseError = (
+  | usersControllerChangePasswordResponse400
+  | usersControllerChangePasswordResponse401
+  | usersControllerChangePasswordResponse403
+) & {
+  headers: Headers;
+};
+
+export type usersControllerChangePasswordResponse = usersControllerChangePasswordResponseError;
+
+export const getUsersControllerChangePasswordUrl = () => {
+  return `/users/me/password`;
+};
+
+export const usersControllerChangePassword = async (
+  changePasswordDto: ChangePasswordDto,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<usersControllerChangePasswordResponse> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit['headers']>,
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string],
+        ),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+  return apiFetch<usersControllerChangePasswordResponse>(getUsersControllerChangePasswordUrl(), {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(changePasswordDto),
   });
 };

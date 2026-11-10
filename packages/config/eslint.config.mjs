@@ -187,6 +187,9 @@ export const baseConfig = tseslint.config(
           '**/test/setup/**',
           '**/test/support/**',
           '**/test/e2e/support/**',
+          // Playwright's own config and the web app's browser specs read E2E_* from the environment.
+          '**/e2e/**',
+          '**/playwright.config.ts',
           '**/scripts/**',
           // Deliberately redirects a client to an unreachable port for one e2e case.
           '**/catalog-unavailable.e2e.spec.ts',

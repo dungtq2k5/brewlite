@@ -45,7 +45,7 @@ export const PromotionsControllerListResponse = zod.object({
       zod.object({
         id: zod.string(),
         code: zod.string(),
-        description: zod.array(zod.string()),
+        description: zod.string().nullable(),
         discountType: zod.enum(['PERCENT', 'FIXED']),
         discountValue: zod.number(),
         maxDiscountVnd: zod.union([
@@ -61,9 +61,9 @@ export const PromotionsControllerListResponse = zod.object({
           .max(promotionsControllerListResponseDataItemMinSubtotalVndMax),
         startsAt: zod.string(),
         endsAt: zod.string(),
-        maxUses: zod.array(zod.number()),
+        maxUses: zod.number().nullable(),
         usedCount: zod.number(),
-        perUserLimit: zod.array(zod.number()),
+        perUserLimit: zod.number().nullable(),
         isActive: zod.boolean(),
         createdAt: zod.string(),
       }),
@@ -93,11 +93,9 @@ export const promotionsControllerCreateBodyStartsAtRegExp = new RegExp(
 export const promotionsControllerCreateBodyEndsAtRegExp = new RegExp(
   '^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$',
 );
-export const promotionsControllerCreateBodyMaxUsesMin = 0;
-export const promotionsControllerCreateBodyMaxUsesMax = 9007199254740991;
+export const promotionsControllerCreateBodyMaxUsesOneMax = 9007199254740991;
 
-export const promotionsControllerCreateBodyPerUserLimitMin = 0;
-export const promotionsControllerCreateBodyPerUserLimitMax = 9007199254740991;
+export const promotionsControllerCreateBodyPerUserLimitOneMax = 9007199254740991;
 
 export const PromotionsControllerCreateBody = zod.object({
   code: zod.string(),
@@ -117,14 +115,10 @@ export const PromotionsControllerCreateBody = zod.object({
   startsAt: zod.iso.datetime({ offset: true }).regex(promotionsControllerCreateBodyStartsAtRegExp),
   endsAt: zod.iso.datetime({ offset: true }).regex(promotionsControllerCreateBodyEndsAtRegExp),
   maxUses: zod
-    .int()
-    .min(promotionsControllerCreateBodyMaxUsesMin)
-    .max(promotionsControllerCreateBodyMaxUsesMax)
+    .union([zod.int().min(1).max(promotionsControllerCreateBodyMaxUsesOneMax), zod.null()])
     .optional(),
   perUserLimit: zod
-    .int()
-    .min(promotionsControllerCreateBodyPerUserLimitMin)
-    .max(promotionsControllerCreateBodyPerUserLimitMax)
+    .union([zod.int().min(1).max(promotionsControllerCreateBodyPerUserLimitOneMax), zod.null()])
     .optional(),
   isActive: zod.boolean().optional(),
 });
@@ -140,7 +134,7 @@ export const PromotionsControllerCreateResponse = zod.object({
     .object({
       id: zod.string(),
       code: zod.string(),
-      description: zod.array(zod.string()),
+      description: zod.string().nullable(),
       discountType: zod.enum(['PERCENT', 'FIXED']),
       discountValue: zod.number(),
       maxDiscountVnd: zod.union([
@@ -156,9 +150,9 @@ export const PromotionsControllerCreateResponse = zod.object({
         .max(promotionsControllerCreateResponseDataMinSubtotalVndMax),
       startsAt: zod.string(),
       endsAt: zod.string(),
-      maxUses: zod.array(zod.number()),
+      maxUses: zod.number().nullable(),
       usedCount: zod.number(),
-      perUserLimit: zod.array(zod.number()),
+      perUserLimit: zod.number().nullable(),
       isActive: zod.boolean(),
       createdAt: zod.string(),
     })
@@ -180,7 +174,7 @@ export const PromotionsControllerGetResponse = zod.object({
     .object({
       id: zod.string(),
       code: zod.string(),
-      description: zod.array(zod.string()),
+      description: zod.string().nullable(),
       discountType: zod.enum(['PERCENT', 'FIXED']),
       discountValue: zod.number(),
       maxDiscountVnd: zod.union([
@@ -196,9 +190,9 @@ export const PromotionsControllerGetResponse = zod.object({
         .max(promotionsControllerGetResponseDataMinSubtotalVndMax),
       startsAt: zod.string(),
       endsAt: zod.string(),
-      maxUses: zod.array(zod.number()),
+      maxUses: zod.number().nullable(),
       usedCount: zod.number(),
-      perUserLimit: zod.array(zod.number()),
+      perUserLimit: zod.number().nullable(),
       isActive: zod.boolean(),
       createdAt: zod.string(),
     })
@@ -212,11 +206,9 @@ export const PromotionsControllerUpdateParams = zod.object({
 export const promotionsControllerUpdateBodyEndsAtRegExp = new RegExp(
   '^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$',
 );
-export const promotionsControllerUpdateBodyMaxUsesMin = 0;
-export const promotionsControllerUpdateBodyMaxUsesMax = 9007199254740991;
+export const promotionsControllerUpdateBodyMaxUsesOneMax = 9007199254740991;
 
-export const promotionsControllerUpdateBodyPerUserLimitMin = 0;
-export const promotionsControllerUpdateBodyPerUserLimitMax = 9007199254740991;
+export const promotionsControllerUpdateBodyPerUserLimitOneMax = 9007199254740991;
 
 export const PromotionsControllerUpdateBody = zod.object({
   description: zod.string().optional(),
@@ -226,14 +218,10 @@ export const PromotionsControllerUpdateBody = zod.object({
     .regex(promotionsControllerUpdateBodyEndsAtRegExp)
     .optional(),
   maxUses: zod
-    .int()
-    .min(promotionsControllerUpdateBodyMaxUsesMin)
-    .max(promotionsControllerUpdateBodyMaxUsesMax)
+    .union([zod.int().min(1).max(promotionsControllerUpdateBodyMaxUsesOneMax), zod.null()])
     .optional(),
   perUserLimit: zod
-    .int()
-    .min(promotionsControllerUpdateBodyPerUserLimitMin)
-    .max(promotionsControllerUpdateBodyPerUserLimitMax)
+    .union([zod.int().min(1).max(promotionsControllerUpdateBodyPerUserLimitOneMax), zod.null()])
     .optional(),
   isActive: zod.boolean().optional(),
 });
@@ -249,7 +237,7 @@ export const PromotionsControllerUpdateResponse = zod.object({
     .object({
       id: zod.string(),
       code: zod.string(),
-      description: zod.array(zod.string()),
+      description: zod.string().nullable(),
       discountType: zod.enum(['PERCENT', 'FIXED']),
       discountValue: zod.number(),
       maxDiscountVnd: zod.union([
@@ -265,9 +253,9 @@ export const PromotionsControllerUpdateResponse = zod.object({
         .max(promotionsControllerUpdateResponseDataMinSubtotalVndMax),
       startsAt: zod.string(),
       endsAt: zod.string(),
-      maxUses: zod.array(zod.number()),
+      maxUses: zod.number().nullable(),
       usedCount: zod.number(),
-      perUserLimit: zod.array(zod.number()),
+      perUserLimit: zod.number().nullable(),
       isActive: zod.boolean(),
       createdAt: zod.string(),
     })
@@ -295,7 +283,7 @@ export const PromotionsControllerRestoreResponse = zod.object({
     .object({
       id: zod.string(),
       code: zod.string(),
-      description: zod.array(zod.string()),
+      description: zod.string().nullable(),
       discountType: zod.enum(['PERCENT', 'FIXED']),
       discountValue: zod.number(),
       maxDiscountVnd: zod.union([
@@ -311,9 +299,9 @@ export const PromotionsControllerRestoreResponse = zod.object({
         .max(promotionsControllerRestoreResponseDataMinSubtotalVndMax),
       startsAt: zod.string(),
       endsAt: zod.string(),
-      maxUses: zod.array(zod.number()),
+      maxUses: zod.number().nullable(),
       usedCount: zod.number(),
-      perUserLimit: zod.array(zod.number()),
+      perUserLimit: zod.number().nullable(),
       isActive: zod.boolean(),
       createdAt: zod.string(),
     })

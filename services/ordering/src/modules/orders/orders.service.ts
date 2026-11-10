@@ -14,6 +14,7 @@ import {
   CancelReason,
   DEFAULT_PAGE_SIZE,
   GrpcStatus,
+  LOYALTY_POINT_VALUE_VND,
   MAX_ORDER_TOTAL_VND,
   MIN_PAYABLE_VND,
   newId,
@@ -48,6 +49,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { PromotionEvaluationService } from '../promotions/promotion-evaluation.service.js';
 import { LoyaltyService } from '../loyalty/loyalty.service.js';
 import { assertTransition } from './domain/order-lifecycle.js';
+import { pointsApplied, pointsCap } from './domain/points-cap.js';
 import { rethrowCatalogError } from './domain/catalog-errors.js';
 import { CatalogMenuGrpcClient } from './catalog-menu-grpc.client.js';
 import { CatalogStockGrpcClient } from './catalog-stock-grpc.client.js';
@@ -106,7 +108,12 @@ export class OrdersService {
 
     const { count } = await tx.order.updateMany({
       where: { id: orderId, status: current.status, ...where },
-      data: { status: to, ...data },
+      // `cancelledAt` is the transition's, not each caller's: every cancel path has one (O-1).
+      data: {
+        status: to,
+        ...(to === OrderStatus.CANCELLED && { cancelledAt: new Date() }),
+        ...data,
+      },
     });
     if (count === 0) {
       // By id alone — the `where` may no longer match, which is exactly why we are here.
@@ -127,6 +134,8 @@ export class OrdersService {
           data: { usedCount: { decrement: 1 } },
         });
       }
+      // Return first, then reverse: the points the order spent can cover the reversal (ADR 0035).
+      await this.loyalty.returnRedeemed(tx, current);
       await this.loyalty.reverse(tx, current);
     }
 
@@ -183,17 +192,27 @@ export class OrdersService {
       );
       promoDiscountVnd = evaluation.discountVnd;
     }
-    const totalVnd = subtotalVnd - promoDiscountVnd;
+    // Points come second (ADR 0035). A request above the cap is clipped, never refused — the
+    // screen shows the cap and why; with no request the cap is still returned.
+    const pointsBalance = await this.loyalty.balanceOf(userId);
+    const { cap, reason } = pointsCap({ balance: pointsBalance, subtotalVnd, promoDiscountVnd });
+    const pointsRedeemed = pointsApplied(request.pointsToRedeem, cap);
+    const pointsDiscountVnd = pointsRedeemed * LOYALTY_POINT_VALUE_VND;
+    const totalVnd = subtotalVnd - promoDiscountVnd - pointsDiscountVnd;
     this.assertTotalChecks(totalVnd);
 
     return {
       lines: priced.lines.map(toOrderLineFromPriced),
       subtotalVnd: priced.subtotalVnd,
       promoDiscountVnd,
-      pointsDiscountVnd: 0,
+      pointsDiscountVnd,
       totalVnd: totalVnd.toString(),
       promoCode: request.promoCode,
       pointsEarnable: pointsEarnable(totalVnd),
+      pointsBalance,
+      pointsRedeemable: cap,
+      pointsCapReason: reason,
+      pointsRedeemed,
     };
   }
 
@@ -210,6 +229,8 @@ export class OrdersService {
       })),
       note: request.note !== undefined ? normalizeText(request.note) : undefined,
       promoCode: request.promoCode !== undefined ? request.promoCode.toUpperCase() : undefined,
+      // A replay never spends twice, and the same key asking for other points is a reuse.
+      pointsToRedeem: request.pointsToRedeem,
     });
 
     const existing = await this.prisma.order.findUnique({
@@ -229,6 +250,11 @@ export class OrdersService {
     // refusal before stock is ever reserved. Step 6, under the lock, is the real one.
     if (request.promoCode !== undefined) {
       await this.promotions.evaluate(request.promoCode, subtotalVnd, userId, new Date());
+    }
+    // The same cheap refusal for points: more than the balance never reaches the stock.
+    if (request.pointsToRedeem !== undefined) {
+      const balance = await this.loyalty.balanceOf(userId);
+      if (request.pointsToRedeem > balance) throw rpcError('POINTS_INSUFFICIENT', { balance });
     }
 
     try {
@@ -260,8 +286,18 @@ export class OrdersService {
           promotionId = evaluation.promotionId;
           promoDiscountVnd = evaluation.discountVnd;
         }
-        // The totals stored are the ones computed under the lock, not the step-4 preview.
-        const totalVnd = subtotalVnd - promoDiscountVnd;
+        // Points under the account lock — after the promotion's, always (lock order: promotion
+        // row → loyalty account row). Above the balance is refused; above the cap is clipped.
+        let pointsRedeemed = 0;
+        if (request.pointsToRedeem !== undefined) {
+          const balance = await this.loyalty.lockedBalance(tx, userId);
+          if (request.pointsToRedeem > balance) throw rpcError('POINTS_INSUFFICIENT', { balance });
+          const { cap } = pointsCap({ balance, subtotalVnd, promoDiscountVnd });
+          pointsRedeemed = pointsApplied(request.pointsToRedeem, cap);
+        }
+        const pointsDiscountVnd = pointsRedeemed * LOYALTY_POINT_VALUE_VND;
+        // The totals stored are the ones computed under the locks, not the step-4 preview.
+        const totalVnd = subtotalVnd - promoDiscountVnd - pointsDiscountVnd;
         this.assertTotalChecks(totalVnd);
 
         await tx.order.create({
@@ -271,6 +307,8 @@ export class OrdersService {
             status: OrderStatus.PENDING,
             subtotalVnd,
             promoDiscountVnd,
+            pointsRedeemed,
+            pointsDiscountVnd,
             totalVnd,
             promotionId,
             promoCode: request.promoCode,
@@ -312,6 +350,7 @@ export class OrdersService {
             actorUserId: userId,
           },
         });
+        await this.loyalty.spend(tx, { id: orderId, userId }, pointsRedeemed);
       });
       return { order: await this.toFullOrder(orderId), created: true };
     } catch (error) {

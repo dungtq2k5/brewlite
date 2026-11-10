@@ -91,7 +91,7 @@ Every id is a **UUIDv7** ([ADR 0009](./decisions/0009-every-identifier-is-a-uuid
 
 - The web app creates the key **when the customer taps the button** and reuses it for every retry of that tap; a new tap is a new key.
 - Missing key → `400 IDEMPOTENCY_KEY_REQUIRED`.
-- Same key, same body → the original resource, `200` (the first call answered `201`).
+- Same key, same body → the original resource, `200` (the first call answered `201`). **Both statuses are documented** on `POST /orders`, `POST /payments` and `POST /auth/firebase` (new account `201`, returning `200`), so the generated client types the pair.
 - Same key, different body → `422 IDEMPOTENCY_KEY_REUSED`.
 - The guarantee is a unique index in the owning service's database (rdm-spec §1.7), so it holds across concurrent requests, replicas and restarts.
 
@@ -153,6 +153,7 @@ Session = {
 
 ```ts
 Me = { id; email; fullName; role: 'CUSTOMER' | 'STAFF' | 'ADMIN'; permissions: string[]; hasPassword: boolean;
+       signsInWithGoogle: boolean;   // linked to a Firebase sign-in (firebase_uid IS NOT NULL) — Google while Apple is off
        preferredLocale: 'en' | 'vi'; createdAt }
 ```
 
@@ -160,7 +161,7 @@ Me = { id; email; fullName; role: 'CUSTOMER' | 'STAFF' | 'ADMIN'; permissions: s
 | :---- | :---- | :---- | :---- |
 | GET | `/users/me` | `Me`. `permissions` is `ROLE_PERMISSIONS[role]` — the web app uses it to show or hide staff and admin links. A deactivated account holding a still-valid access token gets `401 UNAUTHENTICATED`, not `404` — the account is gone for them, and `401` is what makes the web server clear the cookies. | USER |
 | PATCH | `/users/me` | `{ fullName?, preferredLocale? }` → `Me`. Nothing else is self-service. | USER |
-| PATCH | `/users/me/password` *(P1)* | `{ currentPassword?, newPassword }` → `204`. `currentPassword` required when the account has one (`403 CURRENT_PASSWORD_INCORRECT`); a Google-only account may set a first password. Deletes every *other* session. | USER · `AUTH` |
+| PATCH | `/users/me/password` | `{ currentPassword?, newPassword }` (each 8–72 bytes) → `204`. `currentPassword` required when the account has one (`403 CURRENT_PASSWORD_INCORRECT`); a Google-only account may set a first password (`currentPassword` ignored). Deletes every *other* session — their refresh tokens stop working at once, their access tokens lapse within 15 minutes; the caller's session (the token's `sid`) is kept. `AUTH`'s limit is counted **per IP address only** here — the body has no email. | USER · `AUTH` |
 
 ### 1.3 User administration — `/admin/users`
 
@@ -268,25 +269,31 @@ Quote = {
   subtotalVnd; promoDiscountVnd; pointsDiscountVnd; totalVnd;
   promoCode: string | null;
   pointsEarnable: number;                 // what paying this total would earn
+  pointsBalance: number;                  // the caller's balance (0 with no account row)
+  pointsRedeemable: number;               // the cap: min(balance, 50 % of the subtotal, what keeps the total ≥ MIN_PAYABLE_VND)
+  pointsCapReason: 'BALANCE' | 'PERCENT' | 'FLOOR';   // the first limit, in that order, equal to the cap
+  pointsRedeemed: number;                 // applied: min(pointsToRedeem ?? 0, pointsRedeemable)
 }
 
 Order = Quote & {
   id; orderNo; status; note: string | null;
+  currentPaymentId: string | null;        // the payment in progress, or the one that paid it — read it with GET /payments/:id
   expiresAt: string | null;               // the payment deadline, only while PENDING / PAYMENT_FAILED
   paidAt: string | null; createdAt;
-  cancelReason: 'CUSTOMER' | 'EXPIRED' | 'STAFF' | null; cancelNote: string | null;
+  cancelledAt: string | null; cancelReason: 'CUSTOMER' | 'EXPIRED' | 'STAFF' | null; cancelNote: string | null;
   refundStatus: 'NONE' | 'PENDING' | 'REFUNDED' | 'FAILED';
   pointsEarned: number;
-  history: { fromStatus: string | null; toStatus; actorType; note: string | null; at }[];
+  history: { fromStatus: string | null; toStatus; actorType; note: string | null; at }[];   // never who — `actorUserId` / `actorName` are on the admin detail only (§3.4)
 }
+// The customer's Order never carries its owner: `userId` and `customerName` exist on the admin routes only (§3.4).
 ```
 
 ### 3.2 Customer orders
 
 | Method | Path | Description | Auth |
 | :---- | :---- | :---- | :---- |
-| POST | `/orders/quote` | `{ items: CartLine[], promoCode?, pointsToRedeem? }` → `Quote`. Prices through catalog and validates the code; **writes nothing and reserves nothing**. Refusals, in this order: `422 PRODUCT_UNAVAILABLE` (`details.productIds`), `422 OPTION_INVALID` (`details.lineIndex`, `details.reason: SIZE \| TOPPING \| TOO_MANY_TOPPINGS`), `409 OUT_OF_STOCK` (read-only check, `details.products`), `422 PROMO_CODE_INVALID` (`details.reason`, rdm-spec O-4), `422 POINTS_INSUFFICIENT` *(P1)*, `422 ORDER_TOTAL_TOO_LOW` (judged on the **subtotal** — a valid code's discount is capped at `subtotal − MIN_PAYABLE_VND`, so it never causes this), `422 ORDER_TOTAL_TOO_HIGH` (`details.maximumVnd`, on the total after the discount). The web app marks the named lines unavailable. | USER · `ORDER_WRITE` |
-| POST | `/orders` ⟳ | `{ items, promoCode?, pointsToRedeem?, note? }` → `201 Order` (`PENDING`). The same refusals as the quote, where `OUT_OF_STOCK` now comes from the actual reservation, plus `409 STOCK_CONTENDED` when the optimistic lock kept losing (retry with the same key). The sequence is §6.1. | USER · `ORDER_WRITE` |
+| POST | `/orders/quote` | `{ items: CartLine[], promoCode?, pointsToRedeem? }` → `Quote`. Prices through catalog and validates the code; **writes nothing and reserves nothing**. Refusals, in this order: `422 PRODUCT_UNAVAILABLE` (`details.productIds`), `422 OPTION_INVALID` (`details.lineIndex`, `details.reason: SIZE \| TOPPING \| TOO_MANY_TOPPINGS`), `409 OUT_OF_STOCK` (read-only check, `details.products`), `422 PROMO_CODE_INVALID` (`details.reason`, rdm-spec O-4), `422 ORDER_TOTAL_TOO_LOW` (judged on the **subtotal** — a valid code's discount is capped at `subtotal − MIN_PAYABLE_VND`, so it never causes this), `422 ORDER_TOTAL_TOO_HIGH` (`details.maximumVnd`, on the total after the discount). `pointsToRedeem` (≥ 1) is applied **after** the promotion and **clipped** to `pointsRedeemable` — never refused here ([ADR 0035](./decisions/0035-points-are-spent-after-the-promotion-and-come-back-whole-but-a-reversal-never-goes-below-zero.md)). The web app marks the named lines unavailable. | USER · `ORDER_WRITE` |
+| POST | `/orders` ⟳ | `{ items, promoCode?, pointsToRedeem?, note? }` → `201 Order` (`PENDING`). The same refusals as the quote, plus `422 POINTS_INSUFFICIENT` (`details.balance`) when `pointsToRedeem` exceeds the balance — the points are taken under a lock on the loyalty account, after the promotion's, and returned whole on any cancel; where `OUT_OF_STOCK` now comes from the actual reservation, plus `409 STOCK_CONTENDED` when the optimistic lock kept losing (retry with the same key). The sequence is §6.1. | USER · `ORDER_WRITE` |
 | GET | `/orders/me` | Cursor style, newest first, `?status=` optional. Each item is the `Order` without `history`. | USER |
 | GET | `/orders/:id` | `Order`. Someone else's → `404`. | USER |
 | POST | `/orders/:id/cancel` | → `Order` (`CANCELLED`, reason `CUSTOMER`). Only from `PENDING` or `PAYMENT_FAILED`; otherwise `409 INVALID_STATE` (`details.status`). | USER · `ORDER_WRITE` |
@@ -305,9 +312,11 @@ Order = Quote & {
 
 | Method | Path | Description | Auth |
 | :---- | :---- | :---- | :---- |
-| GET | `/admin/orders` *(P1)* | `?status=&from=&to=&orderNo=`, page style, sort `createdAt`, `totalVnd`. | perm:`order.read.all` |
-| GET | `/admin/orders/:id` *(P1)* | `Order` with `history`, plus `payments` from payment (`payment.PaymentService.ListPaymentsForOrder`). If payment is down: `payments: null`, `meta.degraded: ["payment"]` — the order still shows. | perm:`order.read.all` |
-| GET | `/admin/reports/sales` *(P1)* | `?from=&to=` (business days, inclusive, ≤ 93 days) → `{ days: [{ day, orders, revenueVnd }], topProducts: [{ productId, productName: LocalizedText, qty, revenueVnd }] }`. Counts orders that reached `PAID` and were not refunded. | perm:`report.read` |
+| GET | `/admin/orders` | `?status=&from=&to=&orderNo=&userId=` — any status; `userId` narrows to one customer's orders; `from`/`to` are Vietnam business days (`businessDay()`), inclusive, on `created_at`; `orderNo` exact. Page style, sort `createdAt`, `totalVnd`, default `-createdAt`. Each item is the `Order` without `history`, plus **`userId`** and **`customerName`** — the page's distinct customers named by **one** identity call (`AdminUserService.ListUserNames`). If identity is down: every `customerName` `null` (the ids stay) and `meta.degraded: ["identity"]` beside `page`, `pageSize`, `total`. | perm:`order.read.all` |
+| GET | `/admin/orders/:id` | `Order` with `history`, plus **`userId`** and **`customerName`**, plus `payments` from payment (`payment.PaymentService.ListPaymentsForOrder`). Each history row also carries **`actorUserId`** and **`actorName`** (`null` for `SYSTEM` and `PAYMENT` rows): the customer and every actor are named by **one** identity call (`AdminUserService.ListUserNames`), in parallel with the payments; a deactivated user still resolves, one identity cannot find is `null`. If payment is down: `payments: null`; if identity is down: `customerName` and every `actorName` `null` (the ids stay) — each adds its name to `meta.degraded` (`["payment", "identity"]`, in that order), and the order still shows. | perm:`order.read.all` The response is `{ data: Order & { payments }, meta?: { degraded } }` — the one single-resource response with `meta`. |
+| GET | `/admin/users/:id/loyalty` | A customer's points: the same `Loyalty` shape as `/loyalty/me` (`balance`, `lifetimeEarned`, the 20 most recent). An id with no ledger rows answers zeros; identity is not asked whether the user exists. | perm:`user.manage` |
+| GET | `/admin/users/:id/staff-stats` | `?from=&to=` (business days, inclusive, ≤ 93 days, both required) → `{ from, to, ordersHandled, transitions: { PREPARING, READY, COMPLETED, CANCELLED } }`, counted from O-3 rows with `actor_type = 'STAFF'` and this `actor_user_id` in the range: `ordersHandled` is the distinct orders, `transitions` the rows per `to_status`, zeros included. An admin who worked the counter has numbers too; a customer answers zeros. Nothing timed, no revenue. `from` after `to`, or more than 93 days, is `400`. | perm:`report.read` |
+| GET | `/admin/reports/sales` | `?from=&to=` (business days, inclusive, ≤ 93 days) → `{ days: [{ day, orders, revenueVnd }], topProducts: [{ productId, productName: LocalizedText, qty, revenueVnd }] }`. Counts orders that reached `PAID` and were not refunded — `paid_at IS NOT NULL AND refund_status <> 'REFUNDED'`, so a paid order whose refund **failed** still counts. Days are Vietnam days (`businessDay()`), grouped in SQL; days with no order are included with zeros. `topProducts`: the top **10** by revenue, named with the most recent line's snapshot. `from` after `to`, or more than 93 days, is `400`. | perm:`report.read` |
 
 ### 3.5 Promotions — `/admin/promotions`
 
@@ -320,9 +329,9 @@ Promotion = { id; code; description: string | null; discountType: 'PERCENT' | 'F
 | Method | Path | Description | Auth |
 | :---- | :---- | :---- | :---- |
 | GET | `/admin/promotions` | `?active=&deleted=&q=`, page style — `active` is the `is_active` column, `q` a code prefix (upper-cased). Sort `createdAt`, `code`, `endsAt`, default `-createdAt`. | perm:`promotion.manage` |
-| POST | `/admin/promotions` | Everything but `id`, `usedCount`, `createdAt`. Code normalised to upper case. `perUserLimit` defaults to `1`; `null` is unlimited. `maxUses: null` is unlimited, `0` a code that can no longer be used. `409 PROMO_CODE_TAKEN` — deleted codes included, since a code is never reused. | perm:`promotion.manage` |
+| POST | `/admin/promotions` | Everything but `id`, `usedCount`, `createdAt`. Code normalised to upper case. `perUserLimit` defaults to `1`; `null` is unlimited. `maxUses` omitted or `null` is unlimited. Both limits are an integer ≥ 1 or `null` — `0` is `400` (switching a code off is `isActive: false`). `409 PROMO_CODE_TAKEN` — deleted codes included, since a code is never reused. | perm:`promotion.manage` |
 | GET | `/admin/promotions/:id` | `Promotion`. | perm:`promotion.manage` |
-| PATCH | `/admin/promotions/:id` | `{ description?, endsAt?, maxUses?, perUserLimit?, isActive? }`. `maxUses` below `usedCount` is `422 PROMO_MAX_USES_BELOW_USED`. The discount itself never changes (rdm-spec O-4). | perm:`promotion.manage` |
+| PATCH | `/admin/promotions/:id` | `{ description?, endsAt?, maxUses?, perUserLimit?, isActive? }`. Omitted = unchanged; `maxUses: null` / `perUserLimit: null` removes the limit (always allowed, even on a used-up code); numbers ≥ 1. `maxUses` below `usedCount` is `422 PROMO_MAX_USES_BELOW_USED`. The discount itself never changes (rdm-spec O-4). | perm:`promotion.manage` |
 | DELETE | `/admin/promotions/:id` | Soft delete → `204`. The code stops working at once (`PROMO_CODE_INVALID`, `NOT_FOUND`); orders that used it are unaffected. | perm:`promotion.manage` |
 | POST | `/admin/promotions/:id/restore` | `204`. | perm:`promotion.manage` |
 
@@ -460,7 +469,7 @@ Every code is one entry in `ERRORS` in `packages/contracts`: HTTP status, gRPC s
 | `ACCOUNT_LOCKED` | 403 | `lockedUntil: string \| null` — never the reason | identity |
 | `ACCOUNT_DEACTIVATED` | 403 | — | identity |
 | `SELF_ACTION_FORBIDDEN` | 403 | — | identity |
-| `CURRENT_PASSWORD_INCORRECT` | 403 | — | identity *(P1)* |
+| `CURRENT_PASSWORD_INCORRECT` | 403 | — | identity |
 | `ROUTE_NOT_FOUND` | 404 | — | gateway; payment (`fake-confirm` when disabled) |
 | `RESOURCE_NOT_FOUND` | 404 | `resource: USER \| CATEGORY \| PRODUCT \| TOPPING \| ORDER \| PROMOTION \| PAYMENT` | any service |
 | `INVALID_STATE` | 409 | `status` — the current status | ordering, payment, catalog (`DELETED` \| `ACTIVE` \| `CATEGORY_DELETED`) |
@@ -478,7 +487,7 @@ Every code is one entry in `ERRORS` in `packages/contracts`: HTTP status, gRPC s
 | `OPTION_INVALID` | 422 | `lineIndex`, `reason: SIZE \| TOPPING \| TOO_MANY_TOPPINGS` | catalog → ordering |
 | `PROMO_CODE_INVALID` | 422 | `reason: NOT_FOUND \| INACTIVE \| NOT_STARTED \| EXPIRED \| MIN_SUBTOTAL \| EXHAUSTED \| PER_USER_LIMIT`, `minSubtotalVnd?` | ordering |
 | `PROMO_MAX_USES_BELOW_USED` | 422 | `usedCount` | ordering |
-| `POINTS_INSUFFICIENT` | 422 | `balance` | ordering *(P1)* |
+| `POINTS_INSUFFICIENT` | 422 | `balance` | ordering — at placing only |
 | `ORDER_TOTAL_TOO_LOW` | 422 | `minimumVnd` | ordering |
 | `ORDER_TOTAL_TOO_HIGH` | 422 | `maximumVnd` | ordering |
 | `IMAGE_INVALID` | 422 | `reason: TYPE \| SIZE` | gateway, catalog |
@@ -520,11 +529,11 @@ The gateway routes by path prefix; **a prefix belongs to exactly one service.**
 | :---- | :---- |
 | `/auth`, `/users/me`, `/admin/users` | `identity` |
 | `/categories`, `/products`, `/staff/products`, `/staff/toppings`, `/admin/categories`, `/admin/products`, `/admin/toppings` | `catalog` |
-| `/orders`, `/staff/orders`, `/admin/orders`, `/admin/reports`, `/admin/promotions`, `/loyalty` | `ordering` |
+| `/orders`, `/staff/orders`, `/admin/orders`, `/admin/reports`, `/admin/promotions`, `/loyalty`, `/admin/users/:id/loyalty`, `/admin/users/:id/staff-stats` | `ordering` |
 | `/payments`, `/webhooks/stripe` | `payment` |
 | `/health`, `/version`, `/docs` | `gateway` |
 
-**Composed response:** `GET /admin/orders/:id` (ordering + payment) is the only route that calls two services, and it degrades as §3.4 says.
+**Composed response:** `GET /admin/orders/:id` (ordering, then payment and identity in parallel) is the only route that calls more than one service, and it degrades as §3.4 says.
 
 ### 9.2 Internal RPCs
 
@@ -537,7 +546,8 @@ gRPC packages are `brewlite.<service>`; protos in `packages/contracts/proto/brew
 | `catalog.StockService.ReleaseStock(orderId)` | ordering (compensation only) | undo a reservation whose order was never written | log; the orphan sweep releases it later |
 | `ordering.OrderService.BeginPayment(orderId, userId, paymentId)` | payment | the amount and the payability must be current. The deadline check and the `expires_at` raise are **one conditional write** whose `WHERE` repeats `status IN (PENDING, PAYMENT_FAILED) AND expires_at > now` — the same condition `orders-expire` uses, so whichever commits first wins and the other is told `ORDER_NOT_PAYABLE`. `expires_at` only moves forward | refuse the payment (`503`); no payment row is written |
 | `ordering.OrderService.GetOrderStatus(orderId)` | catalog (orphan sweep) | the sweep must not guess | skip the row; the next run retries |
-| `payment.PaymentService.ListPaymentsForOrder(orderId)` | gateway (composition, §3.4) | — | `payments: null`, `meta.degraded` |
+| `payment.PaymentService.ListPaymentsForOrder(orderId)` | gateway (composition, §3.4) | — every payment of the order, newest first; `clientSecret` always `null` | `payments: null`, `meta.degraded` |
+| `identity.AdminUserService.ListUserNames(ids)` | gateway (composition, §3.4) | — the names on both admin order routes: the list's customers, the detail's customer and actors; ≤ 100 ids, one read, deactivated users included, unknown ids absent, a repeated id folded | `customerName` / `actorName: null`, `meta.degraded` |
 
 `PriceItems` also runs a read-only `OUT_OF_STOCK` check (summed per counted product across the caller's lines) so the quote can refuse early — the reservation in `ReserveStock` stays the authority, since stock can change between the two calls. It returns every field O-2 snapshots — both product and topping names, base price, size delta, unit price — so ordering never reads catalog again to build an order line (rdm-spec §1.4).
 
@@ -591,12 +601,12 @@ Every service serves these — backend services on `OPS_PORT`, the gateway on it
 
 | Phase | Sections |
 | :---- | :---- |
-| **A — backend (P0)** | §0 · §1.1, §1.2 (not the password route), §1.3 · §2 · §3.1–3.3, §3.5, §3.6 · §4 · §5 · §6 · §7 · §8 · §9 (not `ListPaymentsForOrder`) · §10 · §11 |
+| **A — backend (P0)** | §0 · §1.1, §1.2 (not the password route), §1.3 · §2 · §3.1–3.3, §3.5, §3.6 · §4 · §5 · §6 · §7 · §8 · §9 · §10 · §11 |
 | **B — frontend** | consumes Phase A through the generated client; no new routes |
 | **C — handover** | no new routes; the Compose `apps` profile runs everything, the README, the J1 demo |
-| **P1** | `PATCH /users/me/password` · §3.4 admin orders and reports · `pointsToRedeem` on quote and order · `ListPaymentsForOrder` |
+| **P1** | built: `PATCH /users/me/password` · `pointsToRedeem` on quote and order — §3.4 admin orders and reports and `ListPaymentsForOrder` came earlier, with the admin pages' needs |
 
-**Phase A is done.** Audited at the end of the phase: every §1–§4 route is built and documented (58 operations), each with this plan's marker and rate-limit class; every `ERRORS` code is raised except the two P1 ones. A guard keeps this plan and `openapi.json` in sync from here on.
+**Phase A is done.** Audited at the end of the phase: every §1–§4 route is built and documented (58 operations), each with this plan's marker and rate-limit class; every `ERRORS` code is raised (the two P1 codes since BE batch 06). A guard keeps this plan and `openapi.json` in sync from here on.
 
 ---
 

@@ -1,6 +1,7 @@
 import type { INestApplication } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { cleanupOpenApiDoc } from 'nestjs-zod';
+import { NULLABLE_MARKER } from './zod-dto.js';
 
 export function buildOpenApiDocument(app: INestApplication) {
   const config = new DocumentBuilder()
@@ -12,7 +13,25 @@ export function buildOpenApiDocument(app: INestApplication) {
     .build();
   const document = cleanupOpenApiDoc(SwaggerModule.createDocument(app, config));
   stripParameterContentEncoding(document);
+  restoreNullable(document);
   return document;
+}
+
+/**
+ * Undoes `createZodDto`'s marker: a property it flagged goes back to `type: [<type>, "null"]`
+ * (valid in OpenAPI 3.1). It acts only where the source said `.nullable()`, so a real array
+ * of strings is never mistaken for a nullable string.
+ */
+function restoreNullable(document: ReturnType<typeof SwaggerModule.createDocument>) {
+  for (const schema of Object.values(document.components?.schemas ?? {})) {
+    const properties = (schema as { properties?: Record<string, Record<string, unknown>> })
+      .properties;
+    for (const property of Object.values(properties ?? {})) {
+      if (!(NULLABLE_MARKER in property)) continue;
+      delete property[NULLABLE_MARKER];
+      property.type = [property.type, 'null'];
+    }
+  }
 }
 
 /**

@@ -18,9 +18,14 @@ export interface AdminUserResponseDto {
   preferredLocale: AdminUserResponseDtoPreferredLocale;
   createdAt: string;
   isLocked: boolean;
-  lockedUntil: string[];
-  lockReason: string[];
-  deletedAt: string[];
-  deletedById: string[];
-  lastLoginAt: string[];
+  /** @nullable */
+  lockedUntil: string | null;
+  /** @nullable */
+  lockReason: string | null;
+  /** @nullable */
+  deletedAt: string | null;
+  /** @nullable */
+  deletedById: string | null;
+  /** @nullable */
+  lastLoginAt: string | null;
 }

@@ -11,6 +11,7 @@ export function toMeResponseDto(proto: MeProto): MeResponseDto {
     role,
     permissions: [...permissionsFor(role)],
     hasPassword: proto.hasPassword,
+    signsInWithGoogle: proto.signsInWithGoogle,
     preferredLocale: parseEnum(Locale, proto.preferredLocale),
     createdAt: proto.createdAt,
   };

@@ -41,11 +41,17 @@ export interface OrderHistoryEntry {
   actorType: string;
   note?: string | undefined;
   createdAt: string;
+  /** O-3 `actor_user_id`: the customer or staff member. Only the admin detail route shows it. */
+  actorUserId?: string | undefined;
 }
 
 export interface QuoteRequest {
   items: CartLine[];
-  promoCode?: string | undefined;
+  promoCode?:
+    | string
+    | undefined;
+  /** Points the customer would spend (≥ 1); clipped to the cap, never refused (ADR 0035). */
+  pointsToRedeem?: number | undefined;
 }
 
 export interface QuoteResponse {
@@ -56,6 +62,12 @@ export interface QuoteResponse {
   totalVnd: string;
   promoCode?: string | undefined;
   pointsEarnable: number;
+  /** The caller's balance, the most this order can take, why, and what was applied. */
+  pointsBalance: number;
+  pointsRedeemable: number;
+  /** PointsCapReason in @brewlite/contracts */
+  pointsCapReason: string;
+  pointsRedeemed: number;
 }
 
 export interface Order {
@@ -79,6 +91,15 @@ export interface Order {
   refundStatus: string;
   pointsEarned: number;
   history: OrderHistoryEntry[];
+  /** The payment in progress, or the one that paid the order — `GET /payments/:id` reads it. */
+  currentPaymentId?: string | undefined;
+  cancelledAt?:
+    | string
+    | undefined;
+  /** O-1 `user_id`, always set. Only the admin routes expose it; the customer's `Order` never does. */
+  userId: string;
+  /** O-1 `points_redeemed`: points spent on this order (their value is `points_discount_vnd`). */
+  pointsRedeemed: number;
 }
 
 export interface PlaceOrderRequest {
@@ -86,6 +107,8 @@ export interface PlaceOrderRequest {
   promoCode?: string | undefined;
   note?: string | undefined;
   idempotencyKey: string;
+  /** Above the balance → POINTS_INSUFFICIENT; above the cap → clipped, like the quote. */
+  pointsToRedeem?: number | undefined;
 }
 
 export interface PlaceOrderResponse {

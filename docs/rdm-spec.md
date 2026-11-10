@@ -112,6 +112,7 @@ Every transition inserts one `order_status_history` (O-3) row in the same transa
 - **An admin lowering `max_uses`** is one conditional update, `WHERE used_count <= new_max` — refused `PROMO_MAX_USES_BELOW_USED` otherwise; no lock needed.
 - **The per-customer limit** counts that customer's orders with that `promotion_id` whose status is not `CANCELLED` — no separate redemptions table.
 - **Points** are a ledger (O-6) plus a balance (O-5), written together. `UNIQUE (order_id, kind)` means an order earns once, is reversed once, redeems once and is returned once, however often an event is redelivered.
+- **Spending points** at placement locks the loyalty account row (`SELECT … FOR UPDATE`) **after** the promotion row — always in that order — then writes `REDEEM` and decrements the balance; asking for more than the balance is `POINTS_INSUFFICIENT`. **On every cancel**, inside the same transition: first `REDEEM_RETURNED` (the points back), **then** the clipped `EARN_REVERSED` — returning first can cover the reversal.
 
 ### 1.10 The course brief's entities
 
@@ -138,7 +139,7 @@ Every transition inserts one `order_status_history` (O-3) row in the same transa
 
 - `created_at TIMESTAMPTZ(3) NOT NULL DEFAULT now()` on every table.
 - `updated_at TIMESTAMPTZ(3) NOT NULL DEFAULT now()` on every mutable table, maintained by Prisma `@updatedAt` — declared `@default(now()) @updatedAt`, because `@updatedAt` alone gives no database default and a raw insert fails `NOT NULL`. Append-only tables have **no** `updated_at` — its absence documents that the row is never edited.
-- Always `TIMESTAMPTZ`, stored in UTC. A calendar day (the sales report) is computed in **`Asia/Ho_Chi_Minh`** through the shared `businessDay()` helper, never the server's zone.
+- Always `TIMESTAMPTZ`, stored in UTC. A calendar day (the sales report) is computed in **`Asia/Ho_Chi_Minh`** through `businessDay()` / `businessDayRange()` in `packages/contracts` (`Intl` with the zone name, never a hard-coded offset), never the server's zone. Times an admin **types** are Vietnam time too: `vietnamLocalToInstant('2026-06-01T00:00')` → an ISO instant ending in `Z` (a promotion's window), `instantToVietnamLocal(iso)` its inverse for the edit form, and `endOfBusinessDay(day)` → the instant the next Vietnam day starts (a lock *until* a date).
 
 ### 2.3 Strings
 
@@ -405,8 +406,8 @@ Everything Prisma cannot declare — partial unique indexes, `CHECK` constraints
 | **status** | VARCHAR(16) | NOT NULL, `'PENDING'` | `PENDING \| PAYMENT_FAILED \| PAID \| PREPARING \| READY \| COMPLETED \| CANCELLED` — transitions per §1.5. |
 | **subtotal_vnd** | INT | NOT NULL | Σ O-2 `line_total_vnd`. |
 | **promo_discount_vnd** | INT | NOT NULL, 0 | — |
-| **points_redeemed** | INT | NOT NULL, 0 | *(P1)* Points spent on this order. |
-| **points_discount_vnd** | INT | NOT NULL, 0 | *(P1)* `points_redeemed × LOYALTY_POINT_VALUE_VND`. |
+| **points_redeemed** | INT | NOT NULL, 0 | Points spent on this order (ADR 0035). |
+| **points_discount_vnd** | INT | NOT NULL, 0 | `points_redeemed × LOYALTY_POINT_VALUE_VND`. |
 | **total_vnd** | INT | NOT NULL | `CHECK (total_vnd = subtotal_vnd − promo_discount_vnd − points_discount_vnd)` and `CHECK (total_vnd >= 15000)` (`MIN_PAYABLE_VND`). The upper bound, `MAX_ORDER_TOTAL_VND`, is ordering's refusal (`ORDER_TOTAL_TOO_HIGH`), not a constraint — the `INT` column is the floor under it. What payment charges — payment never computes an amount. |
 | **promotion_id** | UUID | Nullable, FK ➔ promotions.id, RESTRICT — added once O-4 (`promotions`) exists; until then the column exists and is always `NULL` | — |
 | **promo_code** | VARCHAR(32) | Nullable | Snapshot of the code as applied. `CHECK ((promotion_id IS NULL) = (promo_code IS NULL))`. |
@@ -427,7 +428,7 @@ Everything Prisma cannot declare — partial unique indexes, `CHECK` constraints
 - **Placing an order**, in one transaction after catalog reserved the stock: lock and re-validate the promotion, insert O-1, O-2 and the first O-3 row (`from_status` NULL → `PENDING`), increment `promotions.used_count`. Any failure releases the reservation.
 - **Reaching `PAID`**: conditional update from `PENDING` or `PAYMENT_FAILED`, `paid_at`, O-3, O-6 `EARN`, O-5 balance, outbox `ordering.order.status_changed` — one transaction.
 - **Cancelling**: conditional update, O-3, promotion use given back, O-6 `EARN_REVERSED` when points were earned (and `REDEEM_RETURNED` when redeemed), `refund_status = 'PENDING'` when cancelled from `PAID`, outbox event — one transaction.
-- Indexes: `(user_id, id DESC)` — order history; partial `orders_board_idx` and `orders_unpaid_expiry_idx` (§5).
+- Indexes: `(user_id, id DESC)` — order history; `(created_at DESC)` — the admin list; `(paid_at)` — the sales report; partial `orders_board_idx` and `orders_unpaid_expiry_idx` (§5).
 
 #### Table O-2: order_items
 
@@ -462,7 +463,7 @@ Everything Prisma cannot declare — partial unique indexes, `CHECK` constraints
 | **from_status** | VARCHAR(16) | Nullable | NULL only on the first row (creation). |
 | **to_status** | VARCHAR(16) | NOT NULL | — |
 | **actor_type** | VARCHAR(16) | NOT NULL | `CUSTOMER \| STAFF \| SYSTEM \| PAYMENT` |
-| **actor_user_id** | UUID | Nullable | ref ➔ identity.users.id. Set for `CUSTOMER` and `STAFF`. `CHECK ((actor_type IN ('CUSTOMER','STAFF')) = (actor_user_id IS NOT NULL))`. |
+| **actor_user_id** | UUID | Nullable | ref ➔ identity.users.id. Set for `CUSTOMER` and `STAFF`. `CHECK ((actor_type IN ('CUSTOMER','STAFF')) = (actor_user_id IS NOT NULL))`. Index `(actor_user_id, created_at)` — a staff member's activity over a range. |
 | **note** | VARCHAR(200) | Nullable | The staff cancel reason; the payment failure reason. |
 | **created_at** | TIMESTAMPTZ(3) | NOT NULL, now() | — |
 
@@ -492,7 +493,7 @@ Everything Prisma cannot declare — partial unique indexes, `CHECK` constraints
 
 - **Validation order**, each failure a `PROMO_CODE_INVALID` reason: `NOT_FOUND` (including deleted) → `INACTIVE` → `NOT_STARTED` → `EXPIRED` → `MIN_SUBTOTAL` → `EXHAUSTED` → `PER_USER_LIMIT`.
 - **Discount:** `PERCENT` → `floor(subtotal × value / 100)`, capped by `max_discount_vnd`; `FIXED` → `value`. Then capped so `total_vnd >= MIN_PAYABLE_VND`. One function, `applyPromotion`, in ordering's `domain/`.
-- An admin may edit `description`, `ends_at`, `max_uses` (never below `used_count`), `per_user_limit` and `is_active`. The discount itself is immutable once any order used the code — create a new code instead.
+- An admin may edit `description`, `ends_at`, `max_uses` (never below `used_count`), `per_user_limit` and `is_active`; either limit can be set back to unlimited (`NULL`), and a set limit is ≥ 1. The discount itself is immutable once any order used the code — create a new code instead.
 
 #### Table O-5: loyalty_accounts
 
@@ -502,7 +503,7 @@ Everything Prisma cannot declare — partial unique indexes, `CHECK` constraints
 | :---- | :---- | :---- | :---- |
 | **user_id** | UUID | PK | ref ➔ identity.users.id. Created by the first `EARN` (upsert). A customer with no row has 0 points. |
 | **balance** | INT | NOT NULL, 0 | `CHECK (balance >= 0)`. Always equal to Σ O-6 `points` for the user — written in the same transaction as every O-6 row. |
-| **lifetime_earned** | INT | NOT NULL, 0 | Only ever increased, by `EARN`. `EARN_REVERSED` lowers `balance`, not this — it counts what was ever earned. What a reversal does to points already spent is decided with redeeming (P1). |
+| **lifetime_earned** | INT | NOT NULL, 0 | Only ever increased, by `EARN`. `EARN_REVERSED` lowers `balance`, not this — it counts what was ever earned. A reversal removes `min(points earned, balance)` — the balance never goes negative, the shortfall is forgiven, and the `EARN_REVERSED` row records what was actually removed ([ADR 0035](./decisions/0035-points-are-spent-after-the-promotion-and-come-back-whole-but-a-reversal-never-goes-below-zero.md)). |
 | **created_at** | TIMESTAMPTZ(3) | NOT NULL, now() | — |
 | **updated_at** | TIMESTAMPTZ(3) | NOT NULL | — |
 

@@ -2,9 +2,11 @@ import { Injectable } from '@nestjs/common';
 import {
   LOCK_REASON_MAX_LENGTH,
   MAX_LOCK_DURATION_DAYS,
+  MAX_PAGE_SIZE,
   parseEnum,
   Role,
   zText,
+  zUuidV7,
 } from '@brewlite/contracts';
 import { requireUser, rpcError, type Caller } from '@brewlite/nest-common';
 import type {
@@ -14,6 +16,8 @@ import type {
   DeactivateUserResponse,
   GetUserRequest,
   GetUserResponse,
+  ListUserNamesRequest,
+  ListUserNamesResponse,
   ListUsersRequest,
   ListUsersResponse,
   LockUserRequest,
@@ -82,6 +86,29 @@ export class AdminUsersService {
   async getUser(request: GetUserRequest): Promise<GetUserResponse> {
     const row = await this.findByIdIncludingDeleted(request.id);
     return { user: toProtoAdminUser(row) };
+  }
+
+  /**
+   * Names for a set of ids in one read, for the gateway's admin order screens. Deactivated users are
+   * included (an order outlives its customer's account); an unknown id is simply absent. Repeats
+   * are folded: the answer has one entry per user.
+   */
+  async listUserNames(request: ListUserNamesRequest): Promise<ListUserNamesResponse> {
+    const ids = [...new Set(request.ids)];
+    const issues: { path: string; code: string }[] = [];
+    if (ids.length < 1) issues.push({ path: '/ids', code: 'too_small' });
+    if (ids.length > MAX_PAGE_SIZE) issues.push({ path: '/ids', code: 'too_big' });
+    ids.forEach((id, index) => {
+      if (!zUuidV7.safeParse(id).success)
+        issues.push({ path: `/ids/${index}`, code: 'invalid_format' });
+    });
+    if (issues.length > 0) throw rpcError('VALIDATION_FAILED', { issues });
+
+    const rows = await this.prisma.user.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, fullName: true },
+    });
+    return { users: rows.map((row) => ({ id: row.id, fullName: row.fullName })) };
   }
 
   async changeRole(request: ChangeRoleRequest, caller: Caller): Promise<ChangeRoleResponse> {

@@ -1,0 +1,15 @@
+# The only way into the web app (ADR 0033). With no `trusted_proxies`, Caddy treats every client
+# as untrusted: it discards the browser's own X-Forwarded-For and sets the socket address,
+# which `clientIp()` in apps/web relies on.
+{
+	admin off
+	# http on localhost; a phone demo replaces ':23000' with a domain and drops this line.
+	auto_https off
+}
+
+:23000 {
+	reverse_proxy web:23000 {
+		# The order-status streams (ADR 0022) pass through unbuffered.
+		flush_interval -1
+	}
+}

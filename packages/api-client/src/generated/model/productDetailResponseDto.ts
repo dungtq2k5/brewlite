@@ -13,7 +13,8 @@ export interface ProductDetailResponseDto {
   id: string;
   categoryId: string;
   name: ProductDetailResponseDtoName;
-  imageUrl: string[];
+  /** @nullable */
+  imageUrl: string | null;
   /**
    * @minimum 0
    * @maximum 9007199254740991

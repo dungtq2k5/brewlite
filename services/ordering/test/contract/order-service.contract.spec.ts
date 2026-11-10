@@ -165,6 +165,20 @@ describe('OrderService gRPC contract', () => {
     expect(res.subtotalVnd).toBe('29000');
   });
 
+  it('a Quote with pointsToRedeem carries the points fields over the wire (no balance → cap 0)', async () => {
+    const res = await client.quote({
+      items: [{ productId: newId(), size: 'S', toppingIds: [], qty: 1 }],
+      pointsToRedeem: 5,
+    });
+    expect(res).toMatchObject({
+      pointsBalance: 0,
+      pointsRedeemable: 0,
+      pointsCapReason: 'BALANCE',
+      pointsRedeemed: 0,
+      pointsDiscountVnd: 0,
+    });
+  });
+
   it('completes a real PlaceOrder round trip', async () => {
     const res = await client.placeOrder({
       items: [{ productId: newId(), size: 'S', toppingIds: [], qty: 1 }],
@@ -172,6 +186,7 @@ describe('OrderService gRPC contract', () => {
     });
     expect(res.created).toBe(true);
     expect(res.order?.status).toBe('PENDING');
+    expect(res.order?.pointsRedeemed).toBe(0);
   });
 
   it('completes a real ListMyOrders round trip', async () => {

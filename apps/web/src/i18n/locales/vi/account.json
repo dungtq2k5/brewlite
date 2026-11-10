@@ -1,0 +1,51 @@
+{
+  "title": "Tài khoản",
+  "profile": {
+    "heading": "Hồ sơ",
+    "name": "Họ và tên",
+    "nameHelp": "Tối đa 100 ký tự",
+    "email": "Email",
+    "emailLocked": "Không thể đổi email",
+    "language": "Ngôn ngữ",
+    "languageSaved": "Lưu vào tài khoản của bạn",
+    "save": "Lưu",
+    "saved": "Đã lưu",
+    "failed": "Không lưu được tên. Thử lại nhé."
+  },
+  "points": {
+    "heading_other": "{{count}} điểm",
+    "lifetime": "Tổng đã nhận",
+    "rule": "1 điểm cho mỗi {{step}} đã thanh toán.",
+    "recent": "Gần đây",
+    "none": "Chưa có điểm nào — đơn đầu tiên sẽ bắt đầu tích điểm.",
+    "earned": "Tích từ đơn #{{no}}",
+    "reversed": "Trừ lại — đơn #{{no}} đã hoàn tiền",
+    "redeemed": "Dùng cho đơn #{{no}}",
+    "returned": "Hoàn lại — đơn #{{no}} đã hủy",
+    "value": "1 điểm = giảm {{value}} khi thanh toán."
+  },
+  "signIn": {
+    "heading": "Đăng nhập",
+    "google": "Bạn đăng nhập bằng Google",
+    "password": "Bạn đăng nhập bằng email và mật khẩu",
+    "change": "Đổi mật khẩu",
+    "set": "Đặt mật khẩu",
+    "setHint": "Sau đó bạn có thể đăng nhập bằng email nữa.",
+    "current": "Mật khẩu hiện tại",
+    "new": "Mật khẩu mới",
+    "newHelp": "Từ 8 ký tự trở lên",
+    "cancel": "Hủy",
+    "update": "Cập nhật mật khẩu",
+    "setSubmit": "Đặt mật khẩu",
+    "saving": "Đang lưu…",
+    "incorrect": "Mật khẩu hiện tại chưa đúng.",
+    "currentEmpty": "Nhập mật khẩu hiện tại",
+    "changed": "Đã đổi mật khẩu. Các thiết bị khác của bạn đã được đăng xuất.",
+    "setDone": "Đã đặt mật khẩu. Giờ bạn có thể đăng nhập bằng Google hoặc email."
+  },
+  "failed": {
+    "title": "Không tải được tài khoản",
+    "body": "Kiểm tra kết nối rồi thử lại.",
+    "retry": "Thử lại"
+  }
+}

@@ -15,6 +15,7 @@ export interface MeResponseDto {
   role: MeResponseDtoRole;
   permissions: MeResponseDtoPermissionsItem[];
   hasPassword: boolean;
+  signsInWithGoogle: boolean;
   preferredLocale: MeResponseDtoPreferredLocale;
   createdAt: string;
 }

@@ -73,7 +73,7 @@ export const AdminProductsControllerListResponse = zod.object({
           .int()
           .min(adminProductsControllerListResponseDataItemBasePriceVndMin)
           .max(adminProductsControllerListResponseDataItemBasePriceVndMax),
-        imageUrl: zod.array(zod.string()),
+        imageUrl: zod.string().nullable(),
         isAvailable: zod.boolean(),
         stockQty: zod.union([
           zod
@@ -91,7 +91,7 @@ export const AdminProductsControllerListResponse = zod.object({
           .min(adminProductsControllerListResponseDataItemSortOrderMin)
           .max(adminProductsControllerListResponseDataItemSortOrderMax),
         createdAt: zod.string(),
-        deletedAt: zod.array(zod.string()),
+        deletedAt: zod.string().nullable(),
       }),
     )
     .optional(),
@@ -204,7 +204,7 @@ export const AdminProductsControllerCreateResponse = zod.object({
         .int()
         .min(adminProductsControllerCreateResponseDataBasePriceVndMin)
         .max(adminProductsControllerCreateResponseDataBasePriceVndMax),
-      imageUrl: zod.array(zod.string()),
+      imageUrl: zod.string().nullable(),
       isAvailable: zod.boolean(),
       stockQty: zod.union([
         zod
@@ -232,8 +232,8 @@ export const AdminProductsControllerCreateResponse = zod.object({
       ),
       toppingIds: zod.array(zod.string()),
       createdAt: zod.string(),
-      deletedAt: zod.array(zod.string()),
-      deletedById: zod.array(zod.string()),
+      deletedAt: zod.string().nullable(),
+      deletedById: zod.string().nullable(),
     })
     .optional(),
 });
@@ -281,7 +281,7 @@ export const AdminProductsControllerGetResponse = zod.object({
         .int()
         .min(adminProductsControllerGetResponseDataBasePriceVndMin)
         .max(adminProductsControllerGetResponseDataBasePriceVndMax),
-      imageUrl: zod.array(zod.string()),
+      imageUrl: zod.string().nullable(),
       isAvailable: zod.boolean(),
       stockQty: zod.union([
         zod
@@ -309,8 +309,8 @@ export const AdminProductsControllerGetResponse = zod.object({
       ),
       toppingIds: zod.array(zod.string()),
       createdAt: zod.string(),
-      deletedAt: zod.array(zod.string()),
-      deletedById: zod.array(zod.string()),
+      deletedAt: zod.string().nullable(),
+      deletedById: zod.string().nullable(),
     })
     .optional(),
 });
@@ -393,7 +393,7 @@ export const AdminProductsControllerUpdateResponse = zod.object({
         .int()
         .min(adminProductsControllerUpdateResponseDataBasePriceVndMin)
         .max(adminProductsControllerUpdateResponseDataBasePriceVndMax),
-      imageUrl: zod.array(zod.string()),
+      imageUrl: zod.string().nullable(),
       isAvailable: zod.boolean(),
       stockQty: zod.union([
         zod
@@ -421,8 +421,8 @@ export const AdminProductsControllerUpdateResponse = zod.object({
       ),
       toppingIds: zod.array(zod.string()),
       createdAt: zod.string(),
-      deletedAt: zod.array(zod.string()),
-      deletedById: zod.array(zod.string()),
+      deletedAt: zod.string().nullable(),
+      deletedById: zod.string().nullable(),
     })
     .optional(),
 });
@@ -497,7 +497,7 @@ export const AdminProductsControllerReplaceSizesResponse = zod.object({
         .int()
         .min(adminProductsControllerReplaceSizesResponseDataBasePriceVndMin)
         .max(adminProductsControllerReplaceSizesResponseDataBasePriceVndMax),
-      imageUrl: zod.array(zod.string()),
+      imageUrl: zod.string().nullable(),
       isAvailable: zod.boolean(),
       stockQty: zod.union([
         zod
@@ -525,8 +525,8 @@ export const AdminProductsControllerReplaceSizesResponse = zod.object({
       ),
       toppingIds: zod.array(zod.string()),
       createdAt: zod.string(),
-      deletedAt: zod.array(zod.string()),
-      deletedById: zod.array(zod.string()),
+      deletedAt: zod.string().nullable(),
+      deletedById: zod.string().nullable(),
     })
     .optional(),
 });
@@ -581,7 +581,7 @@ export const AdminProductsControllerReplaceToppingsResponse = zod.object({
         .int()
         .min(adminProductsControllerReplaceToppingsResponseDataBasePriceVndMin)
         .max(adminProductsControllerReplaceToppingsResponseDataBasePriceVndMax),
-      imageUrl: zod.array(zod.string()),
+      imageUrl: zod.string().nullable(),
       isAvailable: zod.boolean(),
       stockQty: zod.union([
         zod
@@ -609,8 +609,8 @@ export const AdminProductsControllerReplaceToppingsResponse = zod.object({
       ),
       toppingIds: zod.array(zod.string()),
       createdAt: zod.string(),
-      deletedAt: zod.array(zod.string()),
-      deletedById: zod.array(zod.string()),
+      deletedAt: zod.string().nullable(),
+      deletedById: zod.string().nullable(),
     })
     .optional(),
 });
@@ -659,7 +659,7 @@ export const AdminProductsControllerRestoreResponse = zod.object({
         .int()
         .min(adminProductsControllerRestoreResponseDataBasePriceVndMin)
         .max(adminProductsControllerRestoreResponseDataBasePriceVndMax),
-      imageUrl: zod.array(zod.string()),
+      imageUrl: zod.string().nullable(),
       isAvailable: zod.boolean(),
       stockQty: zod.union([
         zod
@@ -687,8 +687,8 @@ export const AdminProductsControllerRestoreResponse = zod.object({
       ),
       toppingIds: zod.array(zod.string()),
       createdAt: zod.string(),
-      deletedAt: zod.array(zod.string()),
-      deletedById: zod.array(zod.string()),
+      deletedAt: zod.string().nullable(),
+      deletedById: zod.string().nullable(),
     })
     .optional(),
 });
@@ -704,7 +704,7 @@ export const AdminProductsControllerSetImageBody = zod.object({
 export const AdminProductsControllerSetImageResponse = zod.object({
   data: zod
     .object({
-      imageUrl: zod.array(zod.string()),
+      imageUrl: zod.string().nullable(),
     })
     .optional(),
 });

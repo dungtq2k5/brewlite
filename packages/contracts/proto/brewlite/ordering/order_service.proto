@@ -46,11 +46,15 @@ message OrderHistoryEntry {
   string actor_type = 3;
   optional string note = 4;
   string created_at = 5;
+  // O-3 `actor_user_id`: the customer or staff member. Only the admin detail route shows it.
+  optional string actor_user_id = 6;
 }
 
 message QuoteRequest {
   repeated CartLine items = 1;
   optional string promo_code = 2;
+  // Points the customer would spend (≥ 1); clipped to the cap, never refused (ADR 0035).
+  optional int32 points_to_redeem = 3;
 }
 message QuoteResponse {
   repeated OrderLine lines = 1;
@@ -60,6 +64,11 @@ message QuoteResponse {
   int64 total_vnd = 5;
   optional string promo_code = 6;
   int32 points_earnable = 7;
+  // The caller's balance, the most this order can take, why, and what was applied.
+  int32 points_balance = 8;
+  int32 points_redeemable = 9;
+  string points_cap_reason = 10; // PointsCapReason in @brewlite/contracts
+  int32 points_redeemed = 11;
 }
 
 message Order {
@@ -82,6 +91,13 @@ message Order {
   string refund_status = 17;
   int32 points_earned = 18;
   repeated OrderHistoryEntry history = 19;
+  // The payment in progress, or the one that paid the order — `GET /payments/:id` reads it.
+  optional string current_payment_id = 20;
+  optional string cancelled_at = 21;
+  // O-1 `user_id`, always set. Only the admin routes expose it; the customer's `Order` never does.
+  string user_id = 22;
+  // O-1 `points_redeemed`: points spent on this order (their value is `points_discount_vnd`).
+  int32 points_redeemed = 23;
 }
 
 message PlaceOrderRequest {
@@ -89,6 +105,8 @@ message PlaceOrderRequest {
   optional string promo_code = 2;
   optional string note = 3;
   string idempotency_key = 4;
+  // Above the balance → POINTS_INSUFFICIENT; above the cap → clipped, like the quote.
+  optional int32 points_to_redeem = 5;
 }
 message PlaceOrderResponse {
   Order order = 1;

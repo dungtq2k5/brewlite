@@ -22,7 +22,7 @@ export class OrdersService {
   async quote(dto: QuoteDto, ctx: UserContext, requestId?: string): Promise<QuoteResponseDto> {
     const response = await this.ordering.quote(
       toCaller(ctx),
-      { items: dto.items, promoCode: dto.promoCode },
+      { items: dto.items, promoCode: dto.promoCode, pointsToRedeem: dto.pointsToRedeem },
       requestId,
     );
     return toQuoteResponseDto(response);
@@ -36,7 +36,13 @@ export class OrdersService {
   ): Promise<{ order: OrderResponseDto; created: boolean }> {
     const response = await this.ordering.placeOrder(
       toCaller(ctx),
-      { items: dto.items, promoCode: dto.promoCode, note: dto.note, idempotencyKey },
+      {
+        items: dto.items,
+        promoCode: dto.promoCode,
+        pointsToRedeem: dto.pointsToRedeem,
+        note: dto.note,
+        idempotencyKey,
+      },
       requestId,
     );
     return { order: toOrderResponseDto(response.order!), created: response.created };

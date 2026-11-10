@@ -23,7 +23,7 @@ export const ProductsControllerListResponse = zod.object({
           en: zod.string(),
           vi: zod.string(),
         }),
-        imageUrl: zod.array(zod.string()),
+        imageUrl: zod.string().nullable(),
         fromPriceVnd: zod
           .int()
           .min(productsControllerListResponseDataItemFromPriceVndMin)
@@ -62,7 +62,7 @@ export const ProductsControllerGetResponse = zod.object({
         en: zod.string(),
         vi: zod.string(),
       }),
-      imageUrl: zod.array(zod.string()),
+      imageUrl: zod.string().nullable(),
       fromPriceVnd: zod
         .int()
         .min(productsControllerGetResponseDataFromPriceVndMin)

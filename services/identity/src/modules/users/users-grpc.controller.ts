@@ -3,6 +3,8 @@ import type { Metadata } from '@grpc/grpc-js';
 import { callerFrom, GrpcRequestContextInterceptor } from '@brewlite/nest-common';
 import {
   UserServiceControllerMethods,
+  type ChangePasswordRequest,
+  type ChangePasswordResponse,
   type GetMeRequest,
   type GetMeResponse,
   type UpdateMeRequest,
@@ -23,5 +25,12 @@ export class UsersGrpcController implements UserServiceController {
 
   updateMe(request: UpdateMeRequest, metadata?: Metadata): Promise<UpdateMeResponse> {
     return this.users.updateMe(callerFrom(metadata), request);
+  }
+
+  changePassword(
+    request: ChangePasswordRequest,
+    metadata?: Metadata,
+  ): Promise<ChangePasswordResponse> {
+    return this.users.changePassword(callerFrom(metadata), request);
   }
 }
