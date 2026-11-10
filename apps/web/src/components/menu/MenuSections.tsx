@@ -64,28 +64,35 @@ export function MenuSections({
           </button>
         </div>
       ) : (
-        shown.map((section) => (
-          <section key={section.category.id} id={`cat-${section.category.id}`} className="mb-8">
-            <h2
-              id={`cat-heading-${section.category.id}`}
-              className="mb-3 scroll-mt-[calc(var(--bl-header-h,3.5rem)+var(--bl-nav-h,3.75rem)+0.75rem)] text-2xl font-bold lg:scroll-mt-[calc(var(--bl-header-h,3.5rem)+1.5rem)]"
-            >
-              {localized(section.category.name, locale)}
-            </h2>
-            <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 lg:gap-6">
-              {section.products.map((product) => (
-                <li key={product.id}>
-                  <ProductCard
-                    product={product}
-                    variant={noPhotoVariant(section.position)}
-                    locale={locale}
-                    labels={labels}
-                  />
-                </li>
-              ))}
-            </ul>
-          </section>
-        ))
+        // `#menu` — the hero's *Order now* target; each heading takes focus (`tabIndex={-1}`).
+        <div
+          id="menu"
+          className="scroll-mt-[calc(var(--bl-header-h,3.5rem)+var(--bl-nav-h,3.75rem)+0.75rem)] lg:scroll-mt-[calc(var(--bl-header-h,3.5rem)+1.5rem)]"
+        >
+          {shown.map((section) => (
+            <section key={section.category.id} id={`cat-${section.category.id}`} className="mb-8">
+              <h2
+                id={`cat-heading-${section.category.id}`}
+                tabIndex={-1}
+                className="mb-3 scroll-mt-[calc(var(--bl-header-h,3.5rem)+var(--bl-nav-h,3.75rem)+0.75rem)] text-2xl font-bold lg:scroll-mt-[calc(var(--bl-header-h,3.5rem)+1.5rem)]"
+              >
+                {localized(section.category.name, locale)}
+              </h2>
+              <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 lg:gap-6">
+                {section.products.map((product) => (
+                  <li key={product.id}>
+                    <ProductCard
+                      product={product}
+                      variant={noPhotoVariant(section.position)}
+                      locale={locale}
+                      labels={labels}
+                    />
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
       )}
     </>
   );

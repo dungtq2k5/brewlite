@@ -92,7 +92,9 @@ test('a sold-out product renders with a disabled button', async ({ page }) => {
   const picked = await pickProduct();
   await withSoldOut(picked.id, async () => {
     await page.goto(`/products/${picked.id}`);
-    await expect(page.getByText('Sold out for today — back tomorrow.')).toBeVisible();
+    await expect(
+      page.getByRole('main').getByText('Sold out for today — back tomorrow.'),
+    ).toBeVisible();
     await expect(page.getByRole('button', { name: 'Sold out for today' })).toBeDisabled();
     // the pickers stay readable
     await expect(page.getByRole('radio', { name: /^S · Small/ })).toBeVisible();

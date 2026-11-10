@@ -523,7 +523,7 @@ Every durable consumer is a `JetStreamConsumer` subclass, started from the servi
 - Every API read is `cache: 'no-store'`. The web app caches no API data (architecture §2.6). A list of links to pages that call the gateway (the menu's product cards) uses `prefetch={false}`: Next would otherwise prefetch every one, one public gateway call each, against `PUBLIC_READ`'s 120 per minute per address.
 - A `'use server'` file exports **only `async function` declarations** — `export const f = (…) => …` makes Turbopack report the module as having no exports.
 - A Server Action returns `{ ok: true, data } | { ok: false, code, details }` — never throws an API error into the UI. The page renders `code` through `t('errors:<CODE>', details)` (§11.6).
-- **Cookies are set only** in `proxy.ts` (refresh) and in the sign-in / sign-out Server Actions — never in a Server Component, where setting one silently does nothing.
+- **Cookies are set only** in `proxy.ts` (refresh), in the sign-in / sign-out Server Actions, and in the preference Server Actions (`actions/locale.ts` — `bl_locale`; `actions/preferences.ts` — `bl_hero`) — never in a Server Component, where setting one silently does nothing.
 - A Server Action that places an order or starts a payment receives the idempotency key **from the client** (generated with `newId()` when the button is tapped, kept in component state across retries) — never generates it itself, or every retry is a new intent.
 
 ### 11.2 Client state

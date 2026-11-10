@@ -65,5 +65,26 @@
     "results_other": "{{count}} results",
     "none": "Nothing called \"{{q}}\" on the menu",
     "hint": "Try another word — English or Vietnamese, accents optional."
+  },
+  "hero": {
+    "headline": "Order ahead. Skip the queue.",
+    "line": "Pay on your phone, then collect at the counter when your number is called.",
+    "steps": {
+      "choose": {
+        "name": "1. Choose",
+        "line": "your drink"
+      },
+      "pay": {
+        "name": "2. Pay",
+        "line": "on your phone"
+      },
+      "collect": {
+        "name": "3. Collect",
+        "line": "when it's called"
+      }
+    },
+    "orderNow": "Order now",
+    "hide": "Hide this",
+    "compact": "Welcome back — order ahead, skip the queue."
   }
 }
