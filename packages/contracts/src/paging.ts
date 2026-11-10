@@ -28,6 +28,6 @@ export const zBooleanParam = z.enum(['true', 'false']).transform((v) => v === 't
  * The cursor is opaque — clients never parse it, so its shape here is only a length bound.
  */
 export const zCursorQuery = z.object({
-  cursor: z.string().base64url().max(64).optional(),
+  cursor: z.base64url().max(64).optional(),
   limit: z.coerce.number().int().min(1).max(MAX_PAGE_SIZE).default(DEFAULT_PAGE_SIZE),
 });

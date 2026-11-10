@@ -32,7 +32,7 @@
     },
     "test": {
       "dependsOn": ["db:generate"],
-      "outputs": ["coverage/**"]
+      "outputs": []
     },
     "e2e": {
       "dependsOn": ["^build"],

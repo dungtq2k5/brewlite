@@ -1,5 +1,5 @@
 import { defineConfig } from 'vitest/config';
-import { nestProject } from '../../packages/config/vitest.preset.js';
+import { nestProject } from '../../packages/config/vitest.preset.mjs';
 
 // The specs that need the real Redis (rate limiting) and the real test broker (the SSE
 // source) — run after the infra stack is up, never inside `pnpm test`.

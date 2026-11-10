@@ -13,7 +13,8 @@
   "files": [
     "tsconfig.base.json",
     "eslint.config.mjs",
-    "vitest.preset.ts",
+    "vitest.preset.mts",
+    "vitest.setup.mts",
     "markdownlint",
     "bin"
   ],
@@ -25,7 +26,10 @@
     "typescript-eslint": "^8.19.0"
   },
   "devDependencies": {
+    "@nestjs/common": "^11.2.6",
     "markdownlint": "^0.37.4",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
     "unplugin-swc": "^1.5.1",
     "vitest": "^4.0.0"
   }

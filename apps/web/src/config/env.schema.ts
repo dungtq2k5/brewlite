@@ -1,3 +1,4 @@
+import { zNodeEnv } from '@brewlite/contracts';
 import { z } from 'zod';
 
 /** Compiled into the browser bundle — URLs and the Firebase web config only (conventions §11.5). */
@@ -19,7 +20,7 @@ export const serverEnvSchema = z.object({
   API_URL: z.url(),
   /** The origin product photos load from (the CSP's `img-src`) — the same value catalog serves. */
   STORAGE_PUBLIC_BASE_URL: z.url(),
-  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  NODE_ENV: zNodeEnv,
 });
 
 /** Everything, for the `env-contract` guard. */

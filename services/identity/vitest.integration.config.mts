@@ -1,5 +1,5 @@
 import { defineConfig } from 'vitest/config';
-import { nestProject } from '../../packages/config/vitest.preset.js';
+import { nestProject } from '../../packages/config/vitest.preset.mjs';
 
 export default defineConfig(
   nestProject('.', {

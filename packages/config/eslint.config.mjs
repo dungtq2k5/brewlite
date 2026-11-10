@@ -32,6 +32,8 @@ export const baseConfig = tseslint.config(
     },
     rules: {
       '@typescript-eslint/consistent-type-imports': 'error',
+      // What the editor strikes through, enforced in CI (conventions §1).
+      '@typescript-eslint/no-deprecated': 'error',
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       'no-restricted-properties': [
         'error',
