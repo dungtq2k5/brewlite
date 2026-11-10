@@ -44,6 +44,7 @@ Each title is an **assertion**, not a topic, so this index reads as the rules th
 | [0003](./decisions/0003-one-pnpm-turborepo-monorepo-with-a-fixed-layout.md) | The repository is one pnpm + Turborepo monorepo with a fixed layout |
 | [0012](./decisions/0012-swc-compiles-everything-and-nest-packages-are-commonjs.md) | SWC compiles every package; Nest services and shared packages are CommonJS |
 | [0027](./decisions/0027-host-ports-sit-in-the-2xxxx-range.md) | Local host ports sit in the 2xxxx range |
+| [0034](./decisions/0034-the-repository-is-shared-under-the-mit-licence.md) | The repository is shared under the MIT licence |
 
 ### Services and communication
 
@@ -96,6 +97,12 @@ Each title is an **assertion**, not a topic, so this index reads as the rules th
 | [0031](./decisions/0031-menu-content-is-written-in-english-and-vietnamese.md) | Menu content is written in English and in Vietnamese, as column pairs |
 | [0032](./decisions/0032-the-web-app-is-an-installable-pwa-whose-service-worker-caches-no-data.md) | The web app is an installable PWA whose service worker caches no data |
 | [0024](./decisions/0024-vitest-is-the-only-test-runner.md) | Vitest runs every non-browser test; integration tests use paired test databases |
+
+---
+
+## Running and demonstrating it
+
+The repository's [README](../README.md) is the entry point: prerequisites, the quick start, the demo accounts and the day-to-day commands. [demo.md](./demo.md) is the J1 script for a recording or the Sprint Review; `assets/readme/` holds the README's screenshots.
 
 ---
 

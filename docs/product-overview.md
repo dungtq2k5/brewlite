@@ -489,7 +489,7 @@ Capability → owning service. Detail in [`architecture-and-tech-stack.md`](./ar
 
 **Phase B — Frontend.** Generated client, then customer pages (J1 end to end), then staff board, then admin pages.
 
-**Phase C — Handover.** `docker compose` runs web + services + infrastructure, the README, the recorded demo of J1, the Sprint Review.
+**Phase C — Handover.** `docker compose` runs web + services + infrastructure, the README, the recorded demo of J1, the Sprint Review. Delivered: the root `README.md` (quick start, demo accounts, commands), the MIT `LICENSE` ([ADR 0034](./decisions/0034-the-repository-is-shared-under-the-mit-licence.md)), `pnpm seed:dev` / `seed:dev:apply` for a demo café, and the J1 script in [demo.md](./demo.md).
 
 Then P1, in the order the Product Owner prioritises.
 

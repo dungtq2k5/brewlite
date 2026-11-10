@@ -481,6 +481,8 @@ Locally the SDK talks to the **Firebase Auth emulator**, which offers fake Googl
 
 **Practices:** trunk-based, short branches, one review required, Conventional Commits.
 
+**Getting started:** the root `README.md` is the entry point — prerequisites, the quick start (env files, `pnpm keys:dev`, the infrastructure, `pnpm db:setup`, `pnpm build`, the `apps` profile or `pnpm dev`), then `pnpm seed:dev:apply` for demo data (conventions §7.1).
+
 **Deployment:** the course requires the whole system to run from `docker compose` — the `apps` profile builds `web` and the five services from `Dockerfile.web` and `Dockerfile.service` (`ARG SERVICE`) and runs them beside the infrastructure. Identity and the gateway get their `JWT_*` keys through `env_file: [{ path: services/<svc>/.env, required: false }]`, reading whatever `pnpm keys:dev` already wrote — never written into `compose.yaml` itself. The runtime stage is `pnpm --filter @brewlite/<svc> --prod deploy --legacy` (pnpm 10 refuses a non-injected workspace without `--legacy`) and **never migrates** — `pnpm db:setup` on the host or in CI does. ⚠️ `.dockerignore` excludes `services/*/generated` (the Prisma client, rebuilt in the image) but **not** `packages/contracts/src/generated` (committed gRPC code the build needs). ⚠️ Every package reached only through a `tsconfig` `extends` (`packages/config`) is a declared `workspace:*` devDependency, or `turbo prune --docker` leaves it out of the build context. A cloud deployment is P2 and out of this document's scope.
 
 ---

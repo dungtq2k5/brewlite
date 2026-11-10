@@ -16,6 +16,8 @@ export default defineConfig({
       'services/gateway',
       'services/identity',
       'services/ordering',
+      // The dev seed's pure parts (scripts/seed-dev-lib.mjs) — there is no package around `scripts/`.
+      { test: { name: 'scripts', include: ['scripts/**/*.spec.mjs'] } },
     ],
   },
 });
