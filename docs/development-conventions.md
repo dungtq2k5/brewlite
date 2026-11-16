@@ -533,6 +533,7 @@ Every durable consumer is a `JetStreamConsumer` subclass, started from the servi
 - **MUST NOT** copy server data into client state "to cache it". Need it again? Render it on the server again.
 - The cart's total is a preview. The checkout page **MUST** display the server's quote.
 - The cart is cleared only when the order it was placed as is seen paid — and only if it was not edited since (architecture §4.3).
+- **An external store read with `useSyncExternalStore` returns stable references.** `getServerSnapshot` returns a module constant; `getSnapshot` returns the same object until the state really changes — and returns that same constant again when the state goes back to empty. A fresh `[]` or `{}` per call makes React warn of an infinite loop.
 
 ### 11.3 Pages and components
 
