@@ -6,10 +6,14 @@
  */
 const dirty = new Map<string, readonly string[]>();
 const listeners = new Set<() => void>();
-let snapshot: readonly string[] = [];
+// One empty array for the server and the first client render — `useSyncExternalStore` compares
+// snapshots with `Object.is`, so a fresh `[]` per call reads as a change on every render.
+const NONE: readonly string[] = [];
+let snapshot: readonly string[] = NONE;
 
 function publish() {
-  snapshot = [...new Set([...dirty.values()].flat())];
+  // Clean again is `NONE` itself — the same reference as the server's snapshot.
+  snapshot = dirty.size === 0 ? NONE : [...new Set([...dirty.values()].flat())];
   listeners.forEach((l) => l());
 }
 
@@ -18,7 +22,7 @@ export const subscribeUnsaved = (listener: () => void) => {
   return () => listeners.delete(listener);
 };
 export const getUnsaved = (): readonly string[] => snapshot;
-export const getUnsavedOnServer = (): readonly string[] => [];
+export const getUnsavedOnServer = (): readonly string[] => NONE;
 
 /** `sections` empty (or `clear`) means this form is clean. */
 export function setUnsaved(key: string, sections: readonly string[]): void {

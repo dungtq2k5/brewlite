@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   clearUnsaved,
   getUnsaved,
+  getUnsavedOnServer,
   guardedHref,
   setUnsaved,
   subscribeUnsaved,
@@ -95,5 +96,25 @@ describe('guardedHref', () => {
     expect(guardedHref(click(), link('/admin/orders', { target: '_self' }), here)).toBe(
       '/admin/orders',
     );
+  });
+});
+
+describe('snapshots are stable references (useSyncExternalStore compares with Object.is)', () => {
+  it('the server snapshot is one array, and a clean client snapshot is that same one', () => {
+    expect(getUnsavedOnServer()).toBe(getUnsavedOnServer());
+    expect(getUnsaved()).toBe(getUnsavedOnServer());
+    setUnsaved('a', ['basics']);
+    clearUnsaved('a');
+    expect(getUnsaved()).toBe(getUnsavedOnServer());
+  });
+  it('the client snapshot changes only when the sections do', () => {
+    setUnsaved('a', ['prices']);
+    const dirty = getUnsaved();
+    expect(getUnsaved()).toBe(dirty);
+    setUnsaved('a', ['prices']); // the same sections — no new snapshot
+    expect(getUnsaved()).toBe(dirty);
+    setUnsaved('a', ['prices', 'photo']);
+    expect(getUnsaved()).not.toBe(dirty);
+    expect(getUnsaved()).toEqual(['prices', 'photo']);
   });
 });
