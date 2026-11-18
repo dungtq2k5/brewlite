@@ -1,6 +1,12 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
-import { expect, test as base, type Browser, type Page } from '@playwright/test';
+import {
+  expect,
+  test as base,
+  type Browser,
+  type BrowserContext,
+  type Page,
+} from '@playwright/test';
 
 export const GATEWAY = process.env.E2E_GATEWAY_URL ?? 'http://localhost:23100/api/v1';
 
@@ -36,7 +42,19 @@ export function resetRateLimits(): void {
 const placedThisTest: string[] = [];
 export const trackOrder = (orderId: string) => void placedThisTest.push(orderId);
 
-export const test = base.extend<{ freshBuckets: void; finishOrders: void }>({
+/** One raw V8 file for the merge (coverage-report.mjs) — none for an empty list. */
+function writeBrowserCoverage(name: string, entries: unknown[]) {
+  if (entries.length === 0) return;
+  const dir = new URL('../coverage/raw/browser/', import.meta.url);
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(new URL(`${name}.json`, dir), JSON.stringify(entries));
+}
+
+export const test = base.extend<{
+  freshBuckets: void;
+  finishOrders: void;
+  contextCoverage: void;
+}>({
   freshBuckets: [
     // Playwright requires the destructuring pattern even when no fixture is used.
     // eslint-disable-next-line no-empty-pattern
@@ -49,6 +67,63 @@ export const test = base.extend<{ freshBuckets: void; finishOrders: void }>({
   // Conventions §16.2: a spec that pays for an order finishes it. The staff board shows at most
   // 100 orders, oldest first, so paid orders left behind push every new one off it. After the test
   // — pass or fail — so a board spec still sees its order during its assertions.
+  // The coverage run records every context a test opens, not only the default page: a staff
+  // tablet (`staffTablet`) and every `browser.newContext()` — their screens are tested, so they
+  // count. `browser.newContext` is wrapped for the test's duration; each page starts recording
+  // before `newPage()` returns (so before its first `goto`), and stops and writes before its context
+  // closes — or at teardown, for a context the test left open. The default context is created
+  // first (`context`), so it is never wrapped: the `page` fixture records it already.
+  contextCoverage: [
+    async ({ browser, context: _default }, run, testInfo) => {
+      if (process.env.WEB_COVERAGE !== '1') return run();
+      const open = new Set<BrowserContext>();
+      // One start per page, shared: the `page` event fires inside `newPage()`, so both paths await
+      // the same promise and `newPage()` returns only once recording has begun.
+      const recording = new WeakMap<Page, Promise<void>>();
+      let written = 0;
+      const record = (page: Page) => {
+        let started = recording.get(page);
+        if (!started) {
+          started = page.coverage.startJSCoverage({ resetOnNavigation: false });
+          recording.set(page, started);
+        }
+        return started;
+      };
+      const collect = async (ctx: BrowserContext) => {
+        if (!open.delete(ctx)) return;
+        for (const page of ctx.pages()) {
+          if (!recording.has(page) || page.isClosed()) continue;
+          const entries = await page.coverage.stopJSCoverage().catch(() => []);
+          writeBrowserCoverage(`${testInfo.testId}-ctx${++written}`, entries);
+        }
+      };
+      const newContext = browser.newContext.bind(browser);
+      browser.newContext = async (...args: Parameters<Browser['newContext']>) => {
+        const ctx = await newContext(...args);
+        open.add(ctx);
+        const newPage = ctx.newPage.bind(ctx);
+        ctx.newPage = async () => {
+          const page = await newPage();
+          await record(page);
+          return page;
+        };
+        ctx.on('page', (page) => void record(page).catch(() => undefined)); // popups
+        const close = ctx.close.bind(ctx);
+        ctx.close = async (...closeArgs: Parameters<BrowserContext['close']>) => {
+          await collect(ctx);
+          return close(...closeArgs);
+        };
+        return ctx;
+      };
+      try {
+        await run();
+      } finally {
+        delete (browser as { newContext?: unknown }).newContext; // back to the prototype's
+        for (const ctx of [...open]) await collect(ctx);
+      }
+    },
+    { auto: true },
+  ],
   finishOrders: [
     // eslint-disable-next-line no-empty-pattern
     async ({}, run) => {
@@ -78,13 +153,8 @@ export const test = base.extend<{ freshBuckets: void; finishOrders: void }>({
     });
     await run(page);
     if (process.env.WEB_COVERAGE === '1') {
-      const entries = await page.coverage.stopJSCoverage();
       // A test that browses only in its own contexts (a staff tablet) leaves this page blank: no file.
-      if (entries.length > 0) {
-        const dir = new URL('../coverage/raw/browser/', import.meta.url);
-        mkdirSync(dir, { recursive: true });
-        writeFileSync(new URL(`${testInfo.testId}.json`, dir), JSON.stringify(entries));
-      }
+      writeBrowserCoverage(testInfo.testId, await page.coverage.stopJSCoverage());
     }
     expect(violations, 'Content-Security-Policy violations').toEqual([]);
   },

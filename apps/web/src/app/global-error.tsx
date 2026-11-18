@@ -34,7 +34,7 @@ export default function GlobalError({
           home={
             // A plain <a>, not <Link>: the router may be the thing that broke. A full navigation that
             // needs no JavaScript — and navigation is a link's job anyway.
-             
+            // eslint-disable-next-line @next/next/no-html-link-for-pages -- deliberately router-free
             <a href="/" className="btn btn-ghost">
               {words.error.home}
             </a>

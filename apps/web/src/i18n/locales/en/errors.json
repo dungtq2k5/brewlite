@@ -2,6 +2,7 @@
   "UNKNOWN": "Something went wrong. Please try again.",
   "VALIDATION_FAILED": "Some details need another look. Check the fields and try again.",
   "MALFORMED_REQUEST": "We couldn't read that request. Please try again.",
+  "PAYLOAD_TOO_LARGE": "That's too much to send at once.",
   "IDEMPOTENCY_KEY_REQUIRED": "Something went wrong sending that. Please try again.",
   "WEBHOOK_SIGNATURE_INVALID": "Something went wrong on our side. Please try again later.",
   "UNAUTHENTICATED": "Please sign in to continue.",

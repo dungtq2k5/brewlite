@@ -2,6 +2,7 @@
   "UNKNOWN": "Có trục trặc. Bạn thử lại nhé.",
   "VALIDATION_FAILED": "Vài thông tin cần xem lại. Bạn kiểm tra các ô rồi thử lại nhé.",
   "MALFORMED_REQUEST": "Chúng tôi không đọc được yêu cầu này. Bạn thử lại nhé.",
+  "PAYLOAD_TOO_LARGE": "Dữ liệu gửi đi quá lớn.",
   "IDEMPOTENCY_KEY_REQUIRED": "Có trục trặc khi gửi yêu cầu. Bạn thử lại nhé.",
   "WEBHOOK_SIGNATURE_INVALID": "Có lỗi từ phía chúng tôi. Bạn thử lại sau nhé.",
   "UNAUTHENTICATED": "Bạn đăng nhập để tiếp tục nhé.",

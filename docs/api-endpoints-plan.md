@@ -460,6 +460,7 @@ Every code is one entry in `ERRORS` in `packages/contracts`: HTTP status, gRPC s
 | :---- | :---- | :---- | :---- |
 | `VALIDATION_FAILED` | 400 | `issues: [{ path, code }]` | gateway |
 | `MALFORMED_REQUEST` | 400 | — | gateway (body is not JSON) |
+| `PAYLOAD_TOO_LARGE` | 413 | — | gateway (a body over its 100 KB JSON limit; an image over 2 MB is `IMAGE_INVALID` instead) |
 | `IDEMPOTENCY_KEY_REQUIRED` | 400 | — | gateway |
 | `WEBHOOK_SIGNATURE_INVALID` | 400 | — | payment |
 | `UNAUTHENTICATED` | 401 | — | gateway, identity |

@@ -57,6 +57,8 @@ interface ErrorDefinition {
 export const ERRORS = {
   VALIDATION_FAILED: { http: 400, grpc: GrpcStatus.INVALID_ARGUMENT, details: zIssues },
   MALFORMED_REQUEST: { http: 400, grpc: GrpcStatus.INVALID_ARGUMENT, details: undefined },
+  // A body over the gateway's limit (100 KB of JSON). Answered by the gateway; never crosses gRPC.
+  PAYLOAD_TOO_LARGE: { http: 413, grpc: GrpcStatus.INVALID_ARGUMENT, details: undefined },
   IDEMPOTENCY_KEY_REQUIRED: { http: 400, grpc: GrpcStatus.INVALID_ARGUMENT, details: undefined },
   WEBHOOK_SIGNATURE_INVALID: { http: 400, grpc: GrpcStatus.INVALID_ARGUMENT, details: undefined },
 

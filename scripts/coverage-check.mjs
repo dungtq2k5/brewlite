@@ -26,6 +26,9 @@ const missing = MEASURED.filter((p) => !existsSync(report(p)));
 const texts = MEASURED.filter((p) => !missing.includes(p)).map((p) =>
   readFileSync(report(p), 'utf8'),
 );
+// The ratchet's rule: a floor is a CI-path measurement minus 0.3, rounded down to one decimal — a
+// margin for run-to-run noise (CI 81.3 vs a clean local 81.1 is ~13 lines). It is raised by that
+// rule when CI's number rises, and never set lower than the rule gives.
 const floors = JSON.parse(readFileSync(path.join(ROOT, 'scripts', 'coverage-floor.json'), 'utf8'));
 
 const rows = coverageRows(packageTotals(unionReports(texts), MEASURED), {
