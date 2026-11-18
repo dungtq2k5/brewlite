@@ -68,7 +68,11 @@ for (const row of rows) {
   try {
     writeFileSync(
       path.join(OUT, 'old', row.file),
-      execFileSync('git', ['show', `origin/main:apps/web/${repoPath}`], { cwd: WEB }),
+      // stderr ignored: a new baseline has no old one, and git says so ("fatal: …").
+      execFileSync('git', ['show', `origin/main:apps/web/${repoPath}`], {
+        cwd: WEB,
+        stdio: ['ignore', 'pipe', 'ignore'],
+      }),
     );
     row.old = true;
   } catch {
@@ -97,7 +101,7 @@ body{font:14px system-ui;margin:24px;color:#2a1a10;background:#fffaf2}
 h2{margin:32px 0 8px;font-size:16px} .grid{display:flex;gap:16px;align-items:flex-start;overflow-x:auto}
 figure{margin:0} figcaption{font-weight:600;margin-bottom:4px} img{display:block;border:1px solid #d9c9b4}
 .crop{overflow:hidden} .none{color:#8a6d55;font-style:italic;width:200px}
-.overlay{position:relative} .overlay img+img{position:absolute;inset:0;opacity:.5}
+.overlay{position:relative;overflow:hidden} .overlay img+img{position:absolute;inset:0;opacity:.5}
 a{color:#6b3a1f}
 </style>
 <h1>Screens review — ${rows.length} baseline${rows.length === 1 ? '' : 's'} added or changed</h1>
