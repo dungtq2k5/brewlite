@@ -1,4 +1,5 @@
 import type { BrowserContext, Page } from '@playwright/test';
+import { lineKey } from '../../src/lib/cart/cart';
 import { adminToken, api, productDetail, publicMenu, staffProducts, staffToken } from '../support';
 
 /** Every customer state but the hero's four loads with the hero dismissed (handoff §3.6). */
@@ -18,17 +19,39 @@ export async function seeded(name: string) {
   return productDetail(found.id);
 }
 
-/** Real cart lines (`bl_cart`): seeded products in their first size, so names and prices draw true. */
-export async function cartOf(count: number, quantities: number[] = []) {
+export interface LineSpec {
+  /** A seeded product's English name. */
+  product: string;
+  size: string;
+  /** Seeded topping names, English. */
+  toppings?: string[];
+  quantity?: number;
+}
+
+/**
+ * Cart lines (`bl_cart`) exactly as a frame draws them: seeded products by name, in the frame's
+ * size, with its toppings and quantity — so names, prices and the no-photo looks draw true.
+ */
+export async function cartLines(specs: LineSpec[]) {
   const { categories, products } = await publicMenu();
-  const available = products.filter((p) => !p.isSoldOut);
   const lines = [];
-  for (let i = 0; i < count; i++) {
-    const product = available[i % available.length]!;
+  for (const spec of specs) {
+    const product = products.find((p) => p.name.en === spec.product);
+    if (!product) throw new Error(`the seed has no product named "${spec.product}"`);
     const detail = await productDetail(product.id);
-    const size = detail.sizes[Math.floor(i / available.length) % detail.sizes.length]!;
+    const size = detail.sizes.find((s) => s.size === spec.size);
+    if (!size) throw new Error(`${spec.product} has no size ${spec.size}`);
+    const toppings = (spec.toppings ?? []).map((name) => {
+      const t = detail.toppings.find((x) => x.name.en === name);
+      if (!t) throw new Error(`${spec.product} offers no topping "${name}"`);
+      return { id: t.id, name: t.name, priceVnd: t.priceVnd };
+    });
     lines.push({
-      key: `${product.id}|${size.size}|`,
+      key: lineKey(
+        product.id,
+        size.size,
+        toppings.map((t) => t.id),
+      ), // the app's own key
       productId: product.id,
       categoryId: product.categoryId,
       noPhoto:
@@ -41,11 +64,27 @@ export async function cartOf(count: number, quantities: number[] = []) {
       size: size.size,
       basePriceVnd: detail.basePriceVnd,
       sizeDeltaVnd: size.priceDeltaVnd,
-      toppings: [],
-      quantity: quantities[i] ?? 1,
+      toppings,
+      quantity: spec.quantity ?? 1,
     });
   }
   return JSON.stringify({ v: 1, lines });
+}
+
+/** `count` distinct lines from the seeded menu, the frame's lines first (the 20-line cart). */
+/** `first`, then other seeded product × size lines up to `count`; never one in `avoid`. */
+export async function fillCart(first: LineSpec[], count: number, avoid: LineSpec[] = []) {
+  const { products } = await publicMenu();
+  const taken = new Set([...first, ...avoid].map((l) => `${l.product}|${l.size}`));
+  const rest: LineSpec[] = [];
+  for (const p of products.filter((x) => !x.isSoldOut)) {
+    const detail = await productDetail(p.id);
+    for (const s of detail.sizes) {
+      if (first.length + rest.length >= count) break;
+      if (!taken.has(`${p.name.en}|${s.size}`)) rest.push({ product: p.name.en, size: s.size });
+    }
+  }
+  return cartLines([...first, ...rest].slice(0, count));
 }
 
 /** Writes `bl_cart` once, before the app loads (an init script would rewrite it on every load). */

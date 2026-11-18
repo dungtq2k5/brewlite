@@ -52,6 +52,7 @@
     },
     "failed": {
       "title": "Không tải được món này",
+      "body": "Kiểm tra kết nối rồi thử lại.",
       "retry": "Thử lại",
       "action": "Về thực đơn"
     }

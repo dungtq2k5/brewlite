@@ -6,7 +6,7 @@ void base;
 
 async function asAdmin(page: Page) {
   await signIn(page, 'admin@brewlite.test', seedPassword());
-  await expect(page.getByRole('button', { name: 'Open account menu' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'account menu' })).toBeVisible();
 }
 
 async function openUser(page: Page, email: string) {
@@ -38,7 +38,7 @@ test('a new customer: role to Staff, lock until a date, unlock, deactivate, rest
   const other = await browser.newContext({ viewport: { width: 1024, height: 768 } });
   const staff = await other.newPage();
   await signIn(staff, email, PASSWORD);
-  await expect(staff.getByRole('button', { name: 'Open account menu' })).toBeVisible();
+  await expect(staff.getByRole('button', { name: 'account menu' })).toBeVisible();
   await staff.goto('/staff');
   await expect(staff.getByRole('heading', { name: 'Orders board' })).toBeVisible();
   await other.close();
@@ -111,7 +111,7 @@ test('LAST_ADMIN: a demoted admin’s still-open session cannot demote the only 
   const other = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   const second = await other.newPage();
   await signIn(second, email, PASSWORD);
-  await expect(second.getByRole('button', { name: 'Open account menu' })).toBeVisible();
+  await expect(second.getByRole('button', { name: 'account menu' })).toBeVisible();
   await asAdmin(page);
   await openUser(page, 'admin@brewlite.test');
   const seedAdminUrl = page.url();

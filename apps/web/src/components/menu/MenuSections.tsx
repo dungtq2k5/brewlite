@@ -1,6 +1,5 @@
 'use client';
 
-import { SearchX } from 'lucide-react';
 import { useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { localized } from '@/i18n/format';
@@ -53,13 +52,12 @@ export function MenuSections({
     <>
       <MenuSearch count={count} className="mb-4 lg:hidden" />
       {searching && count === 0 ? (
-        <div className="flex flex-col items-center gap-3 px-4 py-12 text-center">
-          <span className="bg-base-200 grid size-16 place-items-center rounded-full">
-            <SearchX aria-hidden size={28} />
-          </span>
-          <p className="text-lg font-semibold">{t('search.none', { q: query.trim() })}</p>
-          <p className="text-base-content/70">{t('search.hint')}</p>
-          <button type="button" className="btn btn-outline min-h-11" onClick={() => setQuery('')}>
+        <div className="flex flex-col items-center gap-3 pt-15 text-center">
+          <p className="text-lg leading-[26px] font-semibold">
+            {t('search.none', { q: query.trim() })}
+          </p>
+          <p className="text-base-content/72 text-sm leading-5">{t('search.hint')}</p>
+          <button type="button" className="btn btn-secondary min-h-11" onClick={() => setQuery('')}>
             {t('search.clear')}
           </button>
         </div>

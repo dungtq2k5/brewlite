@@ -14,7 +14,7 @@ test('register → signed in → sign out → sign in; tokens never reach page J
   expect(access?.sameSite).toBe('Lax');
   expect(await page.evaluate(() => document.cookie)).not.toMatch(/bl_at|bl_rt/);
 
-  await page.getByRole('button', { name: 'Open account menu' }).click();
+  await page.getByRole('button', { name: 'account menu' }).click();
   await page
     .getByRole('dialog', { name: 'Account' })
     .getByRole('button', { name: 'Sign out' })
@@ -23,12 +23,12 @@ test('register → signed in → sign out → sign in; tokens never reach page J
   expect((await context.cookies()).some((c) => c.name === 'bl_at')).toBe(false);
 
   await signIn(page, email, password);
-  await expect(page.getByRole('button', { name: 'Open account menu' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'account menu' })).toBeVisible();
 });
 
 test('a guest at /checkout is sent to sign in and comes back', async ({ page }) => {
   const { email, password } = await register(page);
-  await page.getByRole('button', { name: 'Open account menu' }).click();
+  await page.getByRole('button', { name: 'account menu' }).click();
   await page
     .getByRole('dialog', { name: 'Account' })
     .getByRole('button', { name: 'Sign out' })
@@ -47,7 +47,7 @@ test('a guest at /checkout is sent to sign in and comes back', async ({ page }) 
 
 test('a hostile next never leaves the site', async ({ page }) => {
   const { email, password } = await register(page);
-  await page.getByRole('button', { name: 'Open account menu' }).click();
+  await page.getByRole('button', { name: 'account menu' }).click();
   await page
     .getByRole('dialog', { name: 'Account' })
     .getByRole('button', { name: 'Sign out' })
@@ -58,7 +58,7 @@ test('a hostile next never leaves the site', async ({ page }) => {
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Open account menu' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'account menu' })).toBeVisible();
   expect(new URL(page.url()).origin).toBe(new URL('/', page.url()).origin);
   expect(new URL(page.url()).pathname).toBe('/');
 });
@@ -71,7 +71,7 @@ test('the session refreshes: without bl_at a reload is still signed in, with a n
   const before = (await context.cookies()).find((c) => c.name === 'bl_at')!;
   await context.clearCookies({ name: 'bl_at' });
   await page.reload();
-  await expect(page.getByRole('button', { name: 'Open account menu' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'account menu' })).toBeVisible();
   const after = (await context.cookies()).find((c) => c.name === 'bl_at');
   expect(after?.value).toBeTruthy();
   expect(after?.value).not.toBe(before.value);

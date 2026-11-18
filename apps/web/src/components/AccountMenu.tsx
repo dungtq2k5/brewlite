@@ -48,27 +48,34 @@ export function AccountMenu({
 
   const item = 'flex min-h-11 items-center gap-3 px-4 hover:bg-base-200';
   const close = () => setOpen(false);
+  const shortName = user.fullName.split(/\s+/).slice(-2).join(' ');
 
   return (
     <div className="relative">
+      {/* The name contains what is seen (WCAG 2.5.3): "Lan Anh account menu". The initials repeat
+          the name, so they are hidden from it. The name is visible from `sm`; below, the same name
+          is screen-reader text in a span of its own (no `data-variable`: a mask over a 1-px
+          `sr-only` box would draw a dot in every baseline). */}
       <button
         type="button"
-        aria-label={t('header.account')}
         aria-expanded={open}
         aria-controls={panelId}
         onClick={() => setOpen((o) => !o)}
         className="flex min-h-11 items-center gap-2 sm:rounded-full sm:pr-2"
       >
         <span
+          aria-hidden
           data-variable
           className="bg-secondary text-secondary-content grid h-9 w-9 place-items-center rounded-full text-sm font-bold"
         >
           {initials(user.fullName)}
         </span>
         <span data-variable className="hidden items-center gap-1 text-sm font-medium sm:flex">
-          {user.fullName.split(/\s+/).slice(-2).join(' ')}
+          {shortName}
           <ChevronDown aria-hidden size={16} />
         </span>
+        <span className="sr-only sm:hidden">{shortName}</span>
+        <span className="sr-only"> {t('header.account')}</span>
       </button>
       {open && (
         <>

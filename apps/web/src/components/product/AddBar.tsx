@@ -1,6 +1,6 @@
 'use client';
 
-import { TriangleAlert } from 'lucide-react';
+import { Info, TriangleAlert } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { MAX_LINES_PER_ORDER, MAX_QTY_PER_LINE } from '@brewlite/contracts';
@@ -11,7 +11,8 @@ import { QuantityStepper } from './QuantityStepper';
 
 /**
  * The stepper and the add button: sticky at the bottom of a phone, inline under the toppings
- * from 1024 px. The total sits on the button; a screen reader hears it from a polite, debounced
+ * from 1024 px. The 10-per-item hint sits in the content above the bar; the full-cart warning
+ * sits in the bar. Sold out drops the stepper. The total sits on the button; a screen reader hears it from a polite, debounced
  * copy so a run of taps is not read out tap by tap.
  */
 export function AddBar({
@@ -42,48 +43,46 @@ export function AddBar({
   }, [label]);
 
   const blocked = state !== 'ready';
-  const hint =
-    state === 'cartFull'
-      ? t('product.add.full', { max: MAX_LINES_PER_ORDER })
-      : state === 'lineFull' || (state === 'ready' && quantity >= MAX_QTY_PER_LINE)
-        ? t('product.quantity.max', { max: MAX_QTY_PER_LINE })
-        : null;
+  const atMax = state === 'lineFull' || (state === 'ready' && quantity >= MAX_QTY_PER_LINE);
 
   return (
-    <div className="border-base-300 bg-base-100 fixed inset-x-0 bottom-0 z-30 border-t px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:static lg:mt-6 lg:border-0 lg:bg-transparent lg:p-0">
-      {hint && (
-        <p
-          className={`mb-2 flex items-start gap-2 text-sm ${state === 'cartFull' ? 'text-error font-medium' : ''}`}
-        >
-          {state === 'cartFull' && (
-            <TriangleAlert aria-hidden size={18} className="mt-0.5 shrink-0" />
-          )}
-          {hint}
+    <>
+      {atMax && (
+        <p className="flex items-center gap-2 text-sm font-medium">
+          <Info aria-hidden size={18} className="shrink-0" />
+          {t('product.quantity.max', { max: MAX_QTY_PER_LINE })}
         </p>
       )}
-      <div className="mx-auto flex max-w-280 items-center gap-3 lg:max-w-none">
-        <QuantityStepper
-          value={quantity}
-          onChange={onQuantity}
-          name={name}
-          disabled={state === 'soldOut'}
-        />
-        <button
-          type="button"
-          onClick={onAdd}
-          disabled={blocked || pending}
-          className="btn btn-primary flex-1 px-2 text-sm whitespace-nowrap sm:text-base"
-        >
-          {state === 'soldOut'
-            ? t('product.add.soldOut')
-            : pending
-              ? t('product.add.adding')
-              : label}
-        </button>
+      {/* Sticky in the flow (not `fixed`): the page grows with its content and the bar ends it.
+          The negative bottom margin eats `main`'s padding so the bar meets the screen's edge. */}
+      <div className="border-base-300 bg-base-100 sticky bottom-0 z-30 -mx-4 mt-1 -mb-[max(1.5rem,env(safe-area-inset-bottom))] border-t px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-4px_8px_rgba(43,33,28,0.08)] lg:static lg:m-0 lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none">
+        {state === 'cartFull' && (
+          <div className="alert alert-warning mb-2.5 items-start gap-3 px-4 py-3.5 text-[15px] leading-[22px] font-medium">
+            <TriangleAlert aria-hidden size={22} className="shrink-0" />
+            <span>{t('product.add.full', { max: MAX_LINES_PER_ORDER })}</span>
+          </div>
+        )}
+        <div className="flex items-center gap-3">
+          {state !== 'soldOut' && (
+            <QuantityStepper value={quantity} onChange={onQuantity} name={name} />
+          )}
+          <button
+            type="button"
+            onClick={onAdd}
+            disabled={blocked || pending}
+            className="btn btn-primary disabled:bg-base-300 disabled:text-base-content/50 flex-1 px-2 text-base whitespace-nowrap max-[379px]:text-sm"
+          >
+            {state === 'soldOut'
+              ? t('product.add.soldOut')
+              : pending
+                ? t('product.add.adding')
+                : label}
+          </button>
+        </div>
+        <p aria-live="polite" className="sr-only">
+          {state === 'ready' || state === 'loading' ? announced : ''}
+        </p>
       </div>
-      <p aria-live="polite" className="sr-only">
-        {state === 'ready' || state === 'loading' ? announced : ''}
-      </p>
-    </div>
+    </>
   );
 }

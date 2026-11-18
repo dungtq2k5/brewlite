@@ -20,7 +20,7 @@ const code = () => `E2E${newId().replace(/-/g, '').slice(-12).toUpperCase()}`;
 
 async function asAdmin(page: Page) {
   await signIn(page, 'admin@brewlite.test', seedPassword());
-  await expect(page.getByRole('button', { name: 'Open account menu' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'account menu' })).toBeVisible();
 }
 
 async function create(page: Page, value: string) {

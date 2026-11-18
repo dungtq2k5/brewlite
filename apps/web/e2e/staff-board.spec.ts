@@ -246,7 +246,7 @@ test.describe('on a phone', () => {
     const page = await context.newPage();
     try {
       await signIn(page, 'staff@brewlite.test', seedPassword());
-      await expect(page.getByRole('button', { name: 'Open account menu' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'account menu' })).toBeVisible();
       await page.goto('/staff');
       await expect(
         page.getByRole('heading', { name: 'Orders', level: 1, exact: true }),

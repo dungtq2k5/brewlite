@@ -15,7 +15,7 @@
     "cart": "Cart",
     "cartCount_one": "Cart, {{count}} item",
     "cartCount_other": "Cart, {{count}} items",
-    "account": "Open account menu"
+    "account": "account menu"
   },
   "account": {
     "title": "Account",

@@ -178,7 +178,7 @@ export async function register(page: Page, email = newEmail(), fullName = 'Lan A
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Password', { exact: true }).fill(PASSWORD);
   await page.getByRole('button', { name: 'Create account' }).click();
-  await expect(page.getByRole('button', { name: 'Open account menu' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'account menu' })).toBeVisible();
   return { email, password: PASSWORD, fullName };
 }
 
@@ -498,7 +498,7 @@ export async function staffTablet(browser: Browser) {
   const context = await browser.newContext({ viewport: { width: 1024, height: 768 } });
   const page = await context.newPage();
   await signIn(page, 'staff@brewlite.test', seedPassword());
-  await expect(page.getByRole('button', { name: 'Open account menu' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'account menu' })).toBeVisible();
   await page.goto('/staff');
   await expect(page.getByRole('heading', { name: 'Orders board' })).toBeVisible();
   return { context, page };

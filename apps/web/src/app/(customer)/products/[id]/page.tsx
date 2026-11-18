@@ -1,3 +1,4 @@
+import { Info } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import {
   ApiClientError,
@@ -61,26 +62,33 @@ export default async function ProductPage({
   const name = localized(product.name, locale);
 
   return (
-    <div className="pb-32 lg:pb-0">
+    <div>
       <BackToMenu label={t('product.back')} />
-      <div className="mt-3 lg:grid lg:grid-cols-2 lg:gap-12">
+      <div className="mt-5 lg:mt-4 lg:grid lg:grid-cols-[35fr_32fr] lg:items-start lg:gap-12">
         <div>
           <div className="rounded-box relative aspect-16/10 overflow-hidden lg:aspect-4/3">
-            <ProductImage imageUrl={product.imageUrl} name={name} variant={variant} iconSize={64} />
+            <ProductImage imageUrl={product.imageUrl} name={name} variant={variant} />
             {product.isSoldOut && (
-              <span className="bg-neutral text-neutral-content absolute top-3 left-3 rounded-full px-3 py-1 text-xs font-bold">
+              <span className="bg-neutral text-neutral-content rounded-selector absolute top-3 left-3 px-2.5 py-1 text-[13px] leading-[18px] font-semibold">
                 {t('soldOut')}
               </span>
             )}
           </div>
         </div>
-        <div className="mt-5 flex flex-col gap-6 lg:mt-0">
+        <div className="mt-5 flex flex-col gap-5 lg:mt-0 lg:gap-6">
           <div>
-            <h1 className="text-3xl font-bold">{name}</h1>
+            <h1 className="text-[28px] leading-9 font-bold lg:text-4xl lg:leading-11">{name}</h1>
             {product.description && (
-              <p className="text-base-content/80 mt-2">{localized(product.description, locale)}</p>
+              <p className="text-base-content/75 mt-1.5 lg:mt-2 lg:text-[17px] lg:leading-[26px]">
+                {localized(product.description, locale)}
+              </p>
             )}
-            {product.isSoldOut && <p className="mt-3 font-medium">{t('product.soldOutNote')}</p>}
+            {product.isSoldOut && (
+              <p className="mt-1.5 flex items-center gap-2 text-[15px] leading-[22px] font-semibold">
+                <Info aria-hidden size={18} className="shrink-0" />
+                {t('product.soldOutNote')}
+              </p>
+            )}
           </div>
           <ProductOptions product={product} noPhoto={variant} />
         </div>

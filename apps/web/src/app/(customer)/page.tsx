@@ -9,6 +9,7 @@ import { HERO_COOKIE } from '@/lib/cookies';
 import { getMe } from '@/lib/me';
 import { groupMenu } from '@/lib/menu';
 import { heroVariant } from '@/lib/menu-hero';
+import { Info } from 'lucide-react';
 import { cookies } from 'next/headers';
 import type { Metadata } from 'next';
 
@@ -53,9 +54,13 @@ export default async function MenuPage() {
         <div className="mt-4 lg:mt-0">
           {hero && <MenuHero variant={hero} />}
           {allSoldOut && (
-            <p role="status" className="bg-base-200 rounded-box mb-4 px-4 py-3">
-              {t('allSoldOut')}
-            </p>
+            <div
+              role="status"
+              className="bg-info text-info-content rounded-box mb-7 flex items-start gap-3 px-4 py-3.5"
+            >
+              <Info aria-hidden size={22} className="shrink-0" />
+              <p className="flex-1 text-[15px] leading-[22px] font-medium">{t('allSoldOut')}</p>
+            </div>
           )}
           <MenuSections
             sections={sections}

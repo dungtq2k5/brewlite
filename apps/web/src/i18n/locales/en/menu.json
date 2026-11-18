@@ -52,6 +52,7 @@
     },
     "failed": {
       "title": "We couldn't load this item",
+      "body": "Check your connection and try again.",
       "retry": "Try again",
       "action": "Back to menu"
     }

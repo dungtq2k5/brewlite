@@ -17,7 +17,7 @@ test.use({ viewport: { width: 1024, height: 768 }, hasTouch: false, isMobile: fa
 
 async function openStock(page: Page) {
   await signIn(page, 'staff@brewlite.test', seedPassword());
-  await expect(page.getByRole('button', { name: 'Open account menu' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'account menu' })).toBeVisible();
   await page.goto('/staff/products');
   await expect(page.getByRole('heading', { name: 'Stock', level: 1 })).toBeVisible();
 }

@@ -23,14 +23,14 @@ test('change: a wrong current password keeps the new one typed; the right one si
     page.getByText("Password changed. You've been signed out on your other devices."),
   ).toBeVisible();
 
-  await page.getByRole('button', { name: 'Open account menu' }).click();
+  await page.getByRole('button', { name: 'account menu' }).click();
   await page
     .getByRole('dialog', { name: 'Account' })
     .getByRole('button', { name: 'Sign out' })
     .click();
   await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible();
   await signIn(page, email, 'brand-new-password');
-  await expect(page.getByRole('button', { name: 'Open account menu' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'account menu' })).toBeVisible();
 });
 
 test('a new password is checked in bytes before anything is sent', async ({ page }) => {
@@ -62,7 +62,7 @@ test('a Google (emulator) account sets a first password and can then sign in by 
   const email = `google-${Date.now()}@example.com`;
   await popup.getByRole('textbox').first().fill(email);
   await popup.getByRole('button', { name: /Sign in with Google\.com/i }).click();
-  await expect(page.getByRole('button', { name: 'Open account menu' })).toBeVisible({
+  await expect(page.getByRole('button', { name: 'account menu' })).toBeVisible({
     timeout: 15_000,
   });
 
@@ -82,12 +82,12 @@ test('a Google (emulator) account sets a first password and can then sign in by 
     page.getByRole('main').getByText('You sign in with email and password'),
   ).toBeVisible();
 
-  await page.getByRole('button', { name: 'Open account menu' }).click();
+  await page.getByRole('button', { name: 'account menu' }).click();
   await page
     .getByRole('dialog', { name: 'Account' })
     .getByRole('button', { name: 'Sign out' })
     .click();
   await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible();
   await signIn(page, email, 'first-password-1');
-  await expect(page.getByRole('button', { name: 'Open account menu' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'account menu' })).toBeVisible();
 });

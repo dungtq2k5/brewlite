@@ -103,7 +103,7 @@ test('the cart survives a reload, a language switch and signing in', async ({ pa
 test('sign-out clears the cart', async ({ page }) => {
   await register(page);
   await addFromMenu(page, one);
-  await page.getByRole('button', { name: 'Open account menu' }).click();
+  await page.getByRole('button', { name: 'account menu' }).click();
   await page
     .getByRole('dialog', { name: 'Account' })
     .getByRole('button', { name: 'Sign out' })
@@ -116,7 +116,7 @@ test('sign-out clears the cart', async ({ page }) => {
 
 test('a guest checks out through sign-in and comes back with the cart intact', async ({ page }) => {
   const { email, password } = await register(page);
-  await page.getByRole('button', { name: 'Open account menu' }).click();
+  await page.getByRole('button', { name: 'account menu' }).click();
   await page
     .getByRole('dialog', { name: 'Account' })
     .getByRole('button', { name: 'Sign out' })

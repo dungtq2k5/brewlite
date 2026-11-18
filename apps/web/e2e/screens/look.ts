@@ -16,7 +16,7 @@ export interface LookOptions {
  * the state, the page is resized **in place** — the same state, no reload — checked for sideways
  * scroll and by axe (any `serious` or `critical` violation fails, colour contrast included), then
  * compared with its baseline `<state-id>@<width>.png`. A frame taller than its viewport means the
- * full page (handoff §3.4).
+ * full page (handoff §3.4), drawn as a viewport as tall as the page.
  *
  * Masked everywhere: `data-variable` (the components whose content varies run to run — a mask
  * hook only, never an assertion selector) and `time`; plus the row's own.
@@ -39,10 +39,20 @@ export async function look(page: Page, id: string, options: LookOptions = {}): P
         `${id}@${width} scrolls sideways`,
       ).toBeLessThanOrEqual(viewport.width);
       await accessible(page, `${id}@${width}`, options.disabled ?? []);
+      const tall = (frame?.frame ?? viewport.height) > viewport.height;
       if (!options.keepScroll) await page.evaluate(() => window.scrollTo(0, 0));
+      // A tall frame is drawn as one tall screen, so a sticky or fixed bar sits at its foot as in
+      // the frame — a full-page capture would paint it at the first viewport's bottom instead.
+      if (tall && !options.keepScroll) {
+        const height = await page.evaluate(() => document.documentElement.scrollHeight);
+        await page.setViewportSize({
+          width: viewport.width,
+          height: Math.max(height, viewport.height),
+        });
+      }
       await settled(page);
       await expect(page).toHaveScreenshot(`${id}@${width}.png`, {
-        fullPage: (frame?.frame ?? viewport.height) > viewport.height,
+        fullPage: tall && !!options.keepScroll,
         mask: [page.locator('[data-variable]'), page.locator('time'), ...(options.mask ?? [])],
       });
     }

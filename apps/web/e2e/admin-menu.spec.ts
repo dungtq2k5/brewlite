@@ -19,7 +19,7 @@ const created = { products: [] as string[], categories: [] as string[], toppings
 
 async function asAdmin(page: Page) {
   await signIn(page, 'admin@brewlite.test', seedPassword());
-  await expect(page.getByRole('button', { name: 'Open account menu' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'account menu' })).toBeVisible();
 }
 
 async function list(path: string, token: string): Promise<Row[]> {
@@ -52,7 +52,7 @@ const pair = async (page: Page, legend: RegExp, en: string, vi: string) => {
 
 test('staff are sent away from /admin/*', async ({ page }) => {
   await signIn(page, 'staff@brewlite.test', seedPassword());
-  await expect(page.getByRole('button', { name: 'Open account menu' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'account menu' })).toBeVisible();
   for (const path of ['/admin/categories', '/admin/products', '/admin/toppings']) {
     await page.goto(path);
     await expect(page).toHaveURL(/localhost:\d+\/$/);

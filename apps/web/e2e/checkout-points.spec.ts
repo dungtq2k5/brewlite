@@ -73,7 +73,7 @@ async function atCheckout(page: Page, earned: Earned, quantity: number) {
     storedCart([{ productId: earned.product.id, quantity }]),
   );
   await signIn(page, earned.email, PASSWORD);
-  await expect(page.getByRole('button', { name: 'Open account menu' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'account menu' })).toBeVisible();
   await page.goto('/checkout');
   await expect(page.getByRole('switch', { name: /^Use points, \d+ available$/ })).toBeVisible();
 }
@@ -89,7 +89,7 @@ test('a customer with no points sees no points control', async ({ page }) => {
     storedCart([{ productId: product.id, quantity: 1 }]),
   );
   await signIn(page, email, PASSWORD);
-  await expect(page.getByRole('button', { name: 'Open account menu' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'account menu' })).toBeVisible();
   await page.goto('/checkout');
   await expect(page.getByRole('button', { name: /^Place order · / })).toBeVisible();
   await expect(page.getByRole('switch', { name: /^Use points/ })).toHaveCount(0);

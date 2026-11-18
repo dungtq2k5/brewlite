@@ -11,7 +11,7 @@ export interface SizeChoice {
   priceVnd: number;
 }
 
-/** The offered sizes, each showing what the drink costs in it. One size → no picker, one line. */
+/** The offered sizes, each showing what the drink costs in it. One size → no picker: the heading and one muted line. */
 export function SizePicker({
   choices,
   value,
@@ -23,23 +23,30 @@ export function SizePicker({
 
   if (choices.length === 1) {
     return (
-      <p className="font-medium">
-        {t('product.size.single', { price: formatVnd(choices[0]!.priceVnd, locale) })}
-      </p>
+      <div>
+        <p className="mb-2.5 text-lg leading-[26px] font-semibold">{t('product.size.heading')}</p>
+        <p className="text-base-content/75 text-[15px] leading-[22px]">
+          {t('product.size.single', { price: formatVnd(choices[0]!.priceVnd, locale) })}
+        </p>
+      </div>
     );
   }
 
   return (
     <fieldset>
-      <legend className="mb-2 text-lg font-semibold">{t('product.size.heading')}</legend>
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(6.5rem,1fr))] gap-3">
+      <legend className="mb-2.5 text-lg leading-[26px] font-semibold">
+        {t('product.size.heading')}
+      </legend>
+      <div className="flex gap-2">
         {choices.map((choice) => {
           const selected = choice.size === value;
           return (
             <label
               key={choice.size}
-              className={`rounded-box flex min-h-14 cursor-pointer flex-col items-center justify-center border-2 px-3 py-2 text-center has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-primary ${
-                selected ? 'bg-secondary border-primary font-bold' : 'border-base-300 bg-base-100'
+              className={`rounded-field flex min-h-18 min-w-0 flex-1 cursor-pointer flex-col items-center justify-center gap-0.5 px-1 py-2 text-center text-[15px] leading-[22px] has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-primary ${
+                selected
+                  ? 'bg-secondary border-primary text-secondary-content border-2 font-bold'
+                  : 'border-base-content/30 bg-base-100 border font-semibold'
               }`}
             >
               <input
@@ -53,7 +60,9 @@ export function SizePicker({
               <span>
                 {choice.size} · {t(`product.size.name.${choice.size}`)}
               </span>
-              <span className="text-sm tabular-nums">{formatVnd(choice.priceVnd, locale)}</span>
+              <span className="text-sm leading-5 font-normal tabular-nums opacity-80">
+                {formatVnd(choice.priceVnd, locale)}
+              </span>
             </label>
           );
         })}

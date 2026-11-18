@@ -60,16 +60,16 @@ test('the language switch is the compact pill of the design, with a 44 px hit ar
   // 22 px above and below the segment's centre is still the segment: a 44 px target.
   for (const dy of [-21, 21]) {
     const hit = await page.evaluate(
-      ([x, y]) => document.elementFromPoint(x!, y!)?.getAttribute('aria-label'),
+      ([x, y]) => document.elementFromPoint(x!, y!)?.closest('button')?.getAttribute('lang'),
       [target.x + target.width / 2, target.y + target.height / 2 + dy],
     );
-    expect(hit).toBe('Tiếng Việt');
+    expect(hit).toBe('vi');
   }
 });
 
 test('the account sheet of a customer lists no role links', async ({ page }) => {
   await register(page);
-  await page.getByRole('button', { name: 'Open account menu' }).click();
+  await page.getByRole('button', { name: 'account menu' }).click();
   const sheet = page.getByRole('dialog', { name: 'Account' });
   await expect(sheet.getByRole('link', { name: 'My orders' })).toBeVisible();
   await expect(sheet.getByRole('link', { name: 'Account' })).toBeVisible();
@@ -80,7 +80,7 @@ test('the account sheet of a customer lists no role links', async ({ page }) => 
 
 test('staff see the board link, admin sees both', async ({ page }) => {
   await signIn(page, 'staff@brewlite.test', seedPassword());
-  await page.getByRole('button', { name: 'Open account menu' }).click();
+  await page.getByRole('button', { name: 'account menu' }).click();
   const staff = page.getByRole('dialog', { name: 'Account' });
   await expect(staff.getByRole('link', { name: 'Staff board' })).toBeVisible();
   await expect(staff.getByRole('link', { name: 'Admin' })).toHaveCount(0);
@@ -88,7 +88,7 @@ test('staff see the board link, admin sees both', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible();
 
   await signIn(page, 'admin@brewlite.test', seedPassword());
-  await page.getByRole('button', { name: 'Open account menu' }).click();
+  await page.getByRole('button', { name: 'account menu' }).click();
   const admin = page.getByRole('dialog', { name: 'Account' });
   await expect(admin.getByRole('link', { name: 'Staff board' })).toBeVisible();
   await expect(admin.getByRole('link', { name: 'Admin' })).toBeVisible();
@@ -107,15 +107,15 @@ test('the cart badge counts what is in the cart, and sign-out asks before cleari
   );
   await page.reload();
   await expect(page.getByRole('link', { name: 'Cart, 3 items' })).toBeVisible();
-  await page.getByRole('button', { name: 'Open account menu' }).click();
+  await page.getByRole('button', { name: 'account menu' }).click();
   await page
     .getByRole('dialog', { name: 'Account' })
     .getByRole('button', { name: 'Sign out' })
     .click();
   const confirm = page.getByRole('alertdialog', { name: 'Sign out?' });
   await confirm.getByRole('button', { name: 'Keep shopping' }).click();
-  await expect(page.getByRole('button', { name: 'Open account menu' })).toBeVisible();
-  await page.getByRole('button', { name: 'Open account menu' }).click();
+  await expect(page.getByRole('button', { name: 'account menu' })).toBeVisible();
+  await page.getByRole('button', { name: 'account menu' }).click();
   await page
     .getByRole('dialog', { name: 'Account' })
     .getByRole('button', { name: 'Sign out' })

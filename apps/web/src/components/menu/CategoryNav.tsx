@@ -63,39 +63,41 @@ export function CategoryNav({
     };
   }, []);
 
-  // Scroll-spy: one observer over the sections, watching a 1 px line just under the bar.
+  // Scroll-spy: the current section is the last one whose top has reached the line under the bar
+  // — the same 0.75rem gap as the headings' `scroll-mt`, so a chip's own scroll lands inside its
+  // section. Read from the layout on every scroll (and once now), so a restored scroll position —
+  // back from a product — finds its chip too.
   useEffect(() => {
     const sections = items
       .map((item) => document.getElementById(`cat-${item.id}`))
       .filter((el): el is HTMLElement => el !== null);
     if (sections.length === 0) return;
-    let observer: IntersectionObserver | undefined;
-
-    const observe = () => {
-      observer?.disconnect();
+    let frame = 0;
+    const spy = () => {
+      frame = 0;
+      if (Date.now() < settlingUntil.current) return;
       const root = document.documentElement;
-      const offset =
-        Number.parseFloat(getComputedStyle(root).getPropertyValue(HEADER_VAR) || '0') +
-        (window.matchMedia('(min-width: 1024px)').matches
-          ? 0
-          : Number.parseFloat(getComputedStyle(root).getPropertyValue(NAV_VAR) || '0'));
-      const line = Math.round(offset) + 1;
-      observer = new IntersectionObserver(
-        (entries) => {
-          if (Date.now() < settlingUntil.current) return;
-          for (const entry of entries) {
-            if (entry.isIntersecting) setCurrent(entry.target.id.replace(/^cat-/, ''));
-          }
-        },
-        { rootMargin: `-${line}px 0px -${Math.max(0, window.innerHeight - line - 1)}px 0px` },
-      );
-      for (const section of sections) observer.observe(section);
+      const px = (name: string) =>
+        Number.parseFloat(getComputedStyle(root).getPropertyValue(name) || '0');
+      const desktop = window.matchMedia('(min-width: 1024px)').matches;
+      const line = px(HEADER_VAR) + (desktop ? 0 : px(NAV_VAR)) + 12 + 1;
+      let found = sections[0]!;
+      for (const section of sections) {
+        if (section.getBoundingClientRect().top > line) break;
+        found = section;
+      }
+      setCurrent(found.id.replace(/^cat-/, ''));
     };
-    observe();
-    window.addEventListener('resize', observe);
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(spy);
+    };
+    spy();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
     return () => {
-      window.removeEventListener('resize', observe);
-      observer?.disconnect();
+      cancelAnimationFrame(frame);
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
     };
   }, [items]);
 

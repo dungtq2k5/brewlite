@@ -4,7 +4,7 @@ import { Minus, Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { MAX_QTY_PER_LINE } from '@brewlite/contracts';
 
-/** 44 px buttons; the number is the middle. Stops at 1 and at `max` (10). */
+/** 44 px buttons; the number is the middle. Stops at 1 and at `max` (10): the end button loses its fill and drops to 30 % ink. */
 export function QuantityStepper({
   value,
   onChange,
@@ -21,12 +21,12 @@ export function QuantityStepper({
 }>) {
   const { t } = useTranslation('menu');
   const button =
-    'grid size-11 place-items-center rounded-full disabled:opacity-40 disabled:cursor-not-allowed';
+    'bg-base-100 grid size-11 place-items-center rounded-full disabled:cursor-not-allowed disabled:bg-transparent disabled:opacity-30';
   return (
     <div
       role="group"
       aria-label={t('product.quantity.label')}
-      className="bg-secondary/60 border-base-300 inline-flex items-center rounded-full border"
+      className="bg-base-200 border-base-300 inline-flex items-center rounded-full border px-0.5"
     >
       <button
         type="button"
@@ -37,10 +37,12 @@ export function QuantityStepper({
       >
         <Minus aria-hidden size={20} />
       </button>
-      <output className="min-w-8 text-center font-semibold tabular-nums">{value}</output>
+      <output className="w-9 text-center text-[17px] leading-6 font-semibold tabular-nums">
+        {value}
+      </output>
       <button
         type="button"
-        className={`${button} bg-base-100`}
+        className={button}
         aria-label={t('product.quantity.increase', { name })}
         disabled={disabled || value >= max}
         onClick={() => onChange(value + 1)}

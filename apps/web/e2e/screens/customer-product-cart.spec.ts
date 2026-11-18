@@ -1,6 +1,15 @@
 import type { Page } from '@playwright/test';
-import { expect, publicMenu, register, test } from '../support';
-import { cartOf, heroDismissed, holdFiveSecondTimers, seeded, vietnamese, withCart } from './data';
+import { expect, register, test } from '../support';
+import {
+  cartLines,
+  fillCart,
+  heroDismissed,
+  holdFiveSecondTimers,
+  seeded,
+  vietnamese,
+  withCart,
+  type LineSpec,
+} from './data';
 import { look } from './look';
 
 // Customer — product and cart (D03). Each row follows its frame's *Reach* annotation.
@@ -11,11 +20,25 @@ test.beforeEach(async ({ page, baseURL }) => {
 
 const productHeading = (page: Page, name: string) =>
   expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
+// The inputs are `sr-only` and the sticky add bar can cover a row, so rows dispatch the click.
 const topping = (page: Page, name: string) =>
   page.getByRole('checkbox', { name: new RegExp(name) });
 
+// The lines the cart frames draw (D03).
+const BROWN_SUGAR: LineSpec = {
+  product: 'Brown sugar milk tea',
+  size: 'M',
+  toppings: ['Black tapioca pearls', 'Cheese foam'],
+};
+const ICED_MILK: LineSpec = { product: 'Iced milk coffee', size: 'S' };
+const PEACH: LineSpec = {
+  product: 'Peach orange lemongrass tea',
+  size: 'L',
+  toppings: ['Peach slices'],
+};
+
 test('customer-product-default', async ({ page }) => {
-  const tea = await seeded('Peach orange lemongrass tea');
+  const tea = await seeded('Brown sugar milk tea');
   await page.goto(`/products/${tea.id}`);
   await productHeading(page, tea.name.en);
   await expect(page.getByRole('button', { name: /^Add to cart/ })).toBeEnabled();
@@ -23,26 +46,28 @@ test('customer-product-default', async ({ page }) => {
 });
 
 test('customer-product-two-toppings', async ({ page }) => {
-  const tea = await seeded('Peach orange lemongrass tea');
+  const tea = await seeded('Brown sugar milk tea');
   await page.goto(`/products/${tea.id}`);
-  for (const t of tea.toppings.slice(0, 2)) await topping(page, t.name.en).check({ force: true });
+  for (const t of ['Black tapioca pearls', 'Cheese foam'])
+    await topping(page, t).dispatchEvent('click');
   await expect(page.getByText(/^2 of \d chosen$/)).toBeVisible();
   await look(page, 'customer-product-two-toppings');
 });
 
 test('customer-product-two-toppings-vi', async ({ page, baseURL }) => {
   await vietnamese(page.context(), baseURL!);
-  const tea = await seeded('Peach orange lemongrass tea');
+  const tea = await seeded('Brown sugar milk tea');
   await page.goto(`/products/${tea.id}`);
   await productHeading(page, tea.name.vi);
-  for (const t of tea.toppings.slice(0, 2)) await topping(page, t.name.vi).check({ force: true });
+  for (const t of ['Trân châu đen', 'Kem phô mai']) await topping(page, t).dispatchEvent('click');
   await look(page, 'customer-product-two-toppings-vi');
 });
 
 test('customer-product-topping-limit', async ({ page }) => {
-  const tea = await seeded('Peach orange lemongrass tea');
+  const tea = await seeded('Brown sugar milk tea');
   await page.goto(`/products/${tea.id}`);
-  for (const t of tea.toppings.slice(0, 3)) await topping(page, t.name.en).check({ force: true });
+  for (const t of ['Black tapioca pearls', 'Cheese foam', 'Grass jelly'])
+    await topping(page, t).dispatchEvent('click');
   await expect(page.getByText(/^3 of 3 chosen$/)).toBeVisible();
   await look(page, 'customer-product-topping-limit');
 });
@@ -66,8 +91,8 @@ test('customer-product-one-size', async ({ page }) => {
 });
 
 test('customer-product-quantity-max', async ({ page }) => {
-  const tea = await seeded('Peach orange lemongrass tea');
-  await page.goto(`/products/${tea.id}`);
+  const coffee = await seeded('Iced milk coffee');
+  await page.goto(`/products/${coffee.id}`);
   const more = page.getByRole('button', { name: /^Increase quantity/ });
   for (let i = 0; i < 9; i++) await more.click();
   await expect(more).toBeDisabled();
@@ -76,15 +101,16 @@ test('customer-product-quantity-max', async ({ page }) => {
 });
 
 test('customer-product-cart-full', async ({ page }) => {
-  await withCart(page, await cartOf(20));
-  // A combination the 20 lines don't have: a product past the first 20 available, or the tea in L.
-  const { products } = await publicMenu();
-  const outside = products.filter((p) => !p.isSoldOut)[20];
-  const target = outside
-    ? await seeded(outside.name.en)
-    : await seeded('Peach orange lemongrass tea');
-  await page.goto(`/products/${target.id}`);
-  if (!outside) await page.getByRole('radio', { name: /^L · Large/ }).check({ force: true });
+  // 20 distinct lines, none of them Iced milk coffee in M — the frame's new combination.
+  await withCart(
+    page,
+    await fillCart([BROWN_SUGAR, ICED_MILK, PEACH], 20, [
+      { product: 'Iced milk coffee', size: 'M' },
+    ]),
+  );
+  const coffee = await seeded('Iced milk coffee');
+  await page.goto(`/products/${coffee.id}`);
+  await page.getByRole('radio', { name: /^M · Medium/ }).dispatchEvent('click');
   await expect(
     page.getByText(
       'Your cart is full — 20 different drinks is the most. Check out or remove one first.',
@@ -114,7 +140,7 @@ test('customer-cart-empty', async ({ page }) => {
 });
 
 test('customer-cart-guest', async ({ page }) => {
-  await withCart(page, await cartOf(1));
+  await withCart(page, await cartLines([{ ...BROWN_SUGAR, quantity: 2 }]));
   await page.goto('/cart');
   await expect(page.getByRole('link', { name: /Sign in to check out|Check out/ })).toBeVisible();
   await look(page, 'customer-cart-guest');
@@ -122,7 +148,7 @@ test('customer-cart-guest', async ({ page }) => {
 
 test('customer-cart-signed-in', async ({ page }) => {
   await register(page);
-  await withCart(page, await cartOf(3));
+  await withCart(page, await cartLines([{ ...BROWN_SUGAR, quantity: 2 }, ICED_MILK, PEACH]));
   await page.goto('/cart');
   await expect(page.getByRole('link', { name: 'Check out' })).toBeVisible();
   await look(page, 'customer-cart-signed-in');
@@ -131,7 +157,7 @@ test('customer-cart-signed-in', async ({ page }) => {
 test('customer-cart-signed-in-vi', async ({ page, baseURL }) => {
   await register(page);
   await vietnamese(page.context(), baseURL!);
-  await withCart(page, await cartOf(3));
+  await withCart(page, await cartLines([{ ...BROWN_SUGAR, quantity: 2 }, ICED_MILK, PEACH]));
   await page.goto('/cart');
   await expect(page.getByRole('heading', { level: 1, name: 'Giỏ hàng' })).toBeVisible();
   await look(page, 'customer-cart-signed-in-vi');
@@ -139,7 +165,7 @@ test('customer-cart-signed-in-vi', async ({ page, baseURL }) => {
 
 test('customer-cart-full', async ({ page }) => {
   await register(page);
-  await withCart(page, await cartOf(20));
+  await withCart(page, await fillCart([BROWN_SUGAR, ICED_MILK, PEACH], 20));
   await page.goto('/cart');
   // The longest cart: the list scrolls under the sticky summary; Check out never leaves the screen.
   await expect(page.getByRole('main').getByRole('listitem')).toHaveCount(20);
@@ -149,15 +175,12 @@ test('customer-cart-full', async ({ page }) => {
 
 test('customer-cart-undo', async ({ page }) => {
   await register(page);
-  await withCart(page, await cartOf(2, [10, 1]));
+  // The frame: Iced milk coffee at 10 (the per-line max), Brown sugar milk tea just removed, the tea.
+  await withCart(page, await cartLines([{ ...ICED_MILK, quantity: 10 }, BROWN_SUGAR, PEACH]));
   // The Undo row lasts 5 s; held, so the checks and the drawing can't outlast it.
   await holdFiveSecondTimers(page);
   await page.goto('/cart');
-  const removed = (await page
-    .getByRole('button', { name: /^Remove / })
-    .nth(1)
-    .getAttribute('aria-label'))!;
-  await page.getByRole('button', { name: removed }).click();
+  await page.getByRole('button', { name: 'Remove Brown sugar milk tea' }).click();
   await expect(page.getByRole('button', { name: 'Undo' })).toBeVisible();
   await look(page, 'customer-cart-undo');
 });
