@@ -15,7 +15,14 @@ cpSync(app('public'), `${standalone}/public`, { recursive: true });
 
 const server = spawn(process.execPath, [`${standalone}/server.js`], {
   stdio: 'inherit',
-  env: { ...process.env, PORT: '23000', HOSTNAME: '0.0.0.0' },
+  env: {
+    ...process.env,
+    PORT: '23000',
+    HOSTNAME: '0.0.0.0',
+    // Options for the server alone, not this wrapper (coverage-run.mjs's SIGTERM handler: in the
+    // wrapper it would exit before forwarding the signal, and the server would never stop).
+    ...(process.env.SERVER_NODE_OPTIONS && { NODE_OPTIONS: process.env.SERVER_NODE_OPTIONS }),
+  },
 });
 server.on('exit', (code) => process.exit(code ?? 1));
 for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => server.kill(signal));

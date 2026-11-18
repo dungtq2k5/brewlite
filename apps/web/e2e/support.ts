@@ -7,10 +7,12 @@ export const GATEWAY = process.env.E2E_GATEWAY_URL ?? 'http://localhost:23100/ap
 const DOCKER = ['/usr/bin/docker', '/usr/local/bin/docker'].find((p) => existsSync(p));
 
 /**
- * `AUTH` is 10 requests per 15 minutes per address, `PUBLIC_READ` 120 per minute (the menu
- * specs read public routes often), and `ORDER_WRITE` / `PAYMENT` are per user (the checkout specs
- * quote, place and pay many times), and every spec comes from one address — behind Caddy it is
- * always the same one. Each test starts from empty buckets.
+ * Every spec comes from one address — behind Caddy always the same one — and many sign in as the
+ * same seeded admin, so the gateway's buckets fill across a suite: `AUTH` (10 per 15 minutes per
+ * address), `PUBLIC_READ`, `SESSION`, and the per-user `ORDER_WRITE`, `PAYMENT` and
+ * `AUTHENTICATED` (300 a minute — the admin specs spend it). Each test starts from empty buckets,
+ * all of them: a list of names missed `AUTHENTICATED`, and the admin's calls late in the suite got
+ * a 429 that read as a flaky test.
  */
 export function resetRateLimits(): void {
   if (!DOCKER)
@@ -24,7 +26,7 @@ export function resetRateLimits(): void {
       'redis',
       'sh',
       '-c',
-      "for p in 'gw:rl:AUTH:*' 'gw:rl:PUBLIC_READ:*' 'gw:rl:ORDER_WRITE:*' 'gw:rl:PAYMENT:*'; do redis-cli --scan --pattern \"$p\" | xargs -r redis-cli del; done",
+      "redis-cli --scan --pattern 'gw:rl:*' | xargs -r redis-cli del",
     ],
     { cwd: new URL('../../..', import.meta.url).pathname, stdio: 'ignore' },
   );

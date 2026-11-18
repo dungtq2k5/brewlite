@@ -37,7 +37,9 @@ test('cancelling an unpaid order keeps the cart', async ({ page }) => {
   await expect(page.getByRole('alertdialog', { name: 'Cancel this order?' })).toBeVisible();
   await page.getByRole('button', { name: 'Cancel order' }).last().click();
 
-  await expect(page.getByText('You cancelled this order. Nothing was charged.')).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'You cancelled this order. Nothing was charged.' }),
+  ).toBeVisible();
   await expect(page.getByRole('link', { name: /^Cart, 1 item/ })).toBeVisible();
 });
 

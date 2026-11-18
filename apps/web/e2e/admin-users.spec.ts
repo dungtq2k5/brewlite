@@ -76,7 +76,10 @@ test('your own account: role, lock and deactivate are disabled, with the reason'
 
 test('the list filters by role and status and keeps them in the address', async ({ page }) => {
   await asAdmin(page);
-  await page.goto('/admin/users?role=STAFF');
+  // Searched to the seeded domain: leftover e2e staff (example.com) pile up across runs and push the
+  // seeded account off the first page. The customer matches the search, so its absence is still
+  // the role filter's doing.
+  await page.goto('/admin/users?role=STAFF&q=brewlite.test');
   await expect(page.getByRole('row', { name: /staff@brewlite.test/ })).toBeVisible();
   await expect(page.getByRole('row', { name: /customer@brewlite.test/ })).toHaveCount(0);
   await page.goto('/admin/users?status=deactivated&sort=nonsense');

@@ -59,7 +59,8 @@ const server = spawn(process.execPath, ['scripts/start.mjs'], {
   env: {
     ...process.env,
     NODE_V8_COVERAGE: path.join(RAW, 'server'),
-    NODE_OPTIONS: [process.env.NODE_OPTIONS, EXIT_ON_SIGTERM].filter(Boolean).join(' '),
+    // The server's, not the wrapper's: start.mjs must stay alive to forward the signal.
+    SERVER_NODE_OPTIONS: [process.env.NODE_OPTIONS, EXIT_ON_SIGTERM].filter(Boolean).join(' '),
   },
 });
 const stopped = new Promise((resolve) => server.once('exit', resolve));
