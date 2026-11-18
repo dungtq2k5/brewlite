@@ -15,6 +15,7 @@
     "eslint.config.mjs",
     "vitest.preset.mts",
     "vitest.setup.mts",
+    "coverage.mjs",
     "markdownlint",
     "bin"
   ],

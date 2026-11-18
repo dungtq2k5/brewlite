@@ -179,4 +179,62 @@ describe('OrdersService.placeOrder / listMyOrders — real DB, catalog stubbed',
     const error = await orders.placeOrder(request, caller).catch((e: unknown) => e);
     expect(errorCodeOf(error)).toBe('PROMO_CODE_INVALID');
   });
+
+  it('listMyOrders: limit 0 means the default page, and a status filter keeps only that status', async () => {
+    const kept = await orders.placeOrder(buildRequest(), caller);
+    const cancelled = await orders.placeOrder(buildRequest(), caller);
+    await orders.cancelOrder({ id: cancelled.order!.id }, caller);
+
+    const all = await orders.listMyOrders({ limit: 0 }, caller);
+    expect(all.orders.map((o) => o.id)).toEqual([cancelled.order!.id, kept.order!.id]);
+    expect(all.nextCursor).toBeUndefined();
+
+    const pending = await orders.listMyOrders({ limit: 0, status: 'PENDING' }, caller);
+    expect(pending.orders.map((o) => o.id)).toEqual([kept.order!.id]);
+  });
+
+  it('listMyOrders throws on a status outside OrderStatus — the gateway validates it first', async () => {
+    await expect(orders.listMyOrders({ limit: 0, status: 'LOST' }, caller)).rejects.toThrow(
+      'Unknown value "LOST"',
+    );
+  });
+
+  it('GetOrderStatus answers any order’s status, and RESOURCE_NOT_FOUND for an unknown one', async () => {
+    const placed = await orders.placeOrder(buildRequest(), caller);
+    await expect(orders.getOrderStatus({ id: placed.order!.id })).resolves.toEqual({
+      status: 'PENDING',
+    });
+    const error = await orders.getOrderStatus({ id: newId() }).catch((e: unknown) => e);
+    expect(readError(error)).toEqual({
+      code: 'RESOURCE_NOT_FOUND',
+      details: { resource: 'ORDER' },
+    });
+  });
+
+  it('a priced line or topping without a name is stored with empty names, the topping price kept', async () => {
+    const productId = newId();
+    const [named, unnamed] = [newId(), newId()];
+    catalogMenu.priceItems.mockResolvedValueOnce({
+      lines: [
+        {
+          ...pricedLine(productId, 29_000),
+          productName: undefined,
+          toppings: [
+            { id: named, name: { en: 'Pearls', vi: 'Trân châu' }, priceVnd: 5_000 },
+            { id: unnamed, name: undefined, priceVnd: 3_000 },
+          ],
+        },
+      ],
+      subtotalVnd: '29000',
+    });
+
+    const placed = await orders.placeOrder(buildRequest(), caller);
+
+    const item = await prisma.orderItem.findFirstOrThrow({ where: { orderId: placed.order!.id } });
+    expect([item.productNameEn, item.productNameVi]).toEqual(['', '']);
+    expect(item.toppings).toEqual([
+      { toppingId: named, nameEn: 'Pearls', nameVi: 'Trân châu', priceVnd: 5_000 },
+      { toppingId: unnamed, nameEn: '', nameVi: '', priceVnd: 3_000 },
+    ]);
+  });
 });

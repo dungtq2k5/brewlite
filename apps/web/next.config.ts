@@ -3,6 +3,10 @@ import { fileURLToPath } from 'node:url';
 
 // The service worker's cache name carries this, so a deploy's new worker drops the old assets.
 const buildId = Date.now().toString(36);
+// The coverage build (`WEB_COVERAGE=1`): source maps for the browser and the server, so the e2e
+// run's V8 coverage maps back to `src/`. Never in the image a person uses.
+// eslint-disable-next-line no-restricted-syntax -- a build-time switch for the coverage build, not app config
+const coverage = process.env.WEB_COVERAGE === '1';
 
 const config: NextConfig = {
   generateBuildId: async () => buildId,
@@ -13,7 +17,8 @@ const config: NextConfig = {
   poweredByHeader: false,
   // Product photos go through a Server Action: the 1 MB default is under the 2 MB image cap, and
   // 3 MB also covers the multipart overhead. A file over 2 MB is refused by the uploader first.
-  experimental: { serverActions: { bodySizeLimit: '3mb' } },
+  experimental: { serverActions: { bodySizeLimit: '3mb' }, serverSourceMaps: coverage },
+  productionBrowserSourceMaps: coverage,
   agentRules: false,
 };
 

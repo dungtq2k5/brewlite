@@ -725,6 +725,20 @@ A guard spec turns a repo-wide rule into a failing test. Guards live in `package
 
 ---
 
+### 16.5 Coverage — at least 90 %, ours to enforce
+
+SonarCloud's free plan cannot change its quality gate, so the rule is ours: **every measured package ≥ 90 %**, by **SonarCloud's own formula** — `(covered lines + covered conditions) / (lines + conditions)` — so our number and SonarCloud's agree.
+
+- **One run per package covers every tier.** `coverageRun()` in `packages/config/vitest.preset.mts` builds each package's root coverage config (`vitest.coverage.config.mts` — coverage is a root-level Vitest option, so it cannot live in a project): unit, integration, contract and (gateway) e2e together, `@vitest/coverage-v8`. Script `test:coverage`; Turbo task of the same name.
+- **lcov paths are repository-relative** (`packages/…/src/…`, `services/…/src/…`, `apps/web/src/…`) in every report, so SonarCloud resolves them and reports merge per file.
+- **The shared packages count the union:** the services' runs execute `nest-common` and `contracts` from source (the preset aliases them), so their lines count — the services' `coverage.include` lists those two packages too, and the checker merges per file. SonarCloud does the same.
+- **The web is three sources merged** by `monocart-coverage-reports` (`apps/web/scripts/coverage-report.mjs`): Vitest; the **browser's** V8 coverage recorded by the e2e `page` fixture when `WEB_COVERAGE=1`; the **Next server's** V8 coverage (`NODE_V8_COVERAGE`). A file counts only from the runs that **executed** it — a run that merely lists it as 0 % never dilutes another's count. The **coverage build** (`WEB_COVERAGE=1`) turns on browser and server source maps. Next's standalone server has no `SIGTERM` handler, so the coverage build starts it with a `NODE_OPTIONS` `--import` that exits cleanly on `SIGTERM` — otherwise V8 never writes its files.
+- **One exclusion list** (`packages/config/coverage.mjs` — `COVERAGE_EXCLUDE`), used by Vitest, by monocart and as `sonar.coverage.exclusions`: generated code, Prisma migrations, the OpenAPI document, entry points with no logic, type declarations, tests and fixtures, scripts. **Nothing else** — a file that is hard to reach gets tests, never an exclusion. `packages/config` is not measured (tool configuration; its specs are the guards).
+- **`scripts/coverage-check.mjs`** prints one row per package and fails under 90 %. A package listed in **`scripts/coverage-floor.json`** is held to its floor instead — a **ratchet**, raised by hand as its number rises, never lowered; today only `apps/web`, until its own batch takes it to 90 %.
+- **`pnpm coverage`** runs it all locally: it needs the infrastructure up, port 23000 free, and **the fake payment provider** (it refuses on Stripe, which would skip the paid flows).
+
+---
+
 ## 17. Git and review
 
 - **Trunk-based:** short-lived branches off `main`, named `<type>/<short-topic>` (`feat/order-state-machine`).

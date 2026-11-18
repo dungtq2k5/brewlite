@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "test": "vitest run --root .",
     "openapi:emit": "node dist/src/openapi-emit.js",
-    "test:integration": "vitest run -c vitest.integration.config.mts"
+    "test:integration": "vitest run -c vitest.integration.config.mts",
+    "test:coverage": "vitest run -c vitest.coverage.config.mts --coverage"
   },
   "dependencies": {
     "@brewlite/contracts": "workspace:*",

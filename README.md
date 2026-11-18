@@ -145,6 +145,7 @@ The fake provider is the default: it produces exactly the events Stripe's webhoo
 | `pnpm test` | unit tests, everywhere |
 | `pnpm test:integration` | integration tests (needs the infrastructure up) |
 | `TEST_LOGS=1 pnpm test` | the same, with the services' logs (tests are silent by default) |
+| `pnpm coverage` | every package's coverage (all test tiers; the web: Vitest + the e2e run's browser and server), then the ≥ 90 % check — the web held to its floor in `scripts/coverage-floor.json`. Needs the services running on the fake payment provider, and :23000 free (stop the web and Caddy containers) |
 | `pnpm --filter @brewlite/web e2e` | the browser tests against a running stack |
 | `pnpm lint` · `pnpm typecheck` · `pnpm format:check` · `pnpm lint:md` | the other checks CI runs |
 | `pnpm db:migrate:dev` | create a migration from a Prisma schema change |

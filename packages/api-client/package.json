@@ -24,7 +24,8 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
-    "test": "vitest run --root ."
+    "test": "vitest run --root .",
+    "test:coverage": "vitest run -c vitest.coverage.config.mts --coverage"
   },
   "dependencies": {
     "server-only": "^0.0.1",

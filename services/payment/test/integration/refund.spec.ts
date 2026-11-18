@@ -141,6 +141,41 @@ describe('RefundService', () => {
     expect(subjects).toEqual(['payment.refund.failed', 'payment.refund.failed']);
   });
 
+  it('a refund.updated still pending changes nothing; a later failed one resolves it FAILED', async () => {
+    const payment = await seedPayment();
+    calls.createRefund.mockResolvedValueOnce({ id: 're_slow', status: 'pending' });
+    await refunds.refund(payment.id, RefundReason.STAFF_CANCELLED);
+
+    await webhook.handleStripeEvent(
+      signedEvent(stripe, 'refund.updated', { id: 're_slow', status: 'requires_action' }).request,
+    );
+    expect(
+      (await prisma.refund.findUniqueOrThrow({ where: { paymentId: payment.id } })).status,
+    ).toBe('PENDING');
+    expect(await prisma.outboxEvent.count()).toBe(0);
+
+    await webhook.handleStripeEvent(
+      signedEvent(stripe, 'refund.updated', { id: 're_slow', status: 'failed' }).request,
+    );
+    expect(
+      (await prisma.refund.findUniqueOrThrow({ where: { paymentId: payment.id } })).status,
+    ).toBe('FAILED');
+    expect((await prisma.outboxEvent.findMany()).map((e) => e.subject)).toEqual([
+      'payment.refund.failed',
+    ]);
+  });
+
+  it('a refund.updated for an UNKNOWN refund is answered (permanent) and recorded', async () => {
+    const delivery = signedEvent(stripe, 'refund.updated', {
+      id: 're_nobody',
+      status: 'succeeded',
+    });
+    await expect(webhook.handleStripeEvent(delivery.request)).resolves.toEqual({});
+    expect(await prisma.stripeEvent.count({ where: { id: delivery.id } })).toBe(1);
+    expect(await prisma.refund.count()).toBe(0);
+    expect(await prisma.outboxEvent.count()).toBe(0);
+  });
+
   it('a refund for an unpaid payment is poison', async () => {
     const payment = await seedPayment('PENDING');
     await expect(refunds.refund(payment.id, RefundReason.STAFF_CANCELLED)).rejects.toBeInstanceOf(

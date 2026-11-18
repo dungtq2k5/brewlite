@@ -117,3 +117,23 @@ describe('response pipeline order (validation before envelope)', () => {
     expect(result).toEqual({ anything: true });
   });
 });
+
+describe('response validation in production', () => {
+  const validate = (value: unknown) => {
+    const validation = new ResponseValidationInterceptor(new Reflector(), true);
+    return new Promise((resolve, reject) =>
+      validation.intercept(fakeContext(), { handle: () => of(value) }).subscribe({
+        next: resolve,
+        error: reject,
+      }),
+    );
+  };
+
+  it('strips undeclared fields from a valid response', async () => {
+    expect(await validate({ id: 'w1', extra: 'stripped-in-prod-only' })).toEqual({ id: 'w1' });
+  });
+
+  it('NEVER fails a request over an invalid response — the raw value goes out', async () => {
+    expect(await validate({ notAnId: true })).toEqual({ notAnId: true });
+  });
+});

@@ -29,6 +29,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
     "test": "vitest run --root .",
+    "test:coverage": "vitest run -c vitest.coverage.config.mts --coverage",
     "proto:generate": "buf generate",
     "proto:lint": "buf lint"
   },

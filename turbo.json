@@ -14,7 +14,7 @@
     },
     "build": {
       "dependsOn": ["^build", "db:generate"],
-      "env": ["NEXT_PUBLIC_*"],
+      "env": ["NEXT_PUBLIC_*", "WEB_COVERAGE"],
       "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
     },
     "typecheck": {
@@ -40,6 +40,11 @@
     },
     "test:integration": {
       "dependsOn": ["db:generate"],
+      "cache": false
+    },
+    "test:coverage": {
+      "dependsOn": ["db:generate"],
+      "outputs": ["coverage/**"],
       "cache": false
     },
     "db:migrate:dev": {

@@ -8,6 +8,7 @@ import { newId } from '@brewlite/contracts';
 import { envSchema } from '../../src/config/env.schema.js';
 import { AdminMenuModule } from '../../src/modules/admin-menu/admin-menu.module.js';
 import { AdminProductsService } from '../../src/modules/admin-menu/admin-products.service.js';
+import { FirebaseStorageProvider } from '../../src/providers/storage/firebase.storage-provider.js';
 import { PrismaModule } from '../../src/modules/prisma/prisma.module.js';
 import { PrismaService } from '../../src/modules/prisma/prisma.service.js';
 import { prisma } from '../setup/per-file.js';
@@ -159,6 +160,36 @@ describe('AdminMenuService — images, against the Storage emulator', () => {
     updateSpy.mockRestore();
     const row = await prisma.product.findUniqueOrThrow({ where: { id: product.id } });
     expect(row.imagePath).toBeNull();
+  });
+
+  it('a FAILED delete of the old object never fails the request — the row moves on, the orphan stays', async () => {
+    const product = await seedLiveProduct();
+    await products.setImage({
+      id: product.id,
+      content: JPEG,
+      contentType: 'image/jpeg',
+      extension: 'jpg',
+    });
+    const deleteSpy = vi
+      .spyOn(app.get(FirebaseStorageProvider), 'delete')
+      .mockRejectedValue(new Error('simulated storage outage'));
+
+    const replaced = await products.setImage({
+      id: product.id,
+      content: PNG,
+      contentType: 'image/png',
+      extension: 'png',
+    });
+    expect(replaced.product?.imageUrl).toMatch(/\.png/);
+    expect(await objectsUnder(product.id)).toHaveLength(2);
+
+    const cleared = await products.clearImage({ id: product.id });
+    expect(cleared.product?.imageUrl).toBeUndefined();
+    expect(deleteSpy).toHaveBeenCalledTimes(2);
+    const row = await prisma.product.findUniqueOrThrow({ where: { id: product.id } });
+    expect(row.imagePath).toBeNull();
+
+    deleteSpy.mockRestore();
   });
 
   it('SetImage on a deleted product refuses INVALID_STATE DELETED', async () => {

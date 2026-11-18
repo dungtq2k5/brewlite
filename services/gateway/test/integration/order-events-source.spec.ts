@@ -23,13 +23,21 @@ describe('OrderEventsSource against nats-test', () => {
     await nc.drain();
   });
 
-  it('delivers a published status_changed as a frame', async () => {
-    const received = new Promise<OrderStatusFrame>((resolve) => {
-      source.frames$.subscribe(resolve);
-    });
+  /** deliver policy `new` — publishes repeatedly until the consumer is attached and sees one. */
+  async function publishUntilFramed(): Promise<{
+    frame: OrderStatusFrame;
+    orderId: string;
+    eventId: string;
+  }> {
     const orderId = newId();
     const eventId = newId();
-    // deliver policy `new` — publish repeatedly until the consumer is attached and sees one.
+    const received = new Promise<OrderStatusFrame>((resolve) => {
+      const sub = source.frames$.subscribe((frame) => {
+        if (frame.orderId !== orderId) return;
+        sub.unsubscribe();
+        resolve(frame);
+      });
+    });
     const publisher = setInterval(() => {
       void nc.jetstream().publish(
         'ordering.order.status_changed',
@@ -47,6 +55,31 @@ describe('OrderEventsSource against nats-test', () => {
       );
     }, 200);
     const frame = await received.finally(() => clearInterval(publisher));
+    return { frame, orderId, eventId };
+  }
+
+  it('delivers a published status_changed as a frame', async () => {
+    const { frame, orderId, eventId } = await publishUntilFramed();
     expect(frame).toMatchObject({ id: eventId, orderId, orderNo: 1042, status: 'READY' });
   }, 15_000);
+
+  it('RE-SUBSCRIBES after its consumer is deleted under it', async () => {
+    await publishUntilFramed();
+    const jsm = await nc.jetstreamManager();
+    // Ephemeral consumers on status_changed are only ever a gateway's ordered consumer — this
+    // one's, or another gateway spec's in the same run, which re-subscribes just the same.
+    const ordered = (await jsm.consumers.list('ORDERING').next()).filter(
+      (info) =>
+        !info.config.durable_name &&
+        [info.config.filter_subject, ...(info.config.filter_subjects ?? [])].includes(
+          'ordering.order.status_changed',
+        ),
+    );
+    expect(ordered.length).toBeGreaterThan(0);
+    for (const info of ordered)
+      await jsm.consumers.delete('ORDERING', info.name).catch(() => false);
+
+    const { frame, orderId } = await publishUntilFramed();
+    expect(frame).toMatchObject({ orderId, status: 'READY' });
+  }, 30_000);
 });

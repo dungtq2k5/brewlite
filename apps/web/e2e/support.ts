@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { expect, test as base, type Browser, type Page } from '@playwright/test';
 
 export const GATEWAY = process.env.E2E_GATEWAY_URL ?? 'http://localhost:23100/api/v1';
@@ -42,7 +42,12 @@ export const test = base.extend<{ freshBuckets: void }>({
   ],
   // Every spec is the Content-Security-Policy's test: a violation reported on any page, in the
   // console or as a `securitypolicyviolation` event, fails it.
-  page: async ({ page }, run) => {
+  page: async ({ page }, run, testInfo) => {
+    // The coverage run (`WEB_COVERAGE=1`): the browser's V8 coverage of every page this test
+    // opened, one raw file per test, merged with the server's and Vitest's by coverage-report.mjs.
+    if (process.env.WEB_COVERAGE === '1') {
+      await page.coverage.startJSCoverage({ resetOnNavigation: false });
+    }
     const violations: string[] = [];
     page.on('console', (message) => {
       const text = message.text();
@@ -54,6 +59,12 @@ export const test = base.extend<{ freshBuckets: void }>({
       );
     });
     await run(page);
+    if (process.env.WEB_COVERAGE === '1') {
+      const entries = await page.coverage.stopJSCoverage();
+      const dir = new URL('../coverage/raw/browser/', import.meta.url);
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(new URL(`${testInfo.testId}.json`, dir), JSON.stringify(entries));
+    }
     expect(violations, 'Content-Security-Policy violations').toEqual([]);
   },
 });

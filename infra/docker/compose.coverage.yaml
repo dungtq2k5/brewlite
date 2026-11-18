@@ -1,0 +1,16 @@
+# CI's coverage run, layered over the root compose.yaml (`-f compose.yaml -f infra/docker/compose.coverage.yaml`;
+# paths here resolve from the repository root, the first file's directory):
+# the web image is the coverage build (source maps), and its server records V8 coverage into
+# apps/web/coverage/raw/server. Next's standalone server has no SIGTERM handler, so the signal
+# would kill it before V8 writes — the `--import` makes `docker compose stop web` exit cleanly
+# (percent-encoded: NODE_OPTIONS strips `"`).
+services:
+  web:
+    build:
+      args:
+        WEB_COVERAGE: '1'
+    environment:
+      NODE_V8_COVERAGE: /coverage
+      NODE_OPTIONS: --import=data:text/javascript,process.on(%22SIGTERM%22,()=>process.exit(0))
+    volumes:
+      - ./apps/web/coverage/raw/server:/coverage

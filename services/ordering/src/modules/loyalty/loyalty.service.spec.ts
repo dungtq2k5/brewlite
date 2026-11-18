@@ -117,3 +117,105 @@ describe('LoyaltyService.reverse', () => {
     expect(tx.loyaltyAccount.update).not.toHaveBeenCalled();
   });
 });
+
+const duplicateKey = () =>
+  Object.assign(new Error('duplicate'), {
+    code: 'P2002',
+    meta: { target: ['loyalty_transactions_order_id_kind_key'] },
+  });
+
+describe('LoyaltyService — a failure that is NOT the (order_id, kind) key propagates', () => {
+  it('earn rethrows it and touches no balance', async () => {
+    const tx = buildTx();
+    tx.loyaltyTransaction.create.mockRejectedValueOnce(new Error('connection lost'));
+    const service = new LoyaltyService({} as never);
+
+    await expect(
+      service.earn(tx as never, { id: newId(), userId: newId(), totalVnd: 52_200 }),
+    ).rejects.toThrow('connection lost');
+    expect(tx.loyaltyAccount.upsert).not.toHaveBeenCalled();
+  });
+
+  it('returnRedeemed rethrows it and touches no balance', async () => {
+    const tx = buildTx();
+    tx.loyaltyTransaction.findUnique.mockResolvedValueOnce({ points: -3 });
+    tx.loyaltyTransaction.create.mockRejectedValueOnce(new Error('connection lost'));
+    const service = new LoyaltyService({} as never);
+
+    await expect(
+      service.returnRedeemed(tx as never, { id: newId(), userId: newId() }),
+    ).rejects.toThrow('connection lost');
+    expect(tx.loyaltyAccount.update).not.toHaveBeenCalled();
+  });
+
+  it('reverse rethrows it and touches no balance', async () => {
+    const tx = buildTx();
+    tx.loyaltyTransaction.findUnique.mockResolvedValueOnce({ points: 5 });
+    tx.$queryRaw.mockResolvedValueOnce([{ balance: 12 }]);
+    tx.loyaltyTransaction.create.mockRejectedValueOnce(new Error('connection lost'));
+    const service = new LoyaltyService({} as never);
+
+    await expect(service.reverse(tx as never, { id: newId(), userId: newId() })).rejects.toThrow(
+      'connection lost',
+    );
+    expect(tx.loyaltyAccount.update).not.toHaveBeenCalled();
+  });
+});
+
+describe('LoyaltyService.returnRedeemed', () => {
+  it('gives the spent points back whole, as a positive REDEEM_RETURNED row', async () => {
+    const tx = buildTx();
+    tx.loyaltyTransaction.findUnique.mockResolvedValueOnce({ points: -3 });
+    const service = new LoyaltyService({} as never);
+    const order = { id: newId(), userId: newId() };
+
+    await service.returnRedeemed(tx as never, order);
+
+    expect(tx.loyaltyTransaction.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ points: 3, kind: 'REDEEM_RETURNED' }),
+      }),
+    );
+    expect(tx.loyaltyAccount.update).toHaveBeenCalledWith({
+      where: { userId: order.userId },
+      data: { balance: { increment: 3 } },
+    });
+  });
+
+  it('a SECOND return for the same order is a no-op — the balance goes up once', async () => {
+    const tx = buildTx();
+    tx.loyaltyTransaction.findUnique.mockResolvedValueOnce({ points: -3 });
+    tx.loyaltyTransaction.create.mockRejectedValueOnce(duplicateKey());
+    const service = new LoyaltyService({} as never);
+
+    await service.returnRedeemed(tx as never, { id: newId(), userId: newId() });
+
+    expect(tx.loyaltyAccount.update).not.toHaveBeenCalled();
+  });
+});
+
+describe('LoyaltyService.reverse — edge cases', () => {
+  it('a SECOND reversal for the same order is a no-op — the balance goes down once', async () => {
+    const tx = buildTx();
+    tx.loyaltyTransaction.findUnique.mockResolvedValueOnce({ points: 5 });
+    tx.$queryRaw.mockResolvedValueOnce([{ balance: 12 }]);
+    tx.loyaltyTransaction.create.mockRejectedValueOnce(duplicateKey());
+    const service = new LoyaltyService({} as never);
+
+    await service.reverse(tx as never, { id: newId(), userId: newId() });
+
+    expect(tx.loyaltyAccount.update).not.toHaveBeenCalled();
+  });
+
+  it('a user with NO account row has nothing to remove — no row written', async () => {
+    const tx = buildTx();
+    tx.loyaltyTransaction.findUnique.mockResolvedValueOnce({ points: 5 });
+    tx.$queryRaw.mockResolvedValueOnce([]); // the lock found no account
+    const service = new LoyaltyService({} as never);
+
+    await service.reverse(tx as never, { id: newId(), userId: newId() });
+
+    expect(tx.loyaltyTransaction.create).not.toHaveBeenCalled();
+    expect(tx.loyaltyAccount.update).not.toHaveBeenCalled();
+  });
+});

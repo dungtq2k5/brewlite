@@ -12,8 +12,16 @@ concurrency:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    env:
+      # Absent on a fork's PR — the SonarCloud step is then skipped and CI still runs.
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      # The coverage run: the web image is the coverage build and records the server's V8.
+      COVERAGE_COMPOSE: -f compose.yaml -f infra/docker/compose.coverage.yaml
     steps:
       - uses: actions/checkout@v4
+        with:
+          # SonarCloud needs the history to tell new code from old.
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -63,10 +71,14 @@ jobs:
       - run: pnpm db:setup
       - run: pnpm db:drift
 
-      - run: pnpm test:integration
+      - name: Unit, integration and contract tests, with coverage per package (one run each)
+        run: pnpm exec turbo run test:coverage
 
-      - name: Build and boot the service images
-        run: docker compose --profile apps up -d --build --wait
+      - name: Build and boot the service images (the web as the coverage build)
+        run: |
+          # The web container runs as `node` (uid 1000) and writes its V8 coverage here.
+          mkdir -p apps/web/coverage/raw/server && chmod 777 apps/web/coverage/raw/server
+          docker compose $COVERAGE_COMPOSE --profile apps up -d --build --wait
 
       - name: Make a throwaway password for the seeded accounts
         run: echo "SEED_ACCOUNT_PASSWORD=$(openssl rand -hex 12)Aa1!" >> "$GITHUB_ENV"
@@ -83,10 +95,29 @@ jobs:
         env:
           SMOKE_BASE_URL: http://localhost:23000
 
-      - name: Web e2e, through Caddy as a browser would
+      - name: Web e2e, through Caddy as a browser would (the browser's coverage recorded)
         run: pnpm --filter @brewlite/web e2e
         env:
           E2E_BASE_URL: http://localhost:23000
+          WEB_COVERAGE: '1'
+
+      - name: The web's coverage — server V8, the build's source maps, Vitest, merged
+        run: |
+          # SIGTERM; the compose.coverage.yaml handler lets V8 write before the server exits.
+          docker compose $COVERAGE_COMPOSE stop web
+          # The source maps live in the image's build stage (the runtime image carries none for
+          # the server). Same arguments as Compose's build, so it comes from the cache — and the
+          # BUILD_ID check proves it is the very build that ran.
+          docker build -q --target build --build-arg WEB_COVERAGE=1 -f infra/docker/Dockerfile.web -t brewlite-web-build .
+          rm -rf apps/web/.next
+          docker cp "$(docker create brewlite-web-build)":/repo/apps/web/.next apps/web/.next
+          ran="$(docker compose $COVERAGE_COMPOSE run --rm --no-deps --entrypoint cat web apps/web/.next/BUILD_ID)"
+          test "$ran" = "$(cat apps/web/.next/BUILD_ID)" || { echo "the source maps are not the build that ran"; exit 1; }
+          pnpm --filter @brewlite/web exec vitest run -c vitest.coverage.config.mts --coverage
+          node apps/web/scripts/coverage-report.mjs
+
+      - name: Coverage — every backend package ≥ 90 %, the web at its floor
+        run: node scripts/coverage-check.mjs
 
       - name: Keep the Playwright report when the specs fail
         if: failure()
@@ -94,3 +125,8 @@ jobs:
         with:
           name: playwright-report
           path: apps/web/playwright-report
+
+      - name: SonarCloud — analysis with the coverage reports
+        if: ${{ env.SONAR_TOKEN != '' }}
+        # v8.4.1, pinned to its commit.
+        uses: SonarSource/sonarqube-scan-action@e805d875275f728fac1885b413934be6d7c63f65

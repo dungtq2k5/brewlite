@@ -100,5 +100,81 @@ describe('PaymentsService.fakeConfirm', () => {
         .catch((e: unknown) => e);
       expect(errorCodeOf(error)).toBe('INVALID_STATE');
     });
+
+    it('FAILED marks the payment FAILED / SIMULATED and writes a payment.failed outbox row', async () => {
+      const paymentId = newId();
+      await prisma.payment.create({
+        data: {
+          id: paymentId,
+          orderId: newId(),
+          userId: caller.kind === 'USER' ? caller.userId : '',
+          amountVnd: 50_000,
+          provider: 'FAKE',
+          status: 'PENDING',
+          idempotencyKey: newId(),
+          requestHash: 'x'.repeat(64),
+        },
+      });
+
+      const result = await payments.fakeConfirm({ id: paymentId, outcome: 'FAILED' }, caller);
+      expect(result.payment?.status).toBe('FAILED');
+      expect(await prisma.payment.findUniqueOrThrow({ where: { id: paymentId } })).toMatchObject({
+        status: 'FAILED',
+        failureReason: 'SIMULATED',
+        method: null,
+      });
+
+      const rows = await prisma.outboxEvent.findMany({ where: { aggregateId: paymentId } });
+      expect(rows.map((r) => r.subject)).toEqual(['payment.payment.failed']);
+    });
+
+    it("someone else's payment is RESOURCE_NOT_FOUND and stays PENDING", async () => {
+      const paymentId = newId();
+      await prisma.payment.create({
+        data: {
+          id: paymentId,
+          orderId: newId(),
+          userId: newId(),
+          amountVnd: 50_000,
+          provider: 'FAKE',
+          status: 'PENDING',
+          idempotencyKey: newId(),
+          requestHash: 'x'.repeat(64),
+        },
+      });
+
+      const error = await payments
+        .fakeConfirm({ id: paymentId, outcome: 'SUCCEEDED' }, caller)
+        .catch((e: unknown) => e);
+      expect(errorCodeOf(error)).toBe('RESOURCE_NOT_FOUND');
+      expect((await prisma.payment.findUniqueOrThrow({ where: { id: paymentId } })).status).toBe(
+        'PENDING',
+      );
+    });
+
+    it('a STRIPE payment is ROUTE_NOT_FOUND — never marked paid without Stripe', async () => {
+      const paymentId = newId();
+      await prisma.payment.create({
+        data: {
+          id: paymentId,
+          orderId: newId(),
+          userId: caller.kind === 'USER' ? caller.userId : '',
+          amountVnd: 50_000,
+          provider: 'STRIPE',
+          status: 'PENDING',
+          idempotencyKey: newId(),
+          requestHash: 'x'.repeat(64),
+        },
+      });
+
+      const error = await payments
+        .fakeConfirm({ id: paymentId, outcome: 'SUCCEEDED' }, caller)
+        .catch((e: unknown) => e);
+      expect(errorCodeOf(error)).toBe('ROUTE_NOT_FOUND');
+      expect((await prisma.payment.findUniqueOrThrow({ where: { id: paymentId } })).status).toBe(
+        'PENDING',
+      );
+      expect(await prisma.outboxEvent.count({ where: { aggregateId: paymentId } })).toBe(0);
+    });
   });
 });
