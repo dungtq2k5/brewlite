@@ -483,8 +483,9 @@ Locally the SDK talks to the **Firebase Auth emulator**, which offers fake Googl
 5. `turbo run build`
 6. OpenAPI, the Orval client (`pnpm --filter @brewlite/api-client generate`) and `buf generate` drift checks — regenerate, fail on a non-empty diff
 7. Prisma migration drift check per service
-8. **Coverage** — `turbo run test:coverage` (every tier, one run per package; it replaces a plain integration run), the e2e suite on the web's **coverage build**, the web's merge, then `scripts/coverage-check.mjs` (conventions §16.5)
-9. **SonarCloud** — last, with `SonarSource/sonarqube-scan-action` **pinned to a commit** (v8.4.1), `SONAR_TOKEN` from the Actions secrets (skipped when absent, so a fork's PR still runs), checkout with full history for new-code detection; it uploads every package's lcov. SonarCloud runs **CI-based analysis** — Automatic Analysis is off, since it cannot import coverage
+8. **Dependency audit** — `pnpm audit --prod --audit-level high` right after the install; deliberate ignores live only in `pnpm-workspace.yaml`'s `auditConfig`, each with its reason (conventions §17)
+9. **Coverage** — `turbo run test:coverage` (every tier, one run per package; it replaces a plain integration run), the e2e suite on the web's **coverage build**, the web's merge, then `scripts/coverage-check.mjs` (conventions §16.5)
+10. **SonarCloud** — last, with `SonarSource/sonarqube-scan-action` **pinned to a commit** (v8.4.1), `SONAR_TOKEN` from the Actions secrets (skipped when absent, so a fork's PR still runs), checkout with full history for new-code detection; it uploads every package's lcov. SonarCloud runs **CI-based analysis** — Automatic Analysis is off, since it cannot import coverage
 
 **The coverage build in CI:** `infra/docker/compose.coverage.yaml`, layered over the root `compose.yaml`, builds `web` with `WEB_COVERAGE=1` (a `Dockerfile.web` build argument, declared in Turbo's `build` env so strict env mode does not drop it), runs it with `NODE_V8_COVERAGE` on a mounted volume and the clean-`SIGTERM` `--import`, and the job stops it gracefully before merging. The server's source maps come from the image's **build stage** (`docker build --target build`, `docker cp` of `.next`), and a **`BUILD_ID` check** fails the step if they are not the build that ran — a cache miss would otherwise map coverage to nothing, silently.
 

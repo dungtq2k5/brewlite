@@ -745,6 +745,7 @@ SonarCloud's free plan cannot change its quality gate, so the rule is ours: **ev
 - **Conventional Commits**, enforced by commitlint: `feat(ordering): refuse illegal transitions`.
 - `main` is protected: a PR, one approving review, green CI. The course's Definition of Done requires the review (product-overview §11.3).
 - A PR names the test suites it ran.
+- **Dependencies:** `pnpm audit --prod --audit-level high` runs in CI. A high advisory in a runtime dependency is fixed in the PR that meets it, or ignored **with its reason** in `pnpm-workspace.yaml`'s `auditConfig.ignoreGhsas` — never left. An `overrides` entry there says why, and when it can be dropped (the `multer` override goes with the next `@nestjs/platform-express` bump; the `typescript: ^5.9.0` override holds the repo on 5.9 until moving to 6 is its own change). Prefer a version that has aged about two weeks; a security fix may be taken sooner.
 
 ---
 
