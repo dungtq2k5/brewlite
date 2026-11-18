@@ -42,6 +42,8 @@ export function buildCsp(input: CspInput): string {
       'https://*.stripe.com',
       'https://identitytoolkit.googleapis.com',
       'https://securetoken.googleapis.com',
+      // Google sign-in's loader sends a telemetry beacon (`/js/gen_204`).
+      'https://apis.google.com',
       ...(emulator ? [emulator] : []),
       ...(input.dev ? ['ws://localhost:*', 'ws://127.0.0.1:*'] : []),
     ],

@@ -67,7 +67,7 @@ test('a Google (emulator) account sets a first password and can then sign in by 
   });
 
   await page.goto('/account');
-  await expect(page.getByText('You sign in with Google')).toBeVisible();
+  await expect(page.getByRole('main').getByText('You sign in with Google')).toBeVisible();
   await page.getByRole('button', { name: 'Set a password' }).click();
   await expect(page.getByLabel('Current password', { exact: true })).toHaveCount(0);
   await page.getByLabel('New password', { exact: true }).fill('first-password-1');
@@ -77,8 +77,10 @@ test('a Google (emulator) account sets a first password and can then sign in by 
   ).toBeVisible();
   await expect(page.getByRole('button', { name: 'Change password' })).toBeVisible();
   // Both ways in are listed now (`116:2842`).
-  await expect(page.getByText('You sign in with Google')).toBeVisible();
-  await expect(page.getByText('You sign in with email and password')).toBeVisible();
+  await expect(page.getByRole('main').getByText('You sign in with Google')).toBeVisible();
+  await expect(
+    page.getByRole('main').getByText('You sign in with email and password'),
+  ).toBeVisible();
 
   await page.getByRole('button', { name: 'Open account menu' }).click();
   await page
