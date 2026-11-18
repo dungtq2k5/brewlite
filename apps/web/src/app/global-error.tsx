@@ -32,14 +32,12 @@ export default function GlobalError({
           retryLabel={words.error.retry}
           onRetry={reset}
           home={
-            // Not a <Link>: the router may be the thing that broke.
-            <button
-              type="button"
-              className="btn btn-ghost"
-              onClick={() => (window.location.href = '/')}
-            >
+            // A plain <a>, not <Link>: the router may be the thing that broke. A full navigation that
+            // needs no JavaScript — and navigation is a link's job anyway.
+             
+            <a href="/" className="btn btn-ghost">
               {words.error.home}
-            </button>
+            </a>
           }
           reference={
             error.digest ? words.error.reference.replace('{{id}}', error.digest) : undefined

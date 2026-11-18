@@ -79,9 +79,12 @@ export const test = base.extend<{ freshBuckets: void; finishOrders: void }>({
     await run(page);
     if (process.env.WEB_COVERAGE === '1') {
       const entries = await page.coverage.stopJSCoverage();
-      const dir = new URL('../coverage/raw/browser/', import.meta.url);
-      mkdirSync(dir, { recursive: true });
-      writeFileSync(new URL(`${testInfo.testId}.json`, dir), JSON.stringify(entries));
+      // A test that browses only in its own contexts (a staff tablet) leaves this page blank: no file.
+      if (entries.length > 0) {
+        const dir = new URL('../coverage/raw/browser/', import.meta.url);
+        mkdirSync(dir, { recursive: true });
+        writeFileSync(new URL(`${testInfo.testId}.json`, dir), JSON.stringify(entries));
+      }
     }
     expect(violations, 'Content-Security-Policy violations').toEqual([]);
   },

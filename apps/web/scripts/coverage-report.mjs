@@ -53,9 +53,13 @@ const mcr = new CoverageReport({
   },
 });
 
+// Anything that is not a non-empty V8 list is skipped — and said so: a silent skip hides a drop.
+const skipped = [];
 const browser = at('coverage', 'raw', 'browser');
 for (const file of existsSync(browser) ? readdirSync(browser) : []) {
-  await mcr.add(JSON.parse(readFileSync(path.join(browser, file), 'utf8')));
+  const entries = JSON.parse(readFileSync(path.join(browser, file), 'utf8'));
+  if (Array.isArray(entries) && entries.length > 0) await mcr.add(entries);
+  else skipped.push(file);
 }
 // Node's V8 data carries no source, and its URLs name the machine that ran it
 // (`/app/apps/web/.next/…` in the image). Each chunk is pointed at — and given the source of — the
@@ -74,7 +78,9 @@ const toBuild = (entry) => {
 const server = at('coverage', 'raw', 'server');
 for (const file of existsSync(server) ? readdirSync(server) : []) {
   const { result } = JSON.parse(readFileSync(path.join(server, file), 'utf8'));
-  await mcr.add(result.filter((e) => e.url.includes(NEXT_SERVER)).map(toBuild));
+  // A process that ran no server chunk (start.mjs, the wrapper, writes its own file) adds nothing.
+  const chunks = result.filter((e) => e.url.includes(NEXT_SERVER)).map(toBuild);
+  if (chunks.length > 0) await mcr.add(chunks);
 }
 await mcr.generate();
 
@@ -83,3 +89,7 @@ const sources = [at('coverage', 'vitest', 'lcov.info'), at('coverage', 'e2e', 'l
   .map((f) => readFileSync(f, 'utf8'));
 writeFileSync(at('coverage', 'lcov.info'), mergeLcov(sources));
 console.log(`web coverage: merged ${sources.length} lcov files into coverage/lcov.info`);
+console.log(
+  `browser coverage files skipped (not a non-empty V8 list): ${skipped.length}` +
+    (skipped.length > 0 ? ` — ${skipped.join(', ')}` : ''),
+);

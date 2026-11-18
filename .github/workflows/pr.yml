@@ -110,6 +110,8 @@ jobs:
         run: |
           # SIGTERM; the compose.coverage.yaml handler lets V8 write before the server exits.
           docker compose $COVERAGE_COMPOSE stop web
+          # The container (uid 1000) wrote those files readable by their owner only; the runner is uid 1001.
+          sudo chown -R "$(id -u):$(id -g)" apps/web/coverage/raw/server
           # The source maps live in the image's build stage (the runtime image carries none for
           # the server). Same arguments as Compose's build, so it comes from the cache — and the
           # BUILD_ID check proves it is the very build that ran.
