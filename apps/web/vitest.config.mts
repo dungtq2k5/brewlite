@@ -15,7 +15,13 @@ export default defineProject({
   },
   test: {
     name: 'web',
-    include: ['src/**/*.spec.ts', 'src/**/*.spec.tsx', 'scripts/**/*.spec.ts', 'test/**/*.spec.ts'],
+    include: [
+      'src/**/*.spec.ts',
+      'src/**/*.spec.tsx',
+      'scripts/**/*.spec.ts',
+      'test/**/*.spec.ts',
+      'e2e/screens/*.test.ts',
+    ],
     environment: 'node',
   },
 });

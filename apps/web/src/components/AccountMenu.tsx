@@ -59,10 +59,13 @@ export function AccountMenu({
         onClick={() => setOpen((o) => !o)}
         className="flex min-h-11 items-center gap-2 sm:rounded-full sm:pr-2"
       >
-        <span className="bg-secondary text-secondary-content grid h-9 w-9 place-items-center rounded-full text-sm font-bold">
+        <span
+          data-variable
+          className="bg-secondary text-secondary-content grid h-9 w-9 place-items-center rounded-full text-sm font-bold"
+        >
           {initials(user.fullName)}
         </span>
-        <span className="hidden items-center gap-1 text-sm font-medium sm:flex">
+        <span data-variable className="hidden items-center gap-1 text-sm font-medium sm:flex">
           {user.fullName.split(/\s+/).slice(-2).join(' ')}
           <ChevronDown aria-hidden size={16} />
         </span>
@@ -86,10 +89,13 @@ export function AccountMenu({
               aria-hidden
             />
             <div className="mb-2 flex items-center gap-3 px-6 sm:hidden">
-              <span className="bg-secondary text-secondary-content grid h-12 w-12 place-items-center rounded-full font-bold">
+              <span
+                data-variable
+                className="bg-secondary text-secondary-content grid h-12 w-12 place-items-center rounded-full font-bold"
+              >
                 {initials(user.fullName)}
               </span>
-              <div className="min-w-0">
+              <div data-variable className="min-w-0">
                 <p className="truncate font-semibold">{user.fullName}</p>
                 <p className="truncate text-sm">{user.email}</p>
               </div>

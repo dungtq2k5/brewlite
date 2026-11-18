@@ -13,7 +13,10 @@
     "lint": "eslint .",
     "test": "vitest run --root .",
     "e2e": "playwright test --project phone --project narrow",
-    "coverage": "node scripts/coverage-run.mjs"
+    "coverage": "node scripts/coverage-run.mjs",
+    "screens": "playwright test --project screens",
+    "screens:update": "playwright test --project screens --update-snapshots",
+    "screens:review": "node e2e/screens/review.mjs"
   },
   "dependencies": {
     "@brewlite/api-client": "workspace:*",
@@ -35,8 +38,9 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
     "@brewlite/config": "workspace:*",
-    "@playwright/test": "^1.50.0",
+    "@playwright/test": "1.64.1",
     "@tailwindcss/postcss": "^4.0.0",
     "@types/node": "^24.0.0",
     "@types/react": "^19.0.0",
