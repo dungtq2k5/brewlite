@@ -12,6 +12,23 @@ const STAFF = {
 
 test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 
+// The order this run placed. Finished after the test whatever happened (conventions §16.2): on a
+// deployed stack a run that failed half-way would otherwise leave a paid order on the real board.
+let placedOrderId: string | undefined;
+test.afterEach(async () => {
+  if (!placedOrderId) return;
+  const token = await staffToken();
+  for (const to of ['PREPARING', 'READY', 'COMPLETED']) {
+    // A step already taken (a passing run took them all), or an unpaid order: INVALID_STATE, fine.
+    await fetch(`${API}/staff/orders/${placedOrderId}/status`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ to }),
+    });
+  }
+  placedOrderId = undefined;
+});
+
 async function staffToken(): Promise<string> {
   const response = await fetch(`${API}/auth/login`, {
     method: 'POST',
@@ -54,6 +71,7 @@ test('J1 — a guest orders, signs up, pays, and the counter takes it to collect
   await test.step('placing the order opens its page', async () => {
     await page.getByRole('button', { name: /^Place order · / }).click();
     await expect(page).toHaveURL(/\/orders\/[0-9a-f-]{36}$/);
+    placedOrderId = page.url().split('/').pop()!;
   });
 
   const fake = page.getByRole('button', { name: 'Simulate success' });

@@ -32,13 +32,29 @@ export function resetRateLimits(): void {
   );
 }
 
-export const test = base.extend<{ freshBuckets: void }>({
+/** The orders this test placed (`placeOrderAsNewCustomer`, or `trackOrder`), finished when it ends. */
+const placedThisTest: string[] = [];
+export const trackOrder = (orderId: string) => void placedThisTest.push(orderId);
+
+export const test = base.extend<{ freshBuckets: void; finishOrders: void }>({
   freshBuckets: [
     // Playwright requires the destructuring pattern even when no fixture is used.
     // eslint-disable-next-line no-empty-pattern
     async ({}, run) => {
       resetRateLimits();
       await run();
+    },
+    { auto: true },
+  ],
+  // Conventions §16.2: a spec that pays for an order finishes it. The staff board shows at most
+  // 100 orders, oldest first, so paid orders left behind push every new one off it. After the test
+  // — pass or fail — so a board spec still sees its order during its assertions.
+  finishOrders: [
+    // eslint-disable-next-line no-empty-pattern
+    async ({}, run) => {
+      placedThisTest.length = 0;
+      await run();
+      for (const orderId of placedThisTest.splice(0)) await finishOrder(orderId);
     },
     { auto: true },
   ],
@@ -289,7 +305,28 @@ export async function placeOrderAsNewCustomer(page: Page, product?: ProductDetai
   await page.goto('/checkout');
   await page.getByRole('button', { name: /^Place order/ }).click();
   await expect(page).toHaveURL(/\/orders\/[0-9a-f-]{36}$/);
-  return { ...account, orderId: page.url().split('/').pop()!, product: chosen };
+  const orderId = page.url().split('/').pop()!;
+  trackOrder(orderId);
+  return { ...account, orderId, product: chosen };
+}
+
+/**
+ * Moves an order off the staff board — `PREPARING` → `READY` → `COMPLETED` through the staff API,
+ * as the seeded staff account (the one account specs may *use* for this: it changes no seeded
+ * account). A step already taken, or an order that never left `PENDING` or was cancelled, answers
+ * `INVALID_STATE`, which is fine; anything else fails the test.
+ */
+export async function finishOrder(orderId: string) {
+  const token = await staffToken();
+  for (const to of ['PREPARING', 'READY', 'COMPLETED'] as const) {
+    const { status, body } = await api<{ error?: { code: string } }>(
+      `/staff/orders/${orderId}/status`,
+      { method: 'POST', token, body: JSON.stringify({ to }) },
+    );
+    if (status !== 200 && body?.error?.code !== 'INVALID_STATE') {
+      throw new Error(`finishOrder(${orderId}) → ${to}: ${status} ${JSON.stringify(body)}`);
+    }
+  }
 }
 
 /** A customer's access token — setup only. */

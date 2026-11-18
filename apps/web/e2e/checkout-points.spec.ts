@@ -10,6 +10,7 @@ import {
   storedCart,
   test,
   userToken,
+  trackOrder,
 } from './support';
 
 // Points at checkout (ADR 0035, D06). Fake provider only — skipped on Stripe. Every test makes
@@ -36,6 +37,7 @@ async function customerWithPoints(): Promise<Earned | null> {
     body: JSON.stringify({ items: [{ productId: product.id, size: 'S', toppingIds: [], qty }] }),
   });
   expect(placed.status).toBe(201);
+  trackOrder(placed.body.data.id); // paid below — finished when the test ends
   const payment = await api<{ data: { id: string; provider: string } }>('/payments', {
     method: 'POST',
     token,

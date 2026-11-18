@@ -9,6 +9,8 @@ export default defineProject(
       name: 'identity',
       include: ['src/**/*.spec.ts'],
       environment: 'node',
+      // bcrypt cost 12 in pure JS, up to ~8 hashes per test, and V8 coverage on a CI runner.
+      testTimeout: 30_000,
     },
   }),
 );
