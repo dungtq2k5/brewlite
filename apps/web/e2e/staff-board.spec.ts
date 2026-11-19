@@ -182,7 +182,7 @@ test('cancelling an order the other tablet already started is refused', async ({
     await dialog.getByLabel(/^Reason/).fill('Closing early');
     await advance(orderId, 'PREPARING'); // the other tablet
     await dialog.getByRole('button', { name: 'Cancel and refund' }).click();
-    await expect(dialog.getByText("It's being made now — it can't be cancelled.")).toBeVisible();
+    await expect(dialog.getByText('It’s being made now — it can’t be cancelled.')).toBeVisible();
     await dialog.getByRole('button', { name: 'Close' }).click();
     await expect(
       column(staff, 'Preparing').getByRole('img', { name: `Order ${no}` }),
@@ -246,7 +246,7 @@ test.describe('on a phone', () => {
     const page = await context.newPage();
     try {
       await signIn(page, 'staff@brewlite.test', seedPassword());
-      await expect(page.getByRole('button', { name: 'Open account menu' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'account menu' })).toBeVisible();
       await page.goto('/staff');
       await expect(
         page.getByRole('heading', { name: 'Orders', level: 1, exact: true }),

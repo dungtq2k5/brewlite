@@ -19,6 +19,7 @@ export function CartButton() {
       {count > 0 && (
         <span
           aria-hidden
+          data-variable
           className="bg-accent text-accent-content absolute top-0.5 right-0 grid h-5 min-w-5 place-items-center rounded-full px-1 text-xs font-bold"
         >
           {count > 99 ? '99+' : count}

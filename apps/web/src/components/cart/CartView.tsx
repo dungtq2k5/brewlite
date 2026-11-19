@@ -18,8 +18,11 @@ export function CartView({ signedIn }: Readonly<{ signedIn: boolean }>) {
   const { removed, onRemove, onUndo, expire } = useUndoableRemove();
 
   const back = (
-    <Link href="/" className="inline-flex min-h-11 items-center gap-1 text-sm font-medium">
-      <ChevronLeft aria-hidden size={18} />
+    <Link
+      href="/"
+      className="inline-flex min-h-11 items-center gap-1 text-[15px] leading-[22px] font-medium"
+    >
+      <ChevronLeft aria-hidden size={20} />
       {t('menu:product.back')}
     </Link>
   );
@@ -47,34 +50,39 @@ export function CartView({ signedIn }: Readonly<{ signedIn: boolean }>) {
     </Fragment>
   ));
 
+  const empty = cart.lines.length === 0;
+
   return (
-    <div className="mx-auto max-w-[30rem]">
+    // Bottom room for the fixed summary bar, so the last line scrolls clear of it.
+    <div className={`mx-auto max-w-[30rem] ${empty ? '' : 'pb-36'}`}>
       {back}
-      {cart.lines.length === 0 ? (
+      <h1 className="mt-2 flex items-baseline gap-2 text-[28px] leading-9 font-bold">
+        {t('title')}
+        {!empty && (
+          <span className="text-base-content/72 text-base leading-6 font-normal">
+            {t('items', { count: itemCount })}
+          </span>
+        )}
+      </h1>
+      {empty ? (
         <>
           {removed && (
-            <ul>
+            <ul className="mt-2">
               <UndoRow line={removed.line} onUndo={onUndo} onExpire={expire} />
             </ul>
           )}
-          <div className="flex flex-col items-center gap-4 px-4 py-12 text-center">
-            <span className="bg-base-200 grid h-24 w-24 place-items-center rounded-full">
+          <div className="mt-2 flex flex-col items-center gap-4 py-8 text-center">
+            <span className="bg-secondary grid size-22 place-items-center rounded-full">
               <ShoppingBag aria-hidden size={40} />
             </span>
-            <p className="text-lg font-medium">{t('empty.title')}</p>
-            <Link href="/" className="btn btn-primary w-full">
+            <p className="text-[17px] leading-[26px] font-semibold">{t('empty.title')}</p>
+            <Link href="/" className="btn btn-primary">
               {t('empty.action')}
             </Link>
           </div>
         </>
       ) : (
         <>
-          <h1 className="mt-2 flex items-baseline gap-3 text-3xl font-bold">
-            {t('title')}
-            <span className="text-base-content/70 text-base font-medium">
-              {t('items', { count: itemCount })}
-            </span>
-          </h1>
           <ul className="mt-2">
             {rows}
             {removed && removed.index >= cart.lines.length && (

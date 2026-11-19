@@ -32,7 +32,6 @@ export function LanguageToggle({
             key={l}
             type="button"
             lang={l}
-            aria-label={nameOf(l)}
             aria-pressed={l === locale}
             disabled={disabled}
             onClick={() => onChoose(l)}
@@ -41,6 +40,8 @@ export function LanguageToggle({
             }`}
           >
             {shortOf(l)}
+            {/* The name contains what is seen (WCAG 2.5.3): "EN English", read in the button's language. */}
+            <span className="sr-only"> {nameOf(l)}</span>
           </button>
         ))}
       </div>

@@ -63,47 +63,52 @@ export function CategoryNav({
     };
   }, []);
 
-  // Scroll-spy: one observer over the sections, watching a 1 px line just under the bar.
+  // Scroll-spy: the current section is the last one whose top has reached the line a chip's own
+  // scroll lands on — the headings' `scroll-margin-top`, read from the page so the two never
+  // drift apart. Read from the layout on every scroll (and once now), so a restored scroll
+  // position — back from a product — finds its chip too.
   useEffect(() => {
     const sections = items
       .map((item) => document.getElementById(`cat-${item.id}`))
       .filter((el): el is HTMLElement => el !== null);
     if (sections.length === 0) return;
-    let observer: IntersectionObserver | undefined;
-
-    const observe = () => {
-      observer?.disconnect();
-      const root = document.documentElement;
-      const offset =
-        Number.parseFloat(getComputedStyle(root).getPropertyValue(HEADER_VAR) || '0') +
-        (window.matchMedia('(min-width: 1024px)').matches
-          ? 0
-          : Number.parseFloat(getComputedStyle(root).getPropertyValue(NAV_VAR) || '0'));
-      const line = Math.round(offset) + 1;
-      observer = new IntersectionObserver(
-        (entries) => {
-          if (Date.now() < settlingUntil.current) return;
-          for (const entry of entries) {
-            if (entry.isIntersecting) setCurrent(entry.target.id.replace(/^cat-/, ''));
-          }
-        },
-        { rootMargin: `-${line}px 0px -${Math.max(0, window.innerHeight - line - 1)}px 0px` },
-      );
-      for (const section of sections) observer.observe(section);
+    let frame = 0;
+    const spy = () => {
+      frame = 0;
+      if (Date.now() < settlingUntil.current) return;
+      const heading = sections[0]!.querySelector('h2') ?? sections[0]!;
+      const line = Number.parseFloat(getComputedStyle(heading).scrollMarginTop) + 1;
+      let found = sections[0]!;
+      for (const section of sections) {
+        if (section.getBoundingClientRect().top > line) break;
+        found = section;
+      }
+      setCurrent(found.id.replace(/^cat-/, ''));
     };
-    observe();
-    window.addEventListener('resize', observe);
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(spy);
+    };
+    spy();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
     return () => {
-      window.removeEventListener('resize', observe);
-      observer?.disconnect();
+      cancelAnimationFrame(frame);
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
     };
   }, [items]);
 
-  // Keep the current chip inside the bar (it scrolls sideways on a phone).
+  // Keep the current chip inside the bar (it scrolls sideways on a phone) — moved only when it is
+  // out of view, so a chip already seen leaves the bar where it is (D09).
   useEffect(() => {
     const chip = current ? chips.current.get(current) : undefined;
     const scroller = bar.current?.querySelector('ul');
     if (!chip || !scroller || scroller.scrollWidth <= scroller.clientWidth) return;
+    const left = chip.offsetLeft - scroller.offsetLeft;
+    const inView =
+      left >= scroller.scrollLeft &&
+      left + chip.offsetWidth <= scroller.scrollLeft + scroller.clientWidth;
+    if (inView) return;
     scroller.scrollTo({
       left: chip.offsetLeft - (scroller.clientWidth - chip.offsetWidth) / 2,
       behavior: 'smooth',
@@ -125,17 +130,17 @@ export function CategoryNav({
 
   // `contents` on a phone: the bar must stick within the whole page, not within its own wrapper.
   return (
-    <div className="contents lg:block lg:sticky lg:top-[calc(var(--bl-header-h,3.5rem)+1.5rem)] lg:self-start">
+    <div className="contents lg:block lg:sticky lg:top-[calc(var(--bl-header-h,3.5rem)+2.5rem)] lg:self-start">
       <h1 className="sr-only text-3xl font-bold lg:not-sr-only lg:mb-4">{title}</h1>
       {/* On a desktop the field heads the sticky list; on a phone it sits above the first section. */}
       <MenuSearch count={count} className="hidden lg:mb-4 lg:block" />
       <nav
         ref={bar}
         aria-label={t('nav.label')}
-        className="bg-base-100 border-base-300 sticky top-(--bl-header-h,3.5rem) z-20 -mx-4 -mt-6 border-b px-4 lg:static lg:mx-0 lg:mt-0 lg:border-0 lg:px-0"
+        className="bg-base-100 border-base-300 sticky top-(--bl-header-h,3.5rem) z-20 -mx-4 -mt-1 border-b px-4 lg:static lg:mx-0 lg:mt-0 lg:border-0 lg:px-0"
       >
         <ul
-          className={`flex gap-2 overflow-x-auto py-3 scrollbar-none lg:flex-col lg:gap-1 lg:overflow-visible lg:py-0 ${
+          className={`flex gap-2 overflow-x-auto py-1.5 scrollbar-none lg:flex-col lg:gap-1 lg:overflow-visible lg:py-0 ${
             items.length === 0 ? 'hidden' : ''
           }`}
         >

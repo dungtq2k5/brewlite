@@ -82,6 +82,17 @@ export class ErrorFilter implements ExceptionFilter {
       return { status: 400, code: 'MALFORMED_REQUEST' };
     }
 
+    // body-parser's own error for a body over its limit — recognised by its `type`, like
+    // `entity.parse.failed`, never by message. A client's mistake: a warn, not an unhandled 500.
+    if (
+      typeof exception === 'object' &&
+      exception !== null &&
+      (exception as { type?: string }).type === 'entity.too.large'
+    ) {
+      this.logger.warn({ requestId }, 'request body over the limit');
+      return { status: 413, code: 'PAYLOAD_TOO_LARGE' };
+    }
+
     if (this.isMulterFileTooLargeError(exception)) {
       return { status: 422, code: 'IMAGE_INVALID', details: { reason: 'SIZE' } };
     }

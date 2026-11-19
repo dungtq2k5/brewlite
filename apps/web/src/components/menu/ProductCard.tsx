@@ -36,14 +36,20 @@ export function ProductCard({
       <div className="rounded-box relative aspect-square overflow-hidden">
         <ProductImage imageUrl={product.imageUrl} name={name} variant={variant} />
         {product.isSoldOut && (
-          <span className="bg-neutral text-neutral-content absolute top-3 left-3 rounded-full px-3 py-1 text-xs font-bold">
-            {labels.soldOut}
-          </span>
+          <>
+            {/* Dimmed under the badge, as drawn (D02). */}
+            <div aria-hidden className="bg-base-100/45 absolute inset-0" />
+            <span className="bg-neutral text-neutral-content absolute top-3 left-3 rounded-lg px-2.5 py-0.5 text-[0.8125rem] font-semibold">
+              {labels.soldOut}
+            </span>
+          </>
         )}
       </div>
-      <p className="mt-2 px-1 text-sm font-semibold">{name}</p>
-      <p className="px-1 text-sm">
-        <span className="text-base-content/70">{labels.from}</span>{' '}
+      {/* The frame also fades the name and price to 60 %, below the text contrast minimum
+          (WCAG 1.4.3) — the image alone is dimmed. */}
+      <p className="mt-2 px-1 text-[15px] leading-5.5 font-semibold">{name}</p>
+      <p className="px-1 text-[15px] leading-5.5">
+        <span className="text-base-content/70 text-[13px] leading-5">{labels.from}</span>{' '}
         <span className="font-bold tabular-nums">{formatVnd(product.fromPriceVnd, locale)}</span>
       </p>
     </Link>

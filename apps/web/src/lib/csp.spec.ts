@@ -38,6 +38,10 @@ describe('buildCsp', () => {
     );
   });
 
+  it("lets Google sign-in's loader send its telemetry beacon", () => {
+    expect(directive(buildCsp(base), 'connect-src')).toContain('https://apis.google.com');
+  });
+
   it('names the storage and emulator origins, with the path stripped', () => {
     const policy = buildCsp({ ...base, authEmulatorUrl: 'http://localhost:29099/emulator' });
     expect(directive(policy, 'img-src')).toContain('http://localhost:29199');

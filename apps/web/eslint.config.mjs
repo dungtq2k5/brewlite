@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import nextCoreWebVitals from 'eslint-config-next/core-web-vitals';
 import nextTypescript from 'eslint-config-next/typescript';
 import i18next from 'eslint-plugin-i18next';
@@ -7,6 +8,12 @@ const config = [
   ...baseConfig,
   ...nextCoreWebVitals,
   ...nextTypescript,
+  {
+    // Next's rules find `app/` relative to the working directory unless told; the pre-commit hook
+    // lints from the repo root, where `no-html-link-for-pages` then saw no pages, called a needed
+    // `eslint-disable` unused, and its `--fix` deleted it. Anchored here, both places agree.
+    settings: { next: { rootDir: fileURLToPath(new URL('.', import.meta.url)) } },
+  },
   {
     ignores: [
       '.next/**',

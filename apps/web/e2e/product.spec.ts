@@ -105,7 +105,7 @@ test('a missing id and a malformed id are both "not on the menu"', async ({ page
   for (const path of ['/products/01a0e67a-33af-7000-8000-000000000000', '/products/nope']) {
     await page.goto(path);
     await expect(
-      page.getByRole('heading', { name: "This item isn't on the menu any more" }),
+      page.getByRole('heading', { name: 'This item isn’t on the menu any more' }),
     ).toBeVisible();
     await expect(page.getByRole('link', { name: 'Back to menu' })).toBeVisible();
   }

@@ -145,6 +145,77 @@ describe('StockService', () => {
     });
   });
 
+  it('SetStockQty without a stockQty makes the product UNCOUNTED and bumps version', async () => {
+    const { product } = await seedProduct({ stockQty: 10 });
+    const result = await stock.setStockQty({ id: product.id, expectedVersion: 0 });
+    expect(result.product?.stockQty).toBeUndefined();
+    const row = await prisma.product.findUniqueOrThrow({ where: { id: product.id } });
+    expect(row).toMatchObject({ stockQty: null, version: 1 });
+  });
+
+  it('SetStockQty on an unknown or soft-deleted product answers RESOURCE_NOT_FOUND, not a conflict', async () => {
+    const { product } = await seedProduct({ stockQty: 10 });
+    await prisma.product.update({
+      where: { id: product.id },
+      data: { deletedAt: new Date(), deletedById: newId() },
+    });
+    for (const id of [product.id, newId()]) {
+      const result = await grpcError(stock.setStockQty({ id, stockQty: 1, expectedVersion: 0 }));
+      expect(result).toEqual({ code: 'RESOURCE_NOT_FOUND', details: { resource: 'PRODUCT' } });
+    }
+    const row = await prisma.product.findUniqueOrThrow({ where: { id: product.id } });
+    expect(row).toMatchObject({ stockQty: 10, version: 0 });
+  });
+
+  it('SetToppingAvailability switches a live topping and refuses a soft-deleted one', async () => {
+    const topping = await prisma.topping.create({
+      data: { id: newId(), nameEn: 'Boba', nameVi: 'Tran chau', priceVnd: 8_000 },
+    });
+    const switched = await stock.setToppingAvailability({ id: topping.id, isAvailable: false });
+    expect(switched.topping).toMatchObject({ id: topping.id, isAvailable: false });
+
+    await prisma.topping.update({
+      where: { id: topping.id },
+      data: { deletedAt: new Date(), deletedById: newId() },
+    });
+    const result = await grpcError(
+      stock.setToppingAvailability({ id: topping.id, isAvailable: true }),
+    );
+    expect(result).toEqual({ code: 'RESOURCE_NOT_FOUND', details: { resource: 'TOPPING' } });
+    const row = await prisma.topping.findUniqueOrThrow({ where: { id: topping.id } });
+    expect(row.isAvailable).toBe(false);
+  });
+
+  it('ReleaseStock invalidates the menu cache only when stock comes back FROM ZERO', async () => {
+    const invalidateSpy = vi.spyOn(cache, 'invalidate');
+    const { category, product: partly } = await seedProduct({ stockQty: 5 });
+    const soldOut = await prisma.product.create({
+      data: {
+        id: newId(),
+        categoryId: category.id,
+        nameEn: 'Peach tea',
+        nameVi: 'Trà đào',
+        basePriceVnd: 35_000,
+        stockQty: 2,
+      },
+    });
+    const partialOrder = newId();
+    const soldOutOrder = newId();
+    await stock.reserveStock({ orderId: partialOrder, lines: [{ productId: partly.id, qty: 2 }] });
+    await stock.reserveStock({ orderId: soldOutOrder, lines: [{ productId: soldOut.id, qty: 2 }] });
+    invalidateSpy.mockClear();
+
+    await stock.releaseStock({ orderId: partialOrder });
+    expect(invalidateSpy).not.toHaveBeenCalled();
+
+    await stock.releaseStock({ orderId: soldOutOrder });
+    expect(invalidateSpy).toHaveBeenCalledTimes(1);
+    const row = await prisma.product.findUniqueOrThrow({ where: { id: soldOut.id } });
+    expect(row.stockQty).toBe(2);
+
+    invalidateSpy.mockRestore();
+  });
+
   it('RESOURCE_NOT_FOUND for an unknown product', async () => {
     const result = (await grpcError(
       stock.setProductAvailability({ id: newId(), isAvailable: false }),

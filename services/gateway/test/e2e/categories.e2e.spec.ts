@@ -107,6 +107,15 @@ describe('gateway e2e — GET /categories', () => {
     expect(res.body.error.code).toBe('MALFORMED_REQUEST');
   });
 
+  it('answers 413 PAYLOAD_TOO_LARGE for a JSON body over the limit, not a 500', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/auth/login')
+      .set('content-type', 'application/json')
+      .send(JSON.stringify({ email: 'nobody@example.com', password: 'x'.repeat(150_000) }));
+    expect(res.status).toBe(413);
+    expect(res.body.error.code).toBe('PAYLOAD_TOO_LARGE');
+  });
+
   it('answers 400 VALIDATION_FAILED with issues for a bad query', async () => {
     const res = await request(app.getHttpServer()).get('/api/v1/test-only').query({ name: 'ab' });
     expect(res.status).toBe(400);

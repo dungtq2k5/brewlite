@@ -1,7 +1,8 @@
 import type { Metadata } from '@grpc/grpc-js';
 import type { RpcException } from '@nestjs/microservices';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { newId, PaymentStatus } from '@brewlite/contracts';
+import { PaymentOutcomeService } from '../../src/modules/payments/payment-outcome.service.js';
 import { WebhookService } from '../../src/modules/payments/webhook.service.js';
 import { prisma } from '../setup/per-file.js';
 import { buildStripeApp, buildStripeStub, signedEvent } from '../support/stripe-app.js';
@@ -128,6 +129,35 @@ describe('WebhookService.handleStripeEvent — events signed by the SDK', () => 
     );
     expect(await prisma.outboxEvent.count({ where: { aggregateId: payment.id } })).toBe(1);
     expect(await prisma.stripeEvent.count()).toBe(2);
+  });
+
+  it('a paid session WITHOUT a payment intent does nothing and calls no API', async () => {
+    const payment = await seedPayment();
+    await webhook.handleStripeEvent(
+      signedEvent(stripe, 'checkout.session.completed', session(payment, { payment_intent: null }))
+        .request,
+    );
+    const row = await prisma.payment.findUniqueOrThrow({ where: { id: payment.id } });
+    expect(row).toMatchObject({ status: 'PENDING', stripePaymentIntentId: null });
+    expect(calls.retrieveIntent).not.toHaveBeenCalled();
+    expect(await prisma.stripeEvent.count()).toBe(1);
+  });
+
+  it('an outcome that fails for any reason but INVALID_STATE is rethrown and leaves no P-3 row', async () => {
+    const payment = await seedPayment();
+    const delivery = signedEvent(stripe, 'checkout.session.expired', session(payment));
+    const apply = vi
+      .spyOn(app.get(PaymentOutcomeService), 'apply')
+      .mockRejectedValueOnce(new Error('connection reset'));
+    try {
+      await expect(webhook.handleStripeEvent(delivery.request)).rejects.toThrow('connection reset');
+    } finally {
+      apply.mockRestore();
+    }
+    expect(await prisma.stripeEvent.count()).toBe(0);
+    expect((await prisma.payment.findUniqueOrThrow({ where: { id: payment.id } })).status).toBe(
+      'PENDING',
+    );
   });
 
   it('a bad signature is WEBHOOK_SIGNATURE_INVALID and records nothing', async () => {

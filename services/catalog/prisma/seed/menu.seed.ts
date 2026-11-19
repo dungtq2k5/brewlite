@@ -364,6 +364,88 @@ const TOPPINGS: ToppingSeed[] = [
   { id: TOPPING_IDS.peachSlices, nameEn: 'Peach slices', nameVi: 'Đào miếng', priceVnd: 10_000 },
 ];
 
+// One line per product, both languages (≤ 500 characters, the column's limit).
+const DESCRIPTIONS: Record<string, [en: string, vi: string]> = {
+  'Iced milk coffee': [
+    'Strong phin-dripped coffee with sweetened condensed milk, over ice.',
+    'Cà phê phin đậm đà pha sữa đặc, thêm đá.',
+  ],
+  'Iced black coffee': [
+    'Phin-dripped robusta, bold and lightly sweet, over ice.',
+    'Robusta pha phin, đậm vị, ngọt nhẹ, thêm đá.',
+  ],
+  'Salted cream coffee': [
+    'Iced coffee under a layer of lightly salted cream.',
+    'Cà phê đá phủ lớp kem muối béo nhẹ.',
+  ],
+  'Coconut coffee': [
+    'Coffee blended with icy coconut cream.',
+    'Cà phê hoà cùng cốt dừa xay đá mát lạnh.',
+  ],
+  'Egg coffee': [
+    'Hanoi-style coffee under a whipped egg-yolk cream.',
+    'Cà phê kiểu Hà Nội dưới lớp kem trứng đánh bông.',
+  ],
+  Espresso: ['A single, concentrated shot.', 'Một shot cà phê đậm đặc.'],
+  Americano: ['Espresso lengthened with hot water.', 'Espresso pha loãng với nước nóng.'],
+  Latte: [
+    'Espresso with steamed milk and a thin layer of foam.',
+    'Espresso với sữa nóng và lớp bọt mỏng.',
+  ],
+  Cappuccino: [
+    'Espresso, steamed milk and a thick cap of foam.',
+    'Espresso, sữa nóng và lớp bọt sữa dày.',
+  ],
+  'Cold brew': [
+    'Coffee steeped cold overnight: smooth, with little bitterness.',
+    'Cà phê ủ lạnh qua đêm, êm và ít đắng.',
+  ],
+  'Peach orange lemongrass tea': [
+    'Black tea with peach, orange and fresh lemongrass.',
+    'Trà đen cùng đào, cam và sả tươi.',
+  ],
+  'Lychee tea': ['Fragrant tea with lychee fruit.', 'Trà thơm cùng quả vải.'],
+  'Kumquat tea': [
+    'Green tea with fresh kumquat and a touch of honey.',
+    'Trà xanh với tắc tươi và chút mật ong.',
+  ],
+  'Jasmine green tea': [
+    'Light green tea scented with jasmine.',
+    'Trà xanh nhẹ, ướp hương hoa nhài.',
+  ],
+  'Oolong tea': ['Roasted oolong, warm and toasty.', 'Trà ô long rang, thơm ấm.'],
+  'Classic milk tea': [
+    'Black tea and milk, sweetened just right.',
+    'Trà đen và sữa, ngọt vừa phải.',
+  ],
+  'Brown sugar milk tea': [
+    'Fresh milk over slow-cooked brown sugar syrup.',
+    'Sữa tươi trên lớp đường đen nấu chậm.',
+  ],
+  'Matcha milk tea': ['Japanese matcha whisked into milk.', 'Matcha Nhật đánh cùng sữa.'],
+  'Taro milk tea': ['Creamy taro with milk tea.', 'Khoai môn bùi béo cùng trà sữa.'],
+  'Oolong milk tea': ['Roasted oolong with milk.', 'Ô long rang pha cùng sữa.'],
+  'Cookies & cream frappé': [
+    'Ice-blended milk with chocolate cookies.',
+    'Sữa xay đá cùng bánh quy sô-cô-la.',
+  ],
+  'Matcha frappé': ['Matcha and milk blended with ice.', 'Matcha và sữa xay cùng đá.'],
+  'Coffee frappé': ['Coffee and milk blended with ice.', 'Cà phê và sữa xay cùng đá.'],
+  'Mango smoothie': ['Ripe mango blended with ice.', 'Xoài chín xay cùng đá.'],
+  'Avocado smoothie': ['Avocado blended with condensed milk.', 'Bơ xay cùng sữa đặc.'],
+  Croissant: ['Buttery and flaky, baked every morning.', 'Bơ thơm, giòn xốp, nướng mỗi sáng.'],
+  'Bánh mì': [
+    'Crusty baguette with pâté, cold cuts and pickled vegetables.',
+    'Bánh mì giòn với pa-tê, chả và đồ chua.',
+  ],
+  Tiramisu: [
+    'Coffee-soaked sponge layered with mascarpone cream.',
+    'Bánh bông lan thấm cà phê xen lớp kem mascarpone.',
+  ],
+  'Chocolate cake': ['Rich, moist dark chocolate cake.', 'Bánh sô-cô-la đen ẩm, đậm vị.'],
+  'Crème caramel': ['Silky custard under a thin caramel.', 'Bánh flan mềm mịn dưới lớp caramel.'],
+};
+
 // Allowed toppings by category.
 const ALLOWED_TOPPINGS: Record<keyof typeof CATEGORY_IDS, (keyof typeof TOPPING_IDS)[]> = {
   coffee: ['extraEspressoShot', 'cheeseFoam'],
@@ -402,6 +484,9 @@ async function main(): Promise<void> {
 
   for (const product of PRODUCTS) {
     const isNew = !existingProductIds.has(product.id);
+    const description = DESCRIPTIONS[product.nameEn];
+    if (!description) throw new Error(`No description for ${product.nameEn}`);
+    const [descriptionEn, descriptionVi] = description;
     await prisma.product.upsert({
       where: { id: product.id },
       create: {
@@ -409,12 +494,20 @@ async function main(): Promise<void> {
         categoryId: CATEGORY_IDS[product.categoryKey],
         nameEn: product.nameEn,
         nameVi: product.nameVi,
+        descriptionEn,
+        descriptionVi,
         basePriceVnd: product.basePriceVnd,
         sortOrder: product.sortOrder,
         stockQty: product.stockQty ?? null,
         isAvailable: product.isAvailable ?? true,
       },
       update: {},
+    });
+    // A database seeded before the descriptions gains them — only where none is set, so an
+    // admin's own description stays (the seed never rewrites a row otherwise).
+    await prisma.product.updateMany({
+      where: { id: product.id, descriptionEn: null, descriptionVi: null },
+      data: { descriptionEn, descriptionVi },
     });
     if (isNew) {
       await prisma.productSize.createMany({

@@ -6,7 +6,7 @@ void base;
 
 async function asAdmin(page: Page) {
   await signIn(page, 'admin@brewlite.test', seedPassword());
-  await expect(page.getByRole('button', { name: 'Open account menu' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'account menu' })).toBeVisible();
 }
 
 async function openUser(page: Page, email: string) {
@@ -38,7 +38,7 @@ test('a new customer: role to Staff, lock until a date, unlock, deactivate, rest
   const other = await browser.newContext({ viewport: { width: 1024, height: 768 } });
   const staff = await other.newPage();
   await signIn(staff, email, PASSWORD);
-  await expect(staff.getByRole('button', { name: 'Open account menu' })).toBeVisible();
+  await expect(staff.getByRole('button', { name: 'account menu' })).toBeVisible();
   await staff.goto('/staff');
   await expect(staff.getByRole('heading', { name: 'Orders board' })).toBeVisible();
   await other.close();
@@ -76,7 +76,10 @@ test('your own account: role, lock and deactivate are disabled, with the reason'
 
 test('the list filters by role and status and keeps them in the address', async ({ page }) => {
   await asAdmin(page);
-  await page.goto('/admin/users?role=STAFF');
+  // Searched to the seeded domain: leftover e2e staff (example.com) pile up across runs and push the
+  // seeded account off the first page. The customer matches the search, so its absence is still
+  // the role filter's doing.
+  await page.goto('/admin/users?role=STAFF&q=brewlite.test');
   await expect(page.getByRole('row', { name: /staff@brewlite.test/ })).toBeVisible();
   await expect(page.getByRole('row', { name: /customer@brewlite.test/ })).toHaveCount(0);
   await page.goto('/admin/users?status=deactivated&sort=nonsense');
@@ -108,7 +111,7 @@ test('LAST_ADMIN: a demoted admin’s still-open session cannot demote the only 
   const other = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   const second = await other.newPage();
   await signIn(second, email, PASSWORD);
-  await expect(second.getByRole('button', { name: 'Open account menu' })).toBeVisible();
+  await expect(second.getByRole('button', { name: 'account menu' })).toBeVisible();
   await asAdmin(page);
   await openUser(page, 'admin@brewlite.test');
   const seedAdminUrl = page.url();

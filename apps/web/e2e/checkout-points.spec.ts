@@ -10,6 +10,7 @@ import {
   storedCart,
   test,
   userToken,
+  trackOrder,
 } from './support';
 
 // Points at checkout (ADR 0035, D06). Fake provider only — skipped on Stripe. Every test makes
@@ -36,6 +37,7 @@ async function customerWithPoints(): Promise<Earned | null> {
     body: JSON.stringify({ items: [{ productId: product.id, size: 'S', toppingIds: [], qty }] }),
   });
   expect(placed.status).toBe(201);
+  trackOrder(placed.body.data.id); // paid below — finished when the test ends
   const payment = await api<{ data: { id: string; provider: string } }>('/payments', {
     method: 'POST',
     token,
@@ -71,7 +73,7 @@ async function atCheckout(page: Page, earned: Earned, quantity: number) {
     storedCart([{ productId: earned.product.id, quantity }]),
   );
   await signIn(page, earned.email, PASSWORD);
-  await expect(page.getByRole('button', { name: 'Open account menu' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'account menu' })).toBeVisible();
   await page.goto('/checkout');
   await expect(page.getByRole('switch', { name: /^Use points, \d+ available$/ })).toBeVisible();
 }
@@ -87,7 +89,7 @@ test('a customer with no points sees no points control', async ({ page }) => {
     storedCart([{ productId: product.id, quantity: 1 }]),
   );
   await signIn(page, email, PASSWORD);
-  await expect(page.getByRole('button', { name: 'Open account menu' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'account menu' })).toBeVisible();
   await page.goto('/checkout');
   await expect(page.getByRole('button', { name: /^Place order · / })).toBeVisible();
   await expect(page.getByRole('switch', { name: /^Use points/ })).toHaveCount(0);
@@ -103,16 +105,16 @@ test('use all, then fewer: the total and the earn line follow; placing spends th
 
   await page.getByRole('switch', { name: /^Use points/ }).check();
   await expect(page.getByText(`Using ${balance} points`, { exact: false })).toBeVisible();
-  await expect(page.getByText("That's all your points.")).toBeVisible();
+  await expect(page.getByText('That’s all your points.')).toBeVisible();
   await expect(page.getByText(`Points · ${balance}`)).toBeVisible();
   await expect(
-    page.getByText("Points are taken when you place the order and come back if it's cancelled."),
+    page.getByText('Points are taken when you place the order and come back if it’s cancelled.'),
   ).toBeVisible();
 
   await page.getByRole('button', { name: 'Use fewer' }).click();
   await page.getByRole('button', { name: 'One point fewer' }).click();
   await expect(page.getByText(`Points · ${balance - 1}`)).toBeVisible();
-  await expect(page.getByText("That's all your points.")).toHaveCount(0);
+  await expect(page.getByText('That’s all your points.')).toHaveCount(0);
 
   await page.getByRole('button', { name: /^Place order · / }).click();
   await expect(page).toHaveURL(/\/orders\/[0-9a-f-]{36}$/);
@@ -121,7 +123,9 @@ test('use all, then fewer: the total and the earn line follow; placing spends th
   const orderId = page.url().split('/').pop()!;
   expect((await api(`/orders/${orderId}/cancel`, { method: 'POST', token })).status).toBe(200);
   await page.reload();
-  await expect(page.getByText(`${balance - 1} points returned to your balance.`)).toBeVisible();
+  await expect(
+    page.getByRole('main').getByText(`${balance - 1} points returned to your balance.`),
+  ).toBeVisible();
   expect(await balanceOf(token)).toBe(balance);
 });
 
@@ -133,7 +137,7 @@ test('a small cart is capped at half its subtotal, and says so', async ({ page }
   await expect(
     page
       .getByText('Up to 50% of your order can be paid with points.')
-      .or(page.getByText(/Points can't bring the total below/)),
+      .or(page.getByText(/Points can’t bring the total below/)),
   ).toBeVisible();
 });
 

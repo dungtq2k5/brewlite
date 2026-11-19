@@ -14,3 +14,5 @@ playwright-report/
 test-results/
 # The Designer's export, kept byte-for-byte.
 **/src/styles/tokens.json
+# the screens suite's local review page (generated, gitignored)
+apps/web/screens-review/

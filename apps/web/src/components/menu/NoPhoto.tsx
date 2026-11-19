@@ -17,8 +17,8 @@ export function NoPhoto({
   const { tint, Icon } = LOOKS[variant] ?? LOOKS[0]!;
   return (
     <div aria-hidden className={`bg-base-100 size-full`}>
-      <div className={`${tint} text-primary grid size-full place-items-center`}>
-        <Icon size={iconSize} strokeWidth={1.5} />
+      <div className={`${tint} text-base-content grid size-full place-items-center`}>
+        <Icon size={iconSize} strokeWidth={2} nonScalingStroke />
       </div>
     </div>
   );

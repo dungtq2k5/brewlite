@@ -91,7 +91,7 @@ for (const locale of LOCALES) {
       await login(page, locale, newEmail(), PASSWORD);
       await expect(alertOf(page)).toHaveText(
         locale === 'en'
-          ? "That email and password don't match. Check both and try again."
+          ? 'That email and password don’t match. Check both and try again.'
           : 'Email hoặc mật khẩu chưa đúng. Bạn kiểm tra lại nhé.',
       );
       // What was typed stays; the password never comes back.
@@ -102,11 +102,13 @@ for (const locale of LOCALES) {
     test('ACCOUNT_LOCKED until a time', async ({ page }) => {
       const { email, id } = await createAccount();
       const until = new Date(Date.now() + 3 * 3_600_000).toISOString().replace(/\.\d+Z$/, 'Z');
-      await api(`/admin/users/${id}/lock`, {
+      const locked = await api(`/admin/users/${id}/lock`, {
         method: 'POST',
         token: await adminToken(),
         body: JSON.stringify({ reason: 'e2e', lockedUntil: until }),
       });
+      // The precondition, checked: a lock that silently failed would read as a sign-in that worked.
+      expect(locked.status, JSON.stringify(locked.body)).toBe(200);
       await login(page, locale, email, PASSWORD);
       await expect(alertOf(page)).toHaveText(
         locale === 'en'

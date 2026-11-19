@@ -5,12 +5,12 @@
     "name": "Full name",
     "nameHelp": "Up to 100 characters",
     "email": "Email",
-    "emailLocked": "Your email can't be changed",
+    "emailLocked": "Your email can’t be changed",
     "language": "Language",
     "languageSaved": "Saved to your account",
     "save": "Save changes",
     "saved": "Saved",
-    "failed": "Couldn't save your name. Try again."
+    "failed": "Couldn’t save your name. Try again."
   },
   "points": {
     "heading_one": "{{count}} point",
@@ -39,13 +39,13 @@
     "update": "Update password",
     "setSubmit": "Set password",
     "saving": "Saving…",
-    "incorrect": "That isn't your current password.",
+    "incorrect": "That isn’t your current password.",
     "currentEmpty": "Enter your current password",
-    "changed": "Password changed. You've been signed out on your other devices.",
+    "changed": "Password changed. You’ve been signed out on your other devices.",
     "setDone": "Password set. You can now sign in with Google or your email."
   },
   "failed": {
-    "title": "We couldn't load your account",
+    "title": "We couldn’t load your account",
     "body": "Check your connection and try again.",
     "retry": "Try again"
   }

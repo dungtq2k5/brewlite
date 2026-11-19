@@ -2,7 +2,7 @@ import { expect, seedPassword, signIn, test } from './support';
 
 test('a customer is sent home from /staff and /admin', async ({ page }) => {
   await signIn(page, 'customer@brewlite.test', seedPassword());
-  await expect(page.getByRole('button', { name: 'Open account menu' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'account menu' })).toBeVisible();
   for (const path of ['/staff', '/admin']) {
     await page.goto(path);
     await expect(page).toHaveURL(/localhost:\d+\/$/);
@@ -11,7 +11,7 @@ test('a customer is sent home from /staff and /admin', async ({ page }) => {
 
 test('a customer on the staff board and stock pages is sent to the menu', async ({ page }) => {
   await signIn(page, 'customer@brewlite.test', seedPassword());
-  await expect(page.getByRole('button', { name: 'Open account menu' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'account menu' })).toBeVisible();
   for (const path of ['/staff', '/staff/products']) {
     await page.goto(path);
     await expect(page).toHaveURL(/localhost:\d+\/$/);
@@ -27,7 +27,7 @@ test('a guest is sent home from /staff and /admin', async ({ page }) => {
 
 test('staff reach /staff but not /admin', async ({ page }) => {
   await signIn(page, 'staff@brewlite.test', seedPassword());
-  await expect(page.getByRole('button', { name: 'Open account menu' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'account menu' })).toBeVisible();
   await page.goto('/staff');
   // The phone frame's title is the short one.
   await expect(page.getByRole('heading', { name: 'Orders', exact: true })).toBeVisible();
@@ -42,14 +42,14 @@ test.describe('admin', () => {
 
   test('admin reaches both', async ({ page }) => {
     await signIn(page, 'admin@brewlite.test', seedPassword());
-    await expect(page.getByRole('button', { name: 'Open account menu' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'account menu' })).toBeVisible();
     await page.goto('/staff');
     await expect(page.getByRole('heading', { name: 'Orders board' })).toBeVisible();
     await page.goto('/admin');
     await expect(page.getByRole('heading', { level: 1 })).toContainText(
       /^Good (morning|afternoon|evening)/,
     );
-    await page.getByRole('button', { name: 'Open account menu' }).click();
+    await page.getByRole('button', { name: 'account menu' }).click();
     await expect(
       page.getByRole('dialog', { name: 'Account' }).getByRole('link', { name: 'Admin' }),
     ).toBeVisible();

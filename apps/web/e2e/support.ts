@@ -1,16 +1,24 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import { expect, test as base, type Browser, type Page } from '@playwright/test';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import {
+  expect,
+  test as base,
+  type Browser,
+  type BrowserContext,
+  type Page,
+} from '@playwright/test';
 
 export const GATEWAY = process.env.E2E_GATEWAY_URL ?? 'http://localhost:23100/api/v1';
 
 const DOCKER = ['/usr/bin/docker', '/usr/local/bin/docker'].find((p) => existsSync(p));
 
 /**
- * `AUTH` is 10 requests per 15 minutes per address, `PUBLIC_READ` 120 per minute (the menu
- * specs read public routes often), and `ORDER_WRITE` / `PAYMENT` are per user (the checkout specs
- * quote, place and pay many times), and every spec comes from one address — behind Caddy it is
- * always the same one. Each test starts from empty buckets.
+ * Every spec comes from one address — behind Caddy always the same one — and many sign in as the
+ * same seeded admin, so the gateway's buckets fill across a suite: `AUTH` (10 per 15 minutes per
+ * address), `PUBLIC_READ`, `SESSION`, and the per-user `ORDER_WRITE`, `PAYMENT` and
+ * `AUTHENTICATED` (300 a minute — the admin specs spend it). Each test starts from empty buckets,
+ * all of them: a list of names missed `AUTHENTICATED`, and the admin's calls late in the suite got
+ * a 429 that read as a flaky test.
  */
 export function resetRateLimits(): void {
   if (!DOCKER)
@@ -24,13 +32,29 @@ export function resetRateLimits(): void {
       'redis',
       'sh',
       '-c',
-      "for p in 'gw:rl:AUTH:*' 'gw:rl:PUBLIC_READ:*' 'gw:rl:ORDER_WRITE:*' 'gw:rl:PAYMENT:*'; do redis-cli --scan --pattern \"$p\" | xargs -r redis-cli del; done",
+      "redis-cli --scan --pattern 'gw:rl:*' | xargs -r redis-cli del",
     ],
     { cwd: new URL('../../..', import.meta.url).pathname, stdio: 'ignore' },
   );
 }
 
-export const test = base.extend<{ freshBuckets: void }>({
+/** The orders this test placed (`placeOrderAsNewCustomer`, or `trackOrder`), finished when it ends. */
+const placedThisTest: string[] = [];
+export const trackOrder = (orderId: string) => void placedThisTest.push(orderId);
+
+/** One raw V8 file for the merge (coverage-report.mjs) — none for an empty list. */
+function writeBrowserCoverage(name: string, entries: unknown[]) {
+  if (entries.length === 0) return;
+  const dir = new URL('../coverage/raw/browser/', import.meta.url);
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(new URL(`${name}.json`, dir), JSON.stringify(entries));
+}
+
+export const test = base.extend<{
+  freshBuckets: void;
+  finishOrders: void;
+  contextCoverage: void;
+}>({
   freshBuckets: [
     // Playwright requires the destructuring pattern even when no fixture is used.
     // eslint-disable-next-line no-empty-pattern
@@ -40,9 +64,83 @@ export const test = base.extend<{ freshBuckets: void }>({
     },
     { auto: true },
   ],
+  // Conventions §16.2: a spec that pays for an order finishes it. The staff board shows at most
+  // 100 orders, oldest first, so paid orders left behind push every new one off it. After the test
+  // — pass or fail — so a board spec still sees its order during its assertions.
+  // The coverage run records every context a test opens, not only the default page: a staff
+  // tablet (`staffTablet`) and every `browser.newContext()` — their screens are tested, so they
+  // count. `browser.newContext` is wrapped for the test's duration; each page starts recording
+  // before `newPage()` returns (so before its first `goto`), and stops and writes before its context
+  // closes — or at teardown, for a context the test left open. The default context is created
+  // first (`context`), so it is never wrapped: the `page` fixture records it already.
+  contextCoverage: [
+    async ({ browser, context: _default }, run, testInfo) => {
+      if (process.env.WEB_COVERAGE !== '1') return run();
+      const open = new Set<BrowserContext>();
+      // One start per page, shared: the `page` event fires inside `newPage()`, so both paths await
+      // the same promise and `newPage()` returns only once recording has begun.
+      const recording = new WeakMap<Page, Promise<void>>();
+      let written = 0;
+      const record = (page: Page) => {
+        let started = recording.get(page);
+        if (!started) {
+          started = page.coverage.startJSCoverage({ resetOnNavigation: false });
+          recording.set(page, started);
+        }
+        return started;
+      };
+      const collect = async (ctx: BrowserContext) => {
+        if (!open.delete(ctx)) return;
+        for (const page of ctx.pages()) {
+          if (!recording.has(page) || page.isClosed()) continue;
+          const entries = await page.coverage.stopJSCoverage().catch(() => []);
+          writeBrowserCoverage(`${testInfo.testId}-ctx${++written}`, entries);
+        }
+      };
+      const newContext = browser.newContext.bind(browser);
+      browser.newContext = async (...args: Parameters<Browser['newContext']>) => {
+        const ctx = await newContext(...args);
+        open.add(ctx);
+        const newPage = ctx.newPage.bind(ctx);
+        ctx.newPage = async () => {
+          const page = await newPage();
+          await record(page);
+          return page;
+        };
+        ctx.on('page', (page) => void record(page).catch(() => undefined)); // popups
+        const close = ctx.close.bind(ctx);
+        ctx.close = async (...closeArgs: Parameters<BrowserContext['close']>) => {
+          await collect(ctx);
+          return close(...closeArgs);
+        };
+        return ctx;
+      };
+      try {
+        await run();
+      } finally {
+        delete (browser as { newContext?: unknown }).newContext; // back to the prototype's
+        for (const ctx of [...open]) await collect(ctx);
+      }
+    },
+    { auto: true },
+  ],
+  finishOrders: [
+    // eslint-disable-next-line no-empty-pattern
+    async ({}, run) => {
+      placedThisTest.length = 0;
+      await run();
+      for (const orderId of placedThisTest.splice(0)) await finishOrder(orderId);
+    },
+    { auto: true },
+  ],
   // Every spec is the Content-Security-Policy's test: a violation reported on any page, in the
   // console or as a `securitypolicyviolation` event, fails it.
-  page: async ({ page }, run) => {
+  page: async ({ page }, run, testInfo) => {
+    // The coverage run (`WEB_COVERAGE=1`): the browser's V8 coverage of every page this test
+    // opened, one raw file per test, merged with the server's and Vitest's by coverage-report.mjs.
+    if (process.env.WEB_COVERAGE === '1') {
+      await page.coverage.startJSCoverage({ resetOnNavigation: false });
+    }
     const violations: string[] = [];
     page.on('console', (message) => {
       const text = message.text();
@@ -54,6 +152,10 @@ export const test = base.extend<{ freshBuckets: void }>({
       );
     });
     await run(page);
+    if (process.env.WEB_COVERAGE === '1') {
+      // A test that browses only in its own contexts (a staff tablet) leaves this page blank: no file.
+      writeBrowserCoverage(testInfo.testId, await page.coverage.stopJSCoverage());
+    }
     expect(violations, 'Content-Security-Policy violations').toEqual([]);
   },
 });
@@ -76,7 +178,7 @@ export async function register(page: Page, email = newEmail(), fullName = 'Lan A
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Password', { exact: true }).fill(PASSWORD);
   await page.getByRole('button', { name: 'Create account' }).click();
-  await expect(page.getByRole('button', { name: 'Open account menu' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'account menu' })).toBeVisible();
   return { email, password: PASSWORD, fullName };
 }
 
@@ -276,7 +378,28 @@ export async function placeOrderAsNewCustomer(page: Page, product?: ProductDetai
   await page.goto('/checkout');
   await page.getByRole('button', { name: /^Place order/ }).click();
   await expect(page).toHaveURL(/\/orders\/[0-9a-f-]{36}$/);
-  return { ...account, orderId: page.url().split('/').pop()!, product: chosen };
+  const orderId = page.url().split('/').pop()!;
+  trackOrder(orderId);
+  return { ...account, orderId, product: chosen };
+}
+
+/**
+ * Moves an order off the staff board — `PREPARING` → `READY` → `COMPLETED` through the staff API,
+ * as the seeded staff account (the one account specs may *use* for this: it changes no seeded
+ * account). A step already taken, or an order that never left `PENDING` or was cancelled, answers
+ * `INVALID_STATE`, which is fine; anything else fails the test.
+ */
+export async function finishOrder(orderId: string) {
+  const token = await staffToken();
+  for (const to of ['PREPARING', 'READY', 'COMPLETED'] as const) {
+    const { status, body } = await api<{ error?: { code: string } }>(
+      `/staff/orders/${orderId}/status`,
+      { method: 'POST', token, body: JSON.stringify({ to }) },
+    );
+    if (status !== 200 && body?.error?.code !== 'INVALID_STATE') {
+      throw new Error(`finishOrder(${orderId}) → ${to}: ${status} ${JSON.stringify(body)}`);
+    }
+  }
 }
 
 /** A customer's access token — setup only. */
@@ -312,7 +435,7 @@ export async function fakeProviderIsOn(page: Page): Promise<boolean> {
 /** The customer pays the open order with the fake provider and waits for the page to say so. */
 export async function payWithFake(page: Page) {
   await page.getByRole('button', { name: 'Simulate success' }).click();
-  await expect(page.getByRole('heading', { name: "Paid — we've got it." })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Paid — we’ve got it.' })).toBeVisible();
 }
 
 /** `1042` of the order the page shows — the ticket's accessible name is *Order 1042*. */
@@ -375,7 +498,7 @@ export async function staffTablet(browser: Browser) {
   const context = await browser.newContext({ viewport: { width: 1024, height: 768 } });
   const page = await context.newPage();
   await signIn(page, 'staff@brewlite.test', seedPassword());
-  await expect(page.getByRole('button', { name: 'Open account menu' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'account menu' })).toBeVisible();
   await page.goto('/staff');
   await expect(page.getByRole('heading', { name: 'Orders board' })).toBeVisible();
   return { context, page };

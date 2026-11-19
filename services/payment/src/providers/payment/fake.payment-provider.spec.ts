@@ -17,4 +17,12 @@ describe('FakePaymentProvider', () => {
 
     expect(result).toEqual({ sessionId: null, clientSecret: null, expiresAt: null });
   });
+
+  it('has no client secret to read, and a refund succeeds at once with no provider id', async () => {
+    const provider = new FakePaymentProvider();
+    expect(await provider.readClientSecret('cs_any')).toBeNull();
+    expect(
+      await provider.refund({ refundId: 'r1', paymentIntentId: null, amountVnd: 50_000 }),
+    ).toEqual({ stripeRefundId: null, status: 'SUCCEEDED' });
+  });
 });

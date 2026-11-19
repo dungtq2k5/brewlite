@@ -563,6 +563,7 @@ Every durable consumer is a `JetStreamConsumer` subclass, started from the servi
 [ADR 0028](./decisions/0028-the-ui-speaks-english-and-vietnamese-through-i18next.md) · architecture §4.7.
 
 - **No user-facing string literal in a component**, including `aria-label`s, `alt` text, placeholders and page titles. Every one is a key: `t('checkout:placeOrder')`. A lint rule (`i18next/no-literal-string`, JSX text only) enforces it.
+- **Copy uses typographic quotes** — `’` for an apostrophe, `“…”` around a quoted phrase — in every locale value; the `i18n-typography` guard fails on a straight `'` or `"`. Test titles and code are not copy.
 - **English is the source.** A key is added to `locales/en/<ns>.json` first and to `locales/vi/<ns>.json` in the same PR. A missing Vietnamese key is a failing test, not a fallback to English in production.
 - Keys are `camelCase`, grouped by page or component (`cart.empty.title`); error keys are the error code verbatim (`errors:OUT_OF_STOCK`). **MUST NOT** build a key from runtime text.
 - Values interpolate with `{{name}}`, never by concatenating translated fragments — word order differs between English and Vietnamese.
@@ -689,7 +690,8 @@ When `NODE_ENV === 'production'`: the error filter returns a generic message for
 - **Every conditional update, unique index and `CHECK` has an integration test proving it refuses** — insert or update the violating row and assert the error.
 - **Every consumer has a test delivering the same event twice** and asserting one effect, and one delivering a stale event after a newer state.
 - **Every RPC is exercised by a test in the service that owns it**, against its real database.
-- **Web e2e shares the dev database** with every other spec and whoever is using the app: a spec picks the products it needs from the API (never by name — the seed switches some off on purpose), creates its own rows under a unique `e2e-<run id>` name, restores anything shared (availability, order, a category) in `finally`, and **never changes a seeded account** — not its role, not its language (a signed-in language switch saves `preferredLocale` to the profile). A spec that needs another account registers one. Specs that pay need the fake provider and skip on Stripe; uploads use a real, decodable image — a fake one hides content-type bugs.
+- **Web e2e shares the dev database** with every other spec and whoever is using the app: a spec picks the products it needs from the API (never by name — the seed switches some off on purpose), creates its own rows under a unique `e2e-<run id>` name, restores anything shared (availability, order, a category) in `finally`, and **never changes a seeded account** — not its role, not its language (a signed-in language switch saves `preferredLocale` to the profile). A spec that needs another account registers one. **A paid order is finished after its test** — moved to `COMPLETED` through the staff API: the staff board shows at most 100 orders, and paid orders left behind push every later spec's order off it. `support.ts`'s `placeOrderAsNewCustomer` records each order it places and the auto fixture `finishOrders` finishes them after the test, pass or fail; a spec that pays another way calls `trackOrder(id)`. The smoke test finishes its own order the same way. Specs that pay need the fake provider and skip on Stripe; uploads use a real, decodable image — a fake one hides content-type bugs.
+- **Assert inside `main`** after a navigation: `page.getByRole('main').getByText(…)`, not `page.getByText(…)`. While Next streams a page, a hidden copy of its content briefly exists outside `<main>`, and a strict-mode locator fails at once on the two matches instead of retrying.
 - Integration suites migrate once and `TRUNCATE … RESTART IDENTITY CASCADE` between specs; suites touching one database run serially. A setup reads its service's `.env` into a local object and **never writes `process.env`**.
 - Vitest transforms with `unplugin-swc` with decorator metadata on, or Nest DI resolves `undefined`. Every package's and service's Vitest config — unit and integration — is built from `nestProject(...)` in `packages/config/vitest.preset.mts` (`.mts`: `packages/config` is CommonJS), which aliases `@brewlite/contracts` and `@brewlite/nest-common` to **source**: a config that does not would test a shared package's stale build. `nestProject` **merges** a project's own `test` block into its defaults (`env`, `setupFiles`) — it never replaces them.
 - **Tests are silent.** The preset runs with `LOG_LEVEL=silent` (Vitest's per-worker `env`) and its setup file (`vitest.setup.mts`) turns Nest's own `Logger` off — including the testing logger every `Test.createTestingModule(...).compile()` installs. `TEST_LOGS=1` brings both back. A test that asserts on a log keeps its own spy; the web app's Vitest is silent the same way.
@@ -725,12 +727,27 @@ A guard spec turns a repo-wide rule into a failing test. Guards live in `package
 
 ---
 
+### 16.5 Coverage — at least 90 %, ours to enforce
+
+SonarCloud's free plan cannot change its quality gate, so the rule is ours: **every measured package ≥ 90 %**, by **SonarCloud's own formula** — `(covered lines + covered conditions) / (lines + conditions)` — so our number and SonarCloud's agree.
+
+- **One run per package covers every tier.** `coverageRun()` in `packages/config/vitest.preset.mts` builds each package's root coverage config (`vitest.coverage.config.mts` — coverage is a root-level Vitest option, so it cannot live in a project): unit, integration, contract and (gateway) e2e together, `@vitest/coverage-v8`. Script `test:coverage`; Turbo task of the same name.
+- **lcov paths are repository-relative** (`packages/…/src/…`, `services/…/src/…`, `apps/web/src/…`) in every report, so SonarCloud resolves them and reports merge per file.
+- **The shared packages count the union:** the services' runs execute `nest-common` and `contracts` from source (the preset aliases them), so their lines count — the services' `coverage.include` lists those two packages too, and the checker merges per file. SonarCloud does the same.
+- **The web is three sources merged** by `monocart-coverage-reports` (`apps/web/scripts/coverage-report.mjs`): Vitest; the **browser's** V8 coverage, recorded when `WEB_COVERAGE=1` for the default `page` and for **every page of every context a test opens** (`browser.newContext()` is wrapped for the test's duration; nothing is written for an empty list); the **Next server's** V8 coverage (`NODE_V8_COVERAGE`). A file counts only from the runs that **executed** it — a run that merely lists it as 0 % never dilutes another's count. The **coverage build** (`WEB_COVERAGE=1`) turns on browser and server source maps. Next's standalone server has no `SIGTERM` handler, so the coverage build starts it with a `NODE_OPTIONS` `--import` that exits cleanly on `SIGTERM` — otherwise V8 never writes its files.
+- **One exclusion list** (`packages/config/coverage.mjs` — `COVERAGE_EXCLUDE`), used by Vitest, by monocart and as `sonar.coverage.exclusions`: generated code, Prisma migrations, the OpenAPI document, entry points with no logic, type declarations, tests and fixtures, scripts. **Nothing else** — a file that is hard to reach gets tests, never an exclusion. `packages/config` is not measured (tool configuration; its specs are the guards).
+- **`scripts/coverage-check.mjs`** prints one row per package and fails under 90 %. A package listed in **`scripts/coverage-floor.json`** is held to its floor instead — a **ratchet**: a floor is a **CI-path measurement minus 0.3, rounded down to one decimal** (the margin absorbs run-to-run noise of a few lines), raised by that rule when CI's number rises and never set lower; today only `apps/web`, until its own batch takes it to 90 %.
+- **`pnpm coverage`** runs it all locally: it needs the infrastructure up, port 23000 free, and **the fake payment provider** (it refuses on Stripe, which would skip the paid flows).
+
+---
+
 ## 17. Git and review
 
 - **Trunk-based:** short-lived branches off `main`, named `<type>/<short-topic>` (`feat/order-state-machine`).
 - **Conventional Commits**, enforced by commitlint: `feat(ordering): refuse illegal transitions`.
 - `main` is protected: a PR, one approving review, green CI. The course's Definition of Done requires the review (product-overview §11.3).
 - A PR names the test suites it ran.
+- **Dependencies:** `pnpm audit --prod --audit-level high` runs in CI. A high advisory in a runtime dependency is fixed in the PR that meets it, or ignored **with its reason** in `pnpm-workspace.yaml`'s `auditConfig.ignoreGhsas` — never left. An `overrides` entry there says why, and when it can be dropped (the `multer` override goes with the next `@nestjs/platform-express` bump; the `typescript: ^5.9.0` override holds the repo on 5.9 until moving to 6 is its own change). Prefer a version that has aged about two weeks; a security fix may be taken sooner.
 
 ---
 

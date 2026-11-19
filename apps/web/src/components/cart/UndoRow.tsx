@@ -23,14 +23,21 @@ export function UndoRow({
   }, [onExpire]);
 
   return (
-    <li
-      role="status"
-      className="bg-base-200 rounded-box my-2 flex min-h-14 items-center justify-between gap-3 px-4 py-2"
-    >
-      <span>{t('line.removed', { name })}</span>
-      <button type="button" onClick={onUndo} className="min-h-11 px-2 font-semibold underline">
-        {t('line.undo')}
-      </button>
+    // The <li> stays a list item; the live region is inside it (a role on the <li> would replace
+    // `listitem`, and the list would then hold a non-item).
+    <li className="border-base-300 border-b py-2.5">
+      <div role="status" className="flex items-center gap-3">
+        <span className="min-w-0 flex-1 text-[15px] leading-[22px] opacity-75">
+          {t('line.removed', { name })}
+        </span>
+        <button
+          type="button"
+          onClick={onUndo}
+          className="text-primary h-11 shrink-0 px-3 text-[15px] leading-[22px] font-semibold whitespace-nowrap underline"
+        >
+          {t('line.undo')}
+        </button>
+      </div>
     </li>
   );
 }

@@ -94,8 +94,10 @@ export function ProductOptions({
     else router.push('/');
   };
 
+  // A fragment: the sections are flex children of the page's column, so the add bar sticks
+  // within the whole column rather than within this block.
   return (
-    <div className="flex flex-col gap-6">
+    <>
       <SizePicker
         choices={sizes.map((s) => ({
           size: s.size,
@@ -119,6 +121,6 @@ export function ProductOptions({
         pending={pending}
         onAdd={onAdd}
       />
-    </div>
+    </>
   );
 }

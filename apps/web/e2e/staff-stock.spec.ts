@@ -17,7 +17,7 @@ test.use({ viewport: { width: 1024, height: 768 }, hasTouch: false, isMobile: fa
 
 async function openStock(page: Page) {
   await signIn(page, 'staff@brewlite.test', seedPassword());
-  await expect(page.getByRole('button', { name: 'Open account menu' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'account menu' })).toBeVisible();
   await page.goto('/staff/products');
   await expect(page.getByRole('heading', { name: 'Stock', level: 1 })).toBeVisible();
 }
@@ -136,7 +136,7 @@ test('an order racing the edit: the row resets to the server’s count with the 
     await r.getByRole('textbox').fill('9');
     await r.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(
-      r.getByText("The count changed while you were editing — it's 7 now. Enter your count again."),
+      r.getByText('The count changed while you were editing — it’s 7 now. Enter your count again.'),
     ).toBeVisible();
     await expect(r.getByRole('status')).toHaveText('7');
   } finally {

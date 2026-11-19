@@ -20,7 +20,7 @@ const code = () => `E2E${newId().replace(/-/g, '').slice(-12).toUpperCase()}`;
 
 async function asAdmin(page: Page) {
   await signIn(page, 'admin@brewlite.test', seedPassword());
-  await expect(page.getByRole('button', { name: 'Open account menu' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'account menu' })).toBeVisible();
 }
 
 async function create(page: Page, value: string) {
@@ -113,5 +113,5 @@ test('a cap below the uses already made is refused with the count', async ({ pag
   await page.goto(`/admin/promotions/${made.body.data.id}`);
   await page.getByLabel(/^Total uses/).fill('1');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
-  await expect(page.getByText(/have already been used — the cap can't be lower/)).toBeVisible();
+  await expect(page.getByText(/have already been used — the cap can’t be lower/)).toBeVisible();
 });

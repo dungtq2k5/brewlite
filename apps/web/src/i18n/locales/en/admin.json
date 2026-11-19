@@ -20,7 +20,7 @@
     "state": {
       "filteredTitle": "Nothing matches these filters.",
       "filteredBody": "Try another search or clear the filters.",
-      "failedTitle": "We couldn't load this list.",
+      "failedTitle": "We couldn’t load this list.",
       "retry": "Try again"
     }
   },
@@ -33,7 +33,7 @@
     "saving": "Saving…"
   },
   "confirm": {
-    "deleteTitle": "Delete \"{{name}}\"?",
+    "deleteTitle": "Delete “{{name}}”?",
     "deleteBody": "Removed from the menu. Past orders keep it. You can restore it.",
     "keep": "Keep"
   },
@@ -42,7 +42,7 @@
     "saving": "Saving…",
     "saved": "All changes saved",
     "savedSome": "{{sections}} saved",
-    "partial": "{{section}} didn't save — see the section",
+    "partial": "{{section}} didn’t save — see the section",
     "discard": "Discard",
     "save": "Save changes",
     "retry": "Retry {{section}}",
@@ -79,7 +79,7 @@
   },
   "category": {
     "title": "Categories",
-    "intro": "Order here is the menu's order. Drag a row, or use the keyboard (Space, then ↑ ↓).",
+    "intro": "Order here is the menu’s order. Drag a row, or use the keyboard (Space, then ↑ ↓).",
     "new": "New category",
     "edit": "Edit category",
     "create": "Create category",
@@ -98,11 +98,11 @@
       "dropped": "Dropped {{name}}, position {{position}} of {{total}}.",
       "cancelled": "Move cancelled. {{name}} is back where it was."
     },
-    "reorderFailed": "Couldn't save the new order — the list is back as it was.",
-    "inUseText_one": "\"{{name}}\" still has {{count}} product. Move or delete it first — ",
-    "inUseText_other": "\"{{name}}\" still has {{count}} products. Move or delete them first — ",
+    "reorderFailed": "Couldn’t save the new order — the list is back as it was.",
+    "inUseText_one": "“{{name}}” still has {{count}} product. Move or delete it first — ",
+    "inUseText_other": "“{{name}}” still has {{count}} products. Move or delete them first — ",
     "inUseLink": "see {{name}} products",
-    "restoreTaken": "Can't restore \"{{name}}\" — a live category already uses that name. Rename one of them first.",
+    "restoreTaken": "Can’t restore “{{name}}” — a live category already uses that name. Rename one of them first.",
     "none": "No categories yet.",
     "noneDeleted": "No deleted categories."
   },
@@ -131,7 +131,7 @@
     },
     "none": "No products yet.",
     "noneDeleted": "No deleted products.",
-    "restoreRefused": "Can't restore — its category \"{{name}}\" is deleted. Restore the category first.",
+    "restoreRefused": "Can’t restore — its category “{{name}}” is deleted. Restore the category first.",
     "restoreCategory": "Go to categories"
   },
   "editor": {
@@ -194,7 +194,7 @@
   },
   "topping": {
     "title": "Toppings",
-    "intro": "Shown in each product's topping picker where allowed. Staff can switch availability on Stock too.",
+    "intro": "Shown in each product’s topping picker where allowed. Staff can switch availability on Stock too.",
     "new": "New topping",
     "edit": "Edit topping",
     "create": "Create topping",
@@ -208,17 +208,17 @@
     "unavailable": "Unavailable",
     "none": "No toppings yet.",
     "noneDeleted": "No deleted toppings.",
-    "switchFailed": "Couldn't change availability. Try again."
+    "switchFailed": "Couldn’t change availability. Try again."
   },
   "error": {
     "CATEGORY_NAME_TAKEN": "Another category already uses this {{language}} name.",
     "PRODUCT_NAME_TAKEN": "Another product already uses this {{language}} name.",
     "TOPPING_NAME_TAKEN": "Another topping already uses this {{language}} name.",
-    "IMAGE_INVALID": "That file can't be used — JPEG, PNG or WebP up to 2 MB.",
+    "IMAGE_INVALID": "That file can’t be used — JPEG, PNG or WebP up to 2 MB.",
     "RESOURCE_REFERENCE_INVALID": {
-      "toppingsNamed_one": "Toppings didn't save — \"{{names}}\" was deleted meanwhile. Untick it and save again.",
-      "toppingsNamed_other": "Toppings didn't save — \"{{names}}\" were deleted meanwhile. Untick them and save again.",
-      "toppings": "Toppings didn't save — one of them was deleted meanwhile. Reload and try again.",
+      "toppingsNamed_one": "Toppings didn’t save — “{{names}}” was deleted meanwhile. Untick it and save again.",
+      "toppingsNamed_other": "Toppings didn’t save — “{{names}}” were deleted meanwhile. Untick them and save again.",
+      "toppings": "Toppings didn’t save — one of them was deleted meanwhile. Reload and try again.",
       "category": "That category was deleted meanwhile — choose another."
     },
     "INVALID_STATE": {
@@ -226,10 +226,10 @@
       "ACTIVE": "Already active.",
       "DEACTIVATED": "Already deactivated."
     },
-    "generic": "That didn't work. Try again.",
+    "generic": "That didn’t work. Try again.",
     "PROMO_CODE_TAKEN": "This code is already taken (deleted codes count too).",
-    "PROMO_MAX_USES_BELOW_USED": "{{usedCount}} have already been used — the cap can't be lower.",
-    "SELF_ACTION_FORBIDDEN": "You can't change the role of, lock or deactivate your own account.",
+    "PROMO_MAX_USES_BELOW_USED": "{{usedCount}} have already been used — the cap can’t be lower.",
+    "SELF_ACTION_FORBIDDEN": "You can’t change the role of, lock or deactivate your own account.",
     "LAST_ADMIN": "BrewLite needs at least one active admin — make someone else an admin first."
   },
   "promo": {
@@ -371,7 +371,7 @@
       "deactivateBody": "Signs them out everywhere. Their email and orders stay; you can restore the account.",
       "deactivateAction": "Deactivate…",
       "restore": "Restore account",
-      "own": "This is your own account — you can't change it here.",
+      "own": "This is your own account — you can’t change it here.",
       "deactivatedNote": "Deactivated — restore the account first.",
       "lockedBlock": "Locked — {{reason}}",
       "lockedEnd": "Until {{day}}",
@@ -379,12 +379,12 @@
     },
     "roleConfirm": {
       "title": "Make {{name}} {{role}}?",
-      "body": "They'll be signed out; the new role applies at their next sign-in.",
+      "body": "They’ll be signed out; the new role applies at their next sign-in.",
       "confirm": "Change role"
     },
     "lockDialog": {
-      "title": "Lock {{name}}'s account?",
-      "body": "They're signed out and can't sign in until the lock ends or you unlock it.",
+      "title": "Lock {{name}}’s account?",
+      "body": "They’re signed out and can’t sign in until the lock ends or you unlock it.",
       "reason": "Reason",
       "reasonHint": "required · only admins see it",
       "until": "Until",
@@ -396,7 +396,7 @@
     },
     "deactivateDialog": {
       "title": "Deactivate {{name}}?",
-      "body": "They're signed out everywhere and can't sign in. Their email stays reserved and their orders stay. You can restore the account.",
+      "body": "They’re signed out everywhere and can’t sign in. Their email stays reserved and their orders stay. You can restore the account.",
       "confirm": "Deactivate"
     },
     "detail": {
@@ -496,7 +496,7 @@
     "refundNote": {
       "PENDING": "Refund pending — Stripe is processing {{amount}} back to the customer.",
       "REFUNDED": "Refunded {{amount}}.",
-      "FAILED": "Refund failed — handle it in the Stripe dashboard (search for order #{{no}}). BrewLite can't retry it."
+      "FAILED": "Refund failed — handle it in the Stripe dashboard (search for order #{{no}}). BrewLite can’t retry it."
     },
     "degradedPayments": "Payment details unavailable right now — the rest of the order is up to date.",
     "degradedNames": "Names unavailable right now — showing who did it by role only.",
@@ -535,7 +535,7 @@
     "product": "Product",
     "qty": "Qty",
     "tooLong": "That range is {{count}} days — choose 93 days or fewer.",
-    "failed": "We couldn't load the sales report.",
+    "failed": "We couldn’t load the sales report.",
     "retry": "Try again",
     "noSales": "No paid orders in this range."
   }

@@ -1,6 +1,13 @@
 import { EventEmitter } from 'node:events';
 import { describe, expect, it, vi } from 'vitest';
-import { attachOutageLog, isConnectionError, RedisOutageLog } from './create-redis.js';
+import { Redis } from 'ioredis';
+import {
+  attachOutageLog,
+  createRedis,
+  isConnectionError,
+  RedisOutageLog,
+  watchRedisErrors,
+} from './create-redis.js';
 
 function setup() {
   const logger = { error: vi.fn(), warn: vi.fn(), log: vi.fn() };
@@ -63,5 +70,50 @@ describe('isConnectionError', () => {
   it('is not a command or BullMQ error', () => {
     expect(isConnectionError(new Error('Missing lock for job 1'))).toBe(false);
     expect(isConnectionError(coded('NOSCRIPT'))).toBe(false);
+  });
+});
+
+describe('watchRedisErrors', () => {
+  // `lazyConnect`: the client never opens a connection — nothing here needs a Redis.
+  function watched() {
+    const logger = { error: vi.fn(), warn: vi.fn(), log: vi.fn() };
+    const client = createRedis(
+      'redis://127.0.0.1:1',
+      { lazyConnect: true },
+      { name: 'jobs', logger },
+    );
+    const queue = new EventEmitter();
+    watchRedisErrors(queue, client);
+    return { logger, client, queue };
+  }
+
+  it('refuses a client createRedis did not make', () => {
+    const plain = new Redis({ lazyConnect: true });
+    expect(() => watchRedisErrors(new EventEmitter(), plain)).toThrow(
+      'watchRedisErrors: the client was not made by createRedis',
+    );
+  });
+
+  it('logs a BullMQ error that is NOT a connection failure, every time', () => {
+    const { logger, queue } = watched();
+    const err = new Error('Missing lock for job 1');
+    queue.emit('error', err);
+    queue.emit('error', err);
+    expect(logger.error).toHaveBeenCalledTimes(2);
+    expect(logger.error).toHaveBeenCalledWith({ client: 'jobs', err }, 'redis client error');
+  });
+
+  it('folds a re-emitted connection failure into the client’s ONE outage line', () => {
+    const { logger, client, queue } = watched();
+    const refused = Object.assign(new Error('connect ECONNREFUSED'), { code: 'ECONNREFUSED' });
+    queue.emit('error', refused); // before the client itself has reported anything
+    expect(logger.error).toHaveBeenCalledOnce();
+    client.emit('error', refused);
+    queue.emit('error', refused);
+    expect(logger.error).toHaveBeenCalledOnce();
+    expect(logger.error).toHaveBeenCalledWith(
+      { client: 'jobs', code: 'ECONNREFUSED' },
+      'redis unreachable',
+    );
   });
 });

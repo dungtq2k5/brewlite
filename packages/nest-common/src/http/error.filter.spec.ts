@@ -64,6 +64,24 @@ describe('ErrorFilter', () => {
     expect(body(res).error.code).toBe('MALFORMED_REQUEST');
   });
 
+  it("maps a body over body-parser's limit to 413 PAYLOAD_TOO_LARGE, logged as a warning", () => {
+    const filter = new ErrorFilter(false);
+    const { host, res } = fakeHost();
+    const logger = (filter as unknown as { logger: { warn: () => void; error: () => void } })
+      .logger;
+    const warn = vi.spyOn(logger, 'warn').mockImplementation(() => undefined);
+    const error = vi.spyOn(logger, 'error').mockImplementation(() => undefined);
+    filter.catch(
+      { type: 'entity.too.large', status: 413, message: 'request entity too large' },
+      host,
+    );
+    expect(res.status).toHaveBeenCalledWith(413);
+    expect(body(res).error.code).toBe('PAYLOAD_TOO_LARGE');
+    expect(body(res).error.details).toBeUndefined();
+    expect(warn).toHaveBeenCalledOnce();
+    expect(error).not.toHaveBeenCalled();
+  });
+
   it("maps multer's translated PayloadTooLargeException to 422 IMAGE_INVALID SIZE", () => {
     const filter = new ErrorFilter(false);
     const { host, res } = fakeHost();

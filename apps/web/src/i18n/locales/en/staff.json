@@ -42,14 +42,14 @@
     "label": "Undo, sent in {{count}} seconds"
   },
   "moved": "Already moved by someone else",
-  "moveFailed": "Couldn't move #{{no}}. It's back where it was.",
+  "moveFailed": "Couldn’t move #{{no}}. It’s back where it was.",
   "empty": {
     "board": "New paid orders appear here",
     "column": "Nothing here yet"
   },
   "failed": {
-    "title": "We couldn't load the board",
-    "body": "Check the tablet's connection and try again.",
+    "title": "We couldn’t load the board",
+    "body": "Check the tablet’s connection and try again.",
     "retry": "Try again"
   },
   "tabs": {
@@ -77,7 +77,7 @@
     "keep": "Keep order",
     "confirm": "Cancel and refund",
     "sending": "Cancelling…",
-    "refused": "It's being made now — it can't be cancelled.",
+    "refused": "It’s being made now — it can’t be cancelled.",
     "close": "Close",
     "done": "#{{no}} cancelled — the refund is on its way."
   },
@@ -107,16 +107,16 @@
     },
     "available": "Available",
     "availableFor": "Available, {{name}}",
-    "conflict": "The count changed while you were editing — it's {{count}} now. Enter your count again.",
-    "conflictNone": "The count changed while you were editing — it isn't counted now. Enter your count again.",
-    "saveFailed": "Couldn't save the count. Try again.",
+    "conflict": "The count changed while you were editing — it’s {{count}} now. Enter your count again.",
+    "conflictNone": "The count changed while you were editing — it isn’t counted now. Enter your count again.",
+    "saveFailed": "Couldn’t save the count. Try again.",
     "toggleFailed": {
-      "off": "Couldn't switch it off. Try again.",
-      "on": "Couldn't switch it back on. Try again."
+      "off": "Couldn’t switch it off. Try again.",
+      "on": "Couldn’t switch it back on. Try again."
     },
     "failed": {
-      "title": "We couldn't load the stock list",
-      "body": "Check the tablet's connection and try again.",
+      "title": "We couldn’t load the stock list",
+      "body": "Check the tablet’s connection and try again.",
       "retry": "Try again"
     },
     "empty": "Nothing to show here yet",

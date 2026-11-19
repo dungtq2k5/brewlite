@@ -1,6 +1,5 @@
 'use client';
 
-import { SearchX } from 'lucide-react';
 import { useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { localized } from '@/i18n/format';
@@ -51,15 +50,14 @@ export function MenuSections({
 
   return (
     <>
-      <MenuSearch count={count} className="mb-4 lg:hidden" />
+      <MenuSearch count={count} className="mb-7 lg:hidden" />
       {searching && count === 0 ? (
-        <div className="flex flex-col items-center gap-3 px-4 py-12 text-center">
-          <span className="bg-base-200 grid size-16 place-items-center rounded-full">
-            <SearchX aria-hidden size={28} />
-          </span>
-          <p className="text-lg font-semibold">{t('search.none', { q: query.trim() })}</p>
-          <p className="text-base-content/70">{t('search.hint')}</p>
-          <button type="button" className="btn btn-outline min-h-11" onClick={() => setQuery('')}>
+        <div className="flex flex-col items-center gap-3 pt-12 text-center">
+          <p className="text-lg leading-[26px] font-semibold">
+            {t('search.none', { q: query.trim() })}
+          </p>
+          <p className="text-base-content/72 text-sm leading-5">{t('search.hint')}</p>
+          <button type="button" className="btn btn-secondary min-h-11" onClick={() => setQuery('')}>
             {t('search.clear')}
           </button>
         </div>
@@ -67,14 +65,14 @@ export function MenuSections({
         // `#menu` — the hero's *Order now* target; each heading takes focus (`tabIndex={-1}`).
         <div
           id="menu"
-          className="scroll-mt-[calc(var(--bl-header-h,3.5rem)+var(--bl-nav-h,3.75rem)+0.75rem)] lg:scroll-mt-[calc(var(--bl-header-h,3.5rem)+1.5rem)]"
+          className="scroll-mt-[calc(var(--bl-header-h,3.5rem)+var(--bl-nav-h,3.75rem)+0.75rem)] lg:scroll-mt-[calc(var(--bl-header-h,3.5rem)+2.5rem)]"
         >
           {shown.map((section) => (
             <section key={section.category.id} id={`cat-${section.category.id}`} className="mb-8">
               <h2
                 id={`cat-heading-${section.category.id}`}
                 tabIndex={-1}
-                className="mb-3 scroll-mt-[calc(var(--bl-header-h,3.5rem)+var(--bl-nav-h,3.75rem)+0.75rem)] text-2xl font-bold lg:scroll-mt-[calc(var(--bl-header-h,3.5rem)+1.5rem)]"
+                className="mb-3 scroll-mt-[calc(var(--bl-header-h,3.5rem)+var(--bl-nav-h,3.75rem)+0.75rem)] text-[22px] leading-[30px] font-bold lg:scroll-mt-[calc(var(--bl-header-h,3.5rem)+2.5rem)]"
               >
                 {localized(section.category.name, locale)}
               </h2>

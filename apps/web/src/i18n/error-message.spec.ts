@@ -46,12 +46,12 @@ describe('errorMessage', () => {
   it('picks the Firebase variant from the reason', () => {
     expect(
       errorMessage(en.t, 'en', 'FIREBASE_TOKEN_INVALID', { reason: 'EMAIL_UNVERIFIED' }),
-    ).toContain("isn't verified");
+    ).toContain('isn’t verified');
     expect(errorMessage(en.t, 'en', 'FIREBASE_TOKEN_INVALID', { reason: 'PROVIDER' })).toContain(
-      "isn't supported",
+      'isn’t supported',
     );
     expect(errorMessage(en.t, 'en', 'FIREBASE_TOKEN_INVALID', { reason: 'INVALID' })).toContain(
-      "Couldn't sign in",
+      'Couldn’t sign in',
     );
   });
   it('formats money details', () => {

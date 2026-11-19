@@ -1,6 +1,7 @@
 import swc from 'unplugin-swc';
 import { fileURLToPath } from 'node:url';
 import type { UserProjectConfigExport } from 'vitest/config';
+import { COVERAGE_EXCLUDE } from './coverage.mjs';
 
 // packages/contracts and packages/nest-common are always siblings of this preset file,
 // regardless of which project consumes it — resolved from this file's own location, not
@@ -8,6 +9,7 @@ import type { UserProjectConfigExport } from 'vitest/config';
 const CONTRACTS_SRC = fileURLToPath(new URL('../contracts/src', import.meta.url));
 const NEST_COMMON_SRC = fileURLToPath(new URL('../nest-common/src', import.meta.url));
 const SETUP = fileURLToPath(new URL('./vitest.setup.mts', import.meta.url));
+const REPO_ROOT = fileURLToPath(new URL('../..', import.meta.url));
 
 /**
  * The shared Vitest project shape for a Nest package or service: SWC transform with
@@ -46,6 +48,37 @@ export function nestProject(
       ...test,
       env: { LOG_LEVEL: process.env.TEST_LOGS ? 'debug' : 'silent', ...test.env },
       setupFiles: [SETUP, ...(test.setupFiles ?? [])],
+    },
+  };
+}
+
+/**
+ * `test:coverage` — one Vitest run over a package's projects (unit, integration, contract, e2e),
+ * so the report is their union: the integration tiers are what cover the data paths. Coverage is
+ * a root-level option in Vitest (a project's own `coverage` is ignored), hence a root config
+ * listing the package's existing configs as projects, not a block inside `nestProject()`.
+ */
+export function coverageRun(projects: string[], { shared = false }: { shared?: boolean } = {}) {
+  return {
+    test: {
+      projects,
+      coverage: {
+        provider: 'v8' as const,
+        // Paths relative to the repository root, so every report names a file the same way —
+        // SonarCloud resolves them, and coverage-check merges them per file.
+        reporter: [['lcov', { projectRoot: REPO_ROOT }], 'text-summary'] as [
+          ['lcov', { projectRoot: string }],
+          'text-summary',
+        ],
+        reportsDirectory: 'coverage',
+        // A service's run also credits the shared packages it executes from source (the aliases
+        // above): their coverage is the union over every run, as SonarCloud counts it.
+        include: shared
+          ? ['src/**/*.{ts,tsx}', '../../packages/{nest-common,contracts}/src/**/*.{ts,tsx}']
+          : ['src/**/*.{ts,tsx}'],
+        allowExternal: shared,
+        exclude: COVERAGE_EXCLUDE,
+      },
     },
   };
 }

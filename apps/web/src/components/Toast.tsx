@@ -1,5 +1,6 @@
 'use client';
 
+import { CircleCheck } from 'lucide-react';
 import Link from 'next/link';
 import {
   createContext,
@@ -46,14 +47,15 @@ export function ToastProvider({ children }: Readonly<{ children: ReactNode }>) {
         {toast && (
           <div
             key={toast.id}
-            className="bg-neutral text-neutral-content rounded-box pointer-events-auto flex w-full items-center justify-between gap-4 px-4 py-3 shadow-lg"
+            className={`bg-neutral text-neutral-content pointer-events-auto flex min-h-13 items-center gap-2.5 rounded-full py-1 pl-4 shadow-[0_6px_10px_rgba(43,33,28,0.18)] ${toast.action ? 'pr-1.5' : 'pr-4'}`}
           >
-            <span>{toast.message}</span>
+            <CircleCheck aria-hidden size={20} className="shrink-0" />
+            <span className="text-[15px] leading-[22px] font-semibold">{toast.message}</span>
             {toast.action && (
               <Link
                 href={toast.action.href}
                 onClick={() => setToast(null)}
-                className="text-accent flex min-h-11 items-center font-semibold whitespace-nowrap"
+                className="bg-neutral-content/14 flex h-11 items-center rounded-full px-3.5 text-[15px] leading-[22px] font-bold whitespace-nowrap"
               >
                 {toast.action.label}
               </Link>

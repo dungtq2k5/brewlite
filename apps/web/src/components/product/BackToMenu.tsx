@@ -15,9 +15,9 @@ export function BackToMenu({ label }: Readonly<{ label: string }>) {
     <button
       type="button"
       onClick={() => (cameFromMenu() ? router.back() : router.push('/'))}
-      className="inline-flex min-h-11 items-center gap-1 text-sm font-medium"
+      className="inline-flex min-h-11 items-center gap-1 text-[15px] leading-[22px] font-medium"
     >
-      <ChevronLeft aria-hidden size={18} />
+      <ChevronLeft aria-hidden size={20} />
       {label}
     </button>
   );
