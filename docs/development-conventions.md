@@ -563,6 +563,7 @@ Every durable consumer is a `JetStreamConsumer` subclass, started from the servi
 [ADR 0028](./decisions/0028-the-ui-speaks-english-and-vietnamese-through-i18next.md) · architecture §4.7.
 
 - **No user-facing string literal in a component**, including `aria-label`s, `alt` text, placeholders and page titles. Every one is a key: `t('checkout:placeOrder')`. A lint rule (`i18next/no-literal-string`, JSX text only) enforces it.
+- **Copy uses typographic quotes** — `’` for an apostrophe, `“…”` around a quoted phrase — in every locale value; the `i18n-typography` guard fails on a straight `'` or `"`. Test titles and code are not copy.
 - **English is the source.** A key is added to `locales/en/<ns>.json` first and to `locales/vi/<ns>.json` in the same PR. A missing Vietnamese key is a failing test, not a fallback to English in production.
 - Keys are `camelCase`, grouped by page or component (`cart.empty.title`); error keys are the error code verbatim (`errors:OUT_OF_STOCK`). **MUST NOT** build a key from runtime text.
 - Values interpolate with `{{name}}`, never by concatenating translated fragments — word order differs between English and Vietnamese.
