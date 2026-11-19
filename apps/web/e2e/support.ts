@@ -435,7 +435,7 @@ export async function fakeProviderIsOn(page: Page): Promise<boolean> {
 /** The customer pays the open order with the fake provider and waits for the page to say so. */
 export async function payWithFake(page: Page) {
   await page.getByRole('button', { name: 'Simulate success' }).click();
-  await expect(page.getByRole('heading', { name: "Paid — we've got it." })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Paid — we’ve got it.' })).toBeVisible();
 }
 
 /** `1042` of the order the page shows — the ticket's accessible name is *Order 1042*. */

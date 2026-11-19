@@ -92,14 +92,14 @@ test('J1 — a guest orders, signs up, pays, and the counter takes it to collect
     test.info().annotations.push({
       type: 'payment not completed — Stripe',
       description:
-        "Stripe's form is mounted; a script cannot pay with a card, so the run ends here.",
+        'Stripe’s form is mounted; a script cannot pay with a card, so the run ends here.',
     });
     return;
   }
 
   await test.step('the fake provider pays it', async () => {
     await fake.click();
-    await expect(page.getByRole('heading', { name: "Paid — we've got it." })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Paid — we’ve got it.' })).toBeVisible();
   });
 
   await test.step('the counter moves it; the page follows live, without a reload', async () => {

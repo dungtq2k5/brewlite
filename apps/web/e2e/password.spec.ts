@@ -14,13 +14,13 @@ test('change: a wrong current password keeps the new one typed; the right one si
   await page.getByLabel('Current password', { exact: true }).fill('not-the-password');
   await page.getByLabel('New password', { exact: true }).fill('brand-new-password');
   await submit.click();
-  await expect(page.getByText("That isn't your current password.")).toBeVisible();
+  await expect(page.getByText('That isn’t your current password.')).toBeVisible();
   await expect(page.getByLabel('New password', { exact: true })).toHaveValue('brand-new-password');
 
   await page.getByLabel('Current password', { exact: true }).fill(PASSWORD);
   await submit.click();
   await expect(
-    page.getByText("Password changed. You've been signed out on your other devices."),
+    page.getByText('Password changed. You’ve been signed out on your other devices.'),
   ).toBeVisible();
 
   await page.getByRole('button', { name: 'account menu' }).click();

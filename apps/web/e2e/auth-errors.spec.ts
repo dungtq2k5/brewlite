@@ -91,7 +91,7 @@ for (const locale of LOCALES) {
       await login(page, locale, newEmail(), PASSWORD);
       await expect(alertOf(page)).toHaveText(
         locale === 'en'
-          ? "That email and password don't match. Check both and try again."
+          ? 'That email and password don’t match. Check both and try again.'
           : 'Email hoặc mật khẩu chưa đúng. Bạn kiểm tra lại nhé.',
       );
       // What was typed stays; the password never comes back.

@@ -33,7 +33,7 @@
     "saving": "Đang lưu…"
   },
   "confirm": {
-    "deleteTitle": "Xóa \"{{name}}\"?",
+    "deleteTitle": "Xóa “{{name}}”?",
     "deleteBody": "Gỡ khỏi thực đơn. Đơn cũ vẫn giữ. Có thể khôi phục.",
     "keep": "Giữ lại"
   },
@@ -99,9 +99,9 @@
       "cancelled": "Đã hủy. {{name}} về chỗ cũ."
     },
     "reorderFailed": "Không lưu được thứ tự mới — danh sách về như cũ.",
-    "inUseText_other": "\"{{name}}\" vẫn còn {{count}} món. Hãy chuyển hoặc xóa chúng trước — ",
+    "inUseText_other": "“{{name}}” vẫn còn {{count}} món. Hãy chuyển hoặc xóa chúng trước — ",
     "inUseLink": "xem các món {{name}}",
-    "restoreTaken": "Không khôi phục được \"{{name}}\" — đã có danh mục khác dùng tên này. Đổi tên một trong hai trước.",
+    "restoreTaken": "Không khôi phục được “{{name}}” — đã có danh mục khác dùng tên này. Đổi tên một trong hai trước.",
     "none": "Chưa có danh mục nào.",
     "noneDeleted": "Không có danh mục đã xóa."
   },
@@ -130,7 +130,7 @@
     },
     "none": "Chưa có món nào.",
     "noneDeleted": "Không có món đã xóa.",
-    "restoreRefused": "Không khôi phục được — danh mục \"{{name}}\" đã bị xóa. Khôi phục danh mục trước.",
+    "restoreRefused": "Không khôi phục được — danh mục “{{name}}” đã bị xóa. Khôi phục danh mục trước.",
     "restoreCategory": "Đến danh mục"
   },
   "editor": {
@@ -213,7 +213,7 @@
     "TOPPING_NAME_TAKEN": "Đã có topping dùng tên {{language}} này.",
     "IMAGE_INVALID": "Không dùng được tệp này — chỉ JPEG, PNG hoặc WebP, tối đa 2 MB.",
     "RESOURCE_REFERENCE_INVALID": {
-      "toppingsNamed_other": "Topping chưa lưu được — \"{{names}}\" vừa bị xóa. Bỏ chọn rồi lưu lại.",
+      "toppingsNamed_other": "Topping chưa lưu được — “{{names}}” vừa bị xóa. Bỏ chọn rồi lưu lại.",
       "toppings": "Topping chưa lưu được — một topping vừa bị xóa. Tải lại rồi thử lại.",
       "category": "Danh mục này vừa bị xóa — chọn danh mục khác."
     },

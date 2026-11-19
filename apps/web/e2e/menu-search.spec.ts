@@ -50,7 +50,7 @@ test('a Vietnamese query finds English-named drinks; nothing found shows Clear s
     ).toBeVisible();
   }
   await field(page).fill('zzzz matcha zzzz');
-  await expect(page.getByText('Nothing called "zzzz matcha zzzz" on the menu')).toBeVisible();
+  await expect(page.getByText('Nothing called “zzzz matcha zzzz” on the menu')).toBeVisible();
   await expect(page.getByRole('navigation', { name: 'Categories' }).getByRole('link')).toHaveCount(
     0,
   );

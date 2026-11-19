@@ -123,11 +123,11 @@ test('customer-product-not-found', async ({ page }) => {
   // Both an unknown id and a malformed one are "not on the menu"; the frame is drawn once.
   await page.goto('/products/nope');
   await expect(
-    page.getByRole('heading', { name: "This item isn't on the menu any more" }),
+    page.getByRole('heading', { name: 'This item isn’t on the menu any more' }),
   ).toBeVisible();
   await page.goto('/products/01a0e67a-33af-7000-8000-000000000000');
   await expect(
-    page.getByRole('heading', { name: "This item isn't on the menu any more" }),
+    page.getByRole('heading', { name: 'This item isn’t on the menu any more' }),
   ).toBeVisible();
   await expect(page.getByRole('link', { name: 'Back to menu' })).toBeVisible();
   await look(page, 'customer-product-not-found');

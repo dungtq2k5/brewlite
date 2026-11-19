@@ -36,12 +36,12 @@ const cases: [UnavailableReason, string, string][] = [
   [{ code: 'PRODUCT_UNAVAILABLE' }, 'Sold out for today', 'Hôm nay hết món'],
   [
     { code: 'OPTION_INVALID', reason: 'SIZE' },
-    "Size L isn't offered any more",
+    'Size L isn’t offered any more',
     'Cỡ L không còn phục vụ',
   ],
   [
     { code: 'OPTION_INVALID', reason: 'TOPPING', toppingName: 'Cheese foam' },
-    "Cheese foam isn't available any more",
+    'Cheese foam isn’t available any more',
     'Cheese foam không còn',
   ],
   [
@@ -64,7 +64,7 @@ describe('the unavailable line', () => {
 
   it('names the topping when the line has exactly one', () => {
     const reason: UnavailableReason = { code: 'OPTION_INVALID', reason: 'TOPPING' };
-    expect(unavailableText(en, reason, line, 'en')).toBe("Cheese foam isn't available any more");
+    expect(unavailableText(en, reason, line, 'en')).toBe('Cheese foam isn’t available any more');
     expect(unavailableText(vi, reason, line, 'vi')).toBe('Kem phô mai không còn');
   });
 
@@ -72,7 +72,7 @@ describe('the unavailable line', () => {
     const reason: UnavailableReason = { code: 'OPTION_INVALID', reason: 'TOPPING' };
     const two = { ...line, toppings: [...line.toppings, topping('p')] };
     expect(unavailableText(en, reason, two, 'en')).toBe(
-      "A topping on this drink isn't available any more",
+      'A topping on this drink isn’t available any more',
     );
     expect(unavailableText(vi, reason, two, 'vi')).toBe('Một topping của món này không còn');
   });
@@ -84,6 +84,6 @@ describe('the unavailable line', () => {
       toppingName: 'Pearls',
     };
     const two = { ...line, toppings: [...line.toppings, topping('p')] };
-    expect(unavailableText(en, reason, two, 'en')).toBe("Pearls isn't available any more");
+    expect(unavailableText(en, reason, two, 'en')).toBe('Pearls isn’t available any more');
   });
 });

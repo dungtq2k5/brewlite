@@ -8,7 +8,7 @@ async function paidOrder(page: Parameters<typeof placeOrderAsNewCustomer>[0]) {
   const placed = await placeOrderAsNewCustomer(page);
   test.skip(!(await fakeProviderIsOn(page)), 'payment runs with Stripe, not the fake provider');
   await page.getByRole('button', { name: 'Simulate success' }).click();
-  await expect(page.getByRole('heading', { name: "Paid — we've got it." })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Paid — we’ve got it.' })).toBeVisible();
   return placed;
 }
 
@@ -52,7 +52,7 @@ test("someone else's order is just not found", async ({ page }) => {
   const { register } = await import('./support');
   await register(otherPage);
   await otherPage.goto(`/orders/${orderId}`);
-  await expect(otherPage.getByRole('heading', { name: "We can't find this order" })).toBeVisible();
+  await expect(otherPage.getByRole('heading', { name: 'We can’t find this order' })).toBeVisible();
   await other.close();
 });
 

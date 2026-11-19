@@ -182,7 +182,7 @@ test('cancelling an order the other tablet already started is refused', async ({
     await dialog.getByLabel(/^Reason/).fill('Closing early');
     await advance(orderId, 'PREPARING'); // the other tablet
     await dialog.getByRole('button', { name: 'Cancel and refund' }).click();
-    await expect(dialog.getByText("It's being made now — it can't be cancelled.")).toBeVisible();
+    await expect(dialog.getByText('It’s being made now — it can’t be cancelled.')).toBeVisible();
     await dialog.getByRole('button', { name: 'Close' }).click();
     await expect(
       column(staff, 'Preparing').getByRole('img', { name: `Order ${no}` }),

@@ -105,16 +105,16 @@ test('use all, then fewer: the total and the earn line follow; placing spends th
 
   await page.getByRole('switch', { name: /^Use points/ }).check();
   await expect(page.getByText(`Using ${balance} points`, { exact: false })).toBeVisible();
-  await expect(page.getByText("That's all your points.")).toBeVisible();
+  await expect(page.getByText('That’s all your points.')).toBeVisible();
   await expect(page.getByText(`Points · ${balance}`)).toBeVisible();
   await expect(
-    page.getByText("Points are taken when you place the order and come back if it's cancelled."),
+    page.getByText('Points are taken when you place the order and come back if it’s cancelled.'),
   ).toBeVisible();
 
   await page.getByRole('button', { name: 'Use fewer' }).click();
   await page.getByRole('button', { name: 'One point fewer' }).click();
   await expect(page.getByText(`Points · ${balance - 1}`)).toBeVisible();
-  await expect(page.getByText("That's all your points.")).toHaveCount(0);
+  await expect(page.getByText('That’s all your points.')).toHaveCount(0);
 
   await page.getByRole('button', { name: /^Place order · / }).click();
   await expect(page).toHaveURL(/\/orders\/[0-9a-f-]{36}$/);
@@ -135,7 +135,7 @@ test('a small cart is capped at half its subtotal, and says so', async ({ page }
   await expect(
     page
       .getByText('Up to 50% of your order can be paid with points.')
-      .or(page.getByText(/Points can't bring the total below/)),
+      .or(page.getByText(/Points can’t bring the total below/)),
   ).toBeVisible();
 });
 

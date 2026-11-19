@@ -17,7 +17,7 @@ test('payment starts on arrival and Simulate success ends in Paid, with the cart
   await page.getByRole('button', { name: 'Simulate success' }).click();
   await expect(page.getByText('Confirming your payment…')).toBeVisible();
   // …but by seeing it paid, which the stream brings.
-  await expect(page.getByRole('heading', { name: "Paid — we've got it." })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Paid — we’ve got it.' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Cart', exact: true })).toBeVisible();
 });
 
@@ -26,7 +26,7 @@ test('Simulate failure lets the customer try again', async ({ page }) => {
   test.skip(!(await fakeProviderIsOn(page)), 'payment runs with Stripe, not the fake provider');
 
   await page.getByRole('button', { name: 'Simulate failure' }).click();
-  await expect(page.getByText("The payment didn't go through. You weren't charged.")).toBeVisible();
+  await expect(page.getByText('The payment didn’t go through. You weren’t charged.')).toBeVisible();
   await page.getByRole('button', { name: 'Try again' }).click();
   await expect(page.getByRole('button', { name: 'Simulate success' })).toBeVisible();
 });
@@ -47,8 +47,8 @@ test('closing the page after paying leaves the waiting state in place', async ({
   await placeOrderAsNewCustomer(page);
   test.skip(!(await fakeProviderIsOn(page)), 'payment runs with Stripe, not the fake provider');
   await page.getByRole('button', { name: 'Simulate success' }).click();
-  await expect(page.getByRole('heading', { name: "Paid — we've got it." })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Paid — we’ve got it.' })).toBeVisible();
   await page.reload();
-  await expect(page.getByRole('heading', { name: "Paid — we've got it." })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Paid — we’ve got it.' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Cancel order' })).toHaveCount(0);
 });

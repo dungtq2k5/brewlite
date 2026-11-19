@@ -46,7 +46,7 @@ test('points appear in the ledger once an order is paid', async ({ page }) => {
   const { orderId } = await placeOrderAsNewCustomer(page);
   test.skip(!(await fakeProviderIsOn(page)), 'payment runs with Stripe, not the fake provider');
   await page.getByRole('button', { name: 'Simulate success' }).click();
-  await expect(page.getByRole('heading', { name: "Paid — we've got it." })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Paid — we’ve got it.' })).toBeVisible();
 
   await expect
     .poll(

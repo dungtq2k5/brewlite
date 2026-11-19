@@ -52,7 +52,7 @@ test('the worker activates, serves the offline page, and caches no page or API d
 
   await context.setOffline(true);
   await page.goto('/register');
-  await expect(page.getByRole('heading', { name: "You're offline" })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'You’re offline' })).toBeVisible();
   // offline header: logo and language switch only
   await expect(page.getByRole('link', { name: 'Cart' })).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Sign in' })).toHaveCount(0);
@@ -63,7 +63,7 @@ test('the worker activates, serves the offline page, and caches no page or API d
 
 test('404 and the 500 page', async ({ page }) => {
   await page.goto('/nope');
-  await expect(page.getByRole('heading', { name: "This page isn't on the menu" })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'This page isn’t on the menu' })).toBeVisible();
   await page.getByRole('link', { name: 'Back to menu' }).last().click();
   await expect(page).toHaveURL(/\/$/);
 });

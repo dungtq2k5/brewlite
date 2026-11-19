@@ -63,7 +63,7 @@
     "clear": "Xóa tìm kiếm",
     "open": "Tìm trong thực đơn",
     "results_other": "{{count}} kết quả",
-    "none": "Thực đơn không có món nào tên \"{{q}}\"",
+    "none": "Thực đơn không có món nào tên “{{q}}”",
     "hint": "Thử từ khác, có dấu hay không dấu đều được."
   },
   "hero": {

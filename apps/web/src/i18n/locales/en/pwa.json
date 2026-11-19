@@ -1,7 +1,7 @@
 {
   "offline": {
-    "title": "You're offline",
-    "body": "Your cart is saved on this device. Try again when you're back online.",
+    "title": "You’re offline",
+    "body": "Your cart is saved on this device. Try again when you’re back online.",
     "retry": "Try again"
   },
   "install": {
@@ -12,7 +12,7 @@
   },
   "installIos": {
     "title": "Keep BrewLite on your home screen",
-    "step1": "Tap Share in Safari's toolbar",
+    "step1": "Tap Share in Safari’s toolbar",
     "step2": "Choose “Add to Home Screen”",
     "dismiss": "Got it"
   }

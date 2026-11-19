@@ -75,12 +75,12 @@
     }
   },
   "notFound": {
-    "title": "This page isn't on the menu",
+    "title": "This page isn’t on the menu",
     "action": "Back to menu"
   },
   "error": {
     "title": "Something went wrong on our side",
-    "body": "It's not you. Give it a moment and try again.",
+    "body": "It’s not you. Give it a moment and try again.",
     "retry": "Try again",
     "home": "Back to menu",
     "reference": "Request ID: {{id}}"

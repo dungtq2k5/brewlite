@@ -83,7 +83,7 @@ test('customer-menu-all-sold-out', async ({ page }) => {
   await withAllSoldOut(async () => {
     await page.goto('/');
     await expect(
-      page.getByRole('main').getByText("Everything's sold out for today — see you tomorrow."),
+      page.getByRole('main').getByText('Everything’s sold out for today — see you tomorrow.'),
     ).toBeVisible();
     await look(page, 'customer-menu-all-sold-out');
   });
@@ -143,7 +143,7 @@ test('customer-menu-search-accentless', async ({ page, baseURL }) => {
 
 test('customer-menu-search-no-results', async ({ page, baseURL }) => {
   // The frame types *bubble waffle* (its *Reach* says matcha, which the seed has twice).
-  await searchFor(page, baseURL!, 'bubble waffle', /^Nothing called "bubble waffle" on the menu$/);
+  await searchFor(page, baseURL!, 'bubble waffle', /^Nothing called “bubble waffle” on the menu$/);
   await look(page, 'customer-menu-search-no-results');
 });
 
@@ -157,7 +157,7 @@ test('customer-menu-search-no-results-vi', async ({ page, baseURL }) => {
     page,
     baseURL!,
     'bánh waffle',
-    /^Thực đơn không có món nào tên "bánh waffle"$/,
+    /^Thực đơn không có món nào tên “bánh waffle”$/,
     true,
   );
   await look(page, 'customer-menu-search-no-results-vi');
