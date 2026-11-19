@@ -123,7 +123,9 @@ test('use all, then fewer: the total and the earn line follow; placing spends th
   const orderId = page.url().split('/').pop()!;
   expect((await api(`/orders/${orderId}/cancel`, { method: 'POST', token })).status).toBe(200);
   await page.reload();
-  await expect(page.getByText(`${balance - 1} points returned to your balance.`)).toBeVisible();
+  await expect(
+    page.getByRole('main').getByText(`${balance - 1} points returned to your balance.`),
+  ).toBeVisible();
   expect(await balanceOf(token)).toBe(balance);
 });
 

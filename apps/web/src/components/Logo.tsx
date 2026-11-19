@@ -14,7 +14,7 @@ export async function Logo() {
         height={28}
         priority
         unoptimized
-        className="max-[379px]:hidden"
+        className="max-[379px]:hidden lg:h-[33px] lg:w-auto"
       />
       <Image
         src="/symbol.svg"

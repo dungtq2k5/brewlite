@@ -47,9 +47,9 @@ export function ProductCard({
       </div>
       {/* The frame also fades the name and price to 60 %, below the text contrast minimum
           (WCAG 1.4.3) — the image alone is dimmed. */}
-      <p className="mt-2 px-1 text-sm font-semibold">{name}</p>
-      <p className="px-1 text-sm">
-        <span className="text-base-content/70">{labels.from}</span>{' '}
+      <p className="mt-2 px-1 text-[15px] leading-5.5 font-semibold">{name}</p>
+      <p className="px-1 text-[15px] leading-5.5">
+        <span className="text-base-content/70 text-[13px] leading-5">{labels.from}</span>{' '}
         <span className="font-bold tabular-nums">{formatVnd(product.fromPriceVnd, locale)}</span>
       </p>
     </Link>

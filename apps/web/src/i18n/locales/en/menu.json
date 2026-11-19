@@ -65,7 +65,8 @@
     "results_one": "{{count}} result",
     "results_other": "{{count}} results",
     "none": "Nothing called “{{q}}” on the menu",
-    "hint": "Try another word — English or Vietnamese, accents optional."
+    "hint": "Try another word — English or Vietnamese, accents optional.",
+    "placeholderShort": "Search"
   },
   "hero": {
     "headline": "Order ahead. Skip the queue.",

@@ -50,9 +50,9 @@ export function MenuSections({
 
   return (
     <>
-      <MenuSearch count={count} className="mb-4 lg:hidden" />
+      <MenuSearch count={count} className="mb-7 lg:hidden" />
       {searching && count === 0 ? (
-        <div className="flex flex-col items-center gap-3 pt-15 text-center">
+        <div className="flex flex-col items-center gap-3 pt-12 text-center">
           <p className="text-lg leading-[26px] font-semibold">
             {t('search.none', { q: query.trim() })}
           </p>
@@ -65,14 +65,14 @@ export function MenuSections({
         // `#menu` — the hero's *Order now* target; each heading takes focus (`tabIndex={-1}`).
         <div
           id="menu"
-          className="scroll-mt-[calc(var(--bl-header-h,3.5rem)+var(--bl-nav-h,3.75rem)+0.75rem)] lg:scroll-mt-[calc(var(--bl-header-h,3.5rem)+1.5rem)]"
+          className="scroll-mt-[calc(var(--bl-header-h,3.5rem)+var(--bl-nav-h,3.75rem)+0.75rem)] lg:scroll-mt-[calc(var(--bl-header-h,3.5rem)+2.5rem)]"
         >
           {shown.map((section) => (
             <section key={section.category.id} id={`cat-${section.category.id}`} className="mb-8">
               <h2
                 id={`cat-heading-${section.category.id}`}
                 tabIndex={-1}
-                className="mb-3 scroll-mt-[calc(var(--bl-header-h,3.5rem)+var(--bl-nav-h,3.75rem)+0.75rem)] text-2xl font-bold lg:scroll-mt-[calc(var(--bl-header-h,3.5rem)+1.5rem)]"
+                className="mb-3 scroll-mt-[calc(var(--bl-header-h,3.5rem)+var(--bl-nav-h,3.75rem)+0.75rem)] text-[22px] leading-[30px] font-bold lg:scroll-mt-[calc(var(--bl-header-h,3.5rem)+2.5rem)]"
               >
                 {localized(section.category.name, locale)}
               </h2>

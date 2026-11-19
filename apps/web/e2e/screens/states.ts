@@ -40,13 +40,31 @@ export const STATES: Record<string, State> = {
     route: '/',
     widths: { 390: { node: '123:21', frame: 844 }, 1280: { node: '123:2740', frame: 900 } },
   },
-  'customer-menu-guest-vi': { route: '/', widths: { ...at390('123:1157'), 1280: null } },
-  'customer-menu-signed-in': { route: '/', widths: { ...at390('123:1677'), 1280: null } },
-  'customer-menu-no-hero': { route: '/', widths: { ...at390('123:2180'), 1280: null } },
-  'customer-menu-scrolled': { route: '/', widths: { ...at390('48:629'), 1280: null } },
-  'customer-menu-photos': { route: '/', widths: { ...at390('48:1177'), 1280: null } },
+  'customer-menu-guest-vi': {
+    route: '/',
+    widths: { ...at390('123:1157'), 1280: { node: '168:3546', frame: 900 } },
+  },
+  'customer-menu-signed-in': {
+    route: '/',
+    widths: { ...at390('123:1677'), 1280: { node: '168:3593', frame: 900 } },
+  },
+  'customer-menu-no-hero': {
+    route: '/',
+    widths: { ...at390('123:2180'), 1280: { node: '168:3640', frame: 900 } },
+  },
+  'customer-menu-scrolled': {
+    route: '/',
+    widths: { ...at390('48:629'), 1280: { node: '168:3687', frame: 900 } },
+  },
+  'customer-menu-photos': {
+    route: '/',
+    widths: { ...at390('48:1177'), 1280: { node: '168:3734', frame: 900 } },
+  },
   'customer-menu-loading': { route: '/', skip: SERVER_FETCH, widths: at390('51:2179') },
-  'customer-menu-all-sold-out': { route: '/', widths: { ...at390('123:2293'), 1280: null } },
+  'customer-menu-all-sold-out': {
+    route: '/',
+    widths: { ...at390('123:2293'), 1280: { node: '168:3781', frame: 900 } },
+  },
   'customer-menu-failed': { route: '/', skip: GATEWAY_DOWN, widths: at390('51:2758') },
   'customer-menu-added': { route: '/', widths: at390('51:2808') },
   'customer-menu-search-results': {
@@ -83,9 +101,18 @@ export const STATES: Record<string, State> = {
   },
 
   // Customer — cart (D03)
-  'customer-cart-empty': { route: '/cart', widths: { ...at390('54:3523'), 1280: null } },
-  'customer-cart-guest': { route: '/cart', widths: { ...at390('54:3580'), 1280: null } },
-  'customer-cart-signed-in': { route: '/cart', widths: { ...at390('54:3687'), 1280: null } },
+  'customer-cart-empty': {
+    route: '/cart',
+    widths: { ...at390('54:3523'), 1280: { node: '169:10935', frame: 800 } },
+  },
+  'customer-cart-guest': {
+    route: '/cart',
+    widths: { ...at390('54:3580'), 1280: { node: '169:11001', frame: 800 } },
+  },
+  'customer-cart-signed-in': {
+    route: '/cart',
+    widths: { ...at390('54:3687'), 1280: { node: '169:11070', frame: 800 } },
+  },
   'customer-cart-signed-in-vi': { route: '/cart', widths: at390('54:3863') },
   'customer-cart-full': { route: '/cart', widths: at390('54:4042') },
   'customer-cart-undo': { route: '/cart', widths: at390('54:4982') },

@@ -9,6 +9,8 @@ export interface LookOptions {
   disabled?: string[];
   /** Keep the page's scroll position (a scrolled state) instead of drawing from the top. */
   keepScroll?: boolean;
+  /** Run after each resize, before the checks — to put back a state the new layout moved. */
+  atWidth?: (width: Width) => Promise<void>;
 }
 
 /**
@@ -34,6 +36,7 @@ export async function look(page: Page, id: string, options: LookOptions = {}): P
       const viewport = VIEWPORT[width];
       await page.setViewportSize(viewport);
       await settled(page);
+      if (options.atWidth) await options.atWidth(width);
       expect(
         await page.evaluate(() => document.documentElement.scrollWidth),
         `${id}@${width} scrolls sideways`,

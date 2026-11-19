@@ -62,14 +62,14 @@ export default async function ProductPage({
   const name = localized(product.name, locale);
 
   return (
-    <div>
+    <div className="lg:pt-3">
       <BackToMenu label={t('product.back')} />
       <div className="mt-5 lg:mt-4 lg:grid lg:grid-cols-[35fr_32fr] lg:items-start lg:gap-12">
         <div>
           <div className="rounded-box relative aspect-16/10 overflow-hidden lg:aspect-4/3">
             <ProductImage imageUrl={product.imageUrl} name={name} variant={variant} />
             {product.isSoldOut && (
-              <span className="bg-neutral text-neutral-content rounded-selector absolute top-3 left-3 px-2.5 py-1 text-[13px] leading-[18px] font-semibold">
+              <span className="bg-neutral text-neutral-content rounded-selector absolute top-3 left-3 px-2.5 py-1 text-[13px] leading-4.5 font-semibold">
                 {t('soldOut')}
               </span>
             )}
@@ -79,12 +79,12 @@ export default async function ProductPage({
           <div>
             <h1 className="text-[28px] leading-9 font-bold lg:text-4xl lg:leading-11">{name}</h1>
             {product.description && (
-              <p className="text-base-content/75 mt-1.5 lg:mt-2 lg:text-[17px] lg:leading-[26px]">
+              <p className="text-base-content/75 mt-1.5 lg:mt-2 lg:text-[17px] lg:leading-6.5">
                 {localized(product.description, locale)}
               </p>
             )}
             {product.isSoldOut && (
-              <p className="mt-1.5 flex items-center gap-2 text-[15px] leading-[22px] font-semibold">
+              <p className="mt-1.5 flex items-center gap-2 text-[15px] leading-5.5 font-semibold">
                 <Info aria-hidden size={18} className="shrink-0" />
                 {t('product.soldOutNote')}
               </p>

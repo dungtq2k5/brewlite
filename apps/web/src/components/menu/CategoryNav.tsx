@@ -63,10 +63,10 @@ export function CategoryNav({
     };
   }, []);
 
-  // Scroll-spy: the current section is the last one whose top has reached the line under the bar
-  // — the same 0.75rem gap as the headings' `scroll-mt`, so a chip's own scroll lands inside its
-  // section. Read from the layout on every scroll (and once now), so a restored scroll position —
-  // back from a product — finds its chip too.
+  // Scroll-spy: the current section is the last one whose top has reached the line a chip's own
+  // scroll lands on — the headings' `scroll-margin-top`, read from the page so the two never
+  // drift apart. Read from the layout on every scroll (and once now), so a restored scroll
+  // position — back from a product — finds its chip too.
   useEffect(() => {
     const sections = items
       .map((item) => document.getElementById(`cat-${item.id}`))
@@ -76,11 +76,8 @@ export function CategoryNav({
     const spy = () => {
       frame = 0;
       if (Date.now() < settlingUntil.current) return;
-      const root = document.documentElement;
-      const px = (name: string) =>
-        Number.parseFloat(getComputedStyle(root).getPropertyValue(name) || '0');
-      const desktop = window.matchMedia('(min-width: 1024px)').matches;
-      const line = px(HEADER_VAR) + (desktop ? 0 : px(NAV_VAR)) + 12 + 1;
+      const heading = sections[0]!.querySelector('h2') ?? sections[0]!;
+      const line = Number.parseFloat(getComputedStyle(heading).scrollMarginTop) + 1;
       let found = sections[0]!;
       for (const section of sections) {
         if (section.getBoundingClientRect().top > line) break;
@@ -101,11 +98,17 @@ export function CategoryNav({
     };
   }, [items]);
 
-  // Keep the current chip inside the bar (it scrolls sideways on a phone).
+  // Keep the current chip inside the bar (it scrolls sideways on a phone) — moved only when it is
+  // out of view, so a chip already seen leaves the bar where it is (D09).
   useEffect(() => {
     const chip = current ? chips.current.get(current) : undefined;
     const scroller = bar.current?.querySelector('ul');
     if (!chip || !scroller || scroller.scrollWidth <= scroller.clientWidth) return;
+    const left = chip.offsetLeft - scroller.offsetLeft;
+    const inView =
+      left >= scroller.scrollLeft &&
+      left + chip.offsetWidth <= scroller.scrollLeft + scroller.clientWidth;
+    if (inView) return;
     scroller.scrollTo({
       left: chip.offsetLeft - (scroller.clientWidth - chip.offsetWidth) / 2,
       behavior: 'smooth',
@@ -127,17 +130,17 @@ export function CategoryNav({
 
   // `contents` on a phone: the bar must stick within the whole page, not within its own wrapper.
   return (
-    <div className="contents lg:block lg:sticky lg:top-[calc(var(--bl-header-h,3.5rem)+1.5rem)] lg:self-start">
+    <div className="contents lg:block lg:sticky lg:top-[calc(var(--bl-header-h,3.5rem)+2.5rem)] lg:self-start">
       <h1 className="sr-only text-3xl font-bold lg:not-sr-only lg:mb-4">{title}</h1>
       {/* On a desktop the field heads the sticky list; on a phone it sits above the first section. */}
       <MenuSearch count={count} className="hidden lg:mb-4 lg:block" />
       <nav
         ref={bar}
         aria-label={t('nav.label')}
-        className="bg-base-100 border-base-300 sticky top-(--bl-header-h,3.5rem) z-20 -mx-4 -mt-6 border-b px-4 lg:static lg:mx-0 lg:mt-0 lg:border-0 lg:px-0"
+        className="bg-base-100 border-base-300 sticky top-(--bl-header-h,3.5rem) z-20 -mx-4 -mt-1 border-b px-4 lg:static lg:mx-0 lg:mt-0 lg:border-0 lg:px-0"
       >
         <ul
-          className={`flex gap-2 overflow-x-auto py-3 scrollbar-none lg:flex-col lg:gap-1 lg:overflow-visible lg:py-0 ${
+          className={`flex gap-2 overflow-x-auto py-1.5 scrollbar-none lg:flex-col lg:gap-1 lg:overflow-visible lg:py-0 ${
             items.length === 0 ? 'hidden' : ''
           }`}
         >

@@ -1,9 +1,19 @@
 'use client';
 
 import { Search, X } from 'lucide-react';
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useState, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMenuQuery } from './MenuQuery';
+
+// From `lg` the field heads the desktop list and its placeholder is the short form (D09); its
+// accessible name stays the label.
+const DESKTOP = '(min-width: 1024px)';
+const subscribeDesktop = (onChange: () => void) => {
+  const query = window.matchMedia(DESKTOP);
+  query.addEventListener('change', onChange);
+  return () => query.removeEventListener('change', onChange);
+};
+const isDesktop = () => window.matchMedia(DESKTOP).matches;
 
 /**
  * *Search the menu* (`113:1016`): a search landmark with a clear button while typing, and the
@@ -14,6 +24,7 @@ export function MenuSearch({
   className = '',
 }: Readonly<{ count: number; className?: string }>) {
   const { t } = useTranslation('menu');
+  const desktop = useSyncExternalStore(subscribeDesktop, isDesktop, () => false);
   const { query, setQuery, registerField } = useMenuQuery();
   const id = useId();
   const [settled, setSettled] = useState(query);
@@ -38,7 +49,7 @@ export function MenuSearch({
           id={id}
           type="search"
           value={query}
-          placeholder={t('search.label')}
+          placeholder={t(desktop ? 'search.placeholderShort' : 'search.label')}
           autoComplete="off"
           enterKeyHint="search"
           onChange={(e) => setQuery(e.target.value)}
@@ -58,7 +69,12 @@ export function MenuSearch({
           </button>
         )}
       </div>
-      <p aria-live="polite" className="text-base-content/70 mt-2 min-h-5 text-sm">
+      {/* Read out at every width; seen only on a phone — the desktop frames draw no count. Empty,
+          it takes no room (the frames draw the field 28 px above the first section). */}
+      <p
+        aria-live="polite"
+        className="text-base-content/70 mt-7 min-h-5 text-sm font-medium empty:mt-0 empty:min-h-0 lg:sr-only"
+      >
         {settled.trim() !== '' && count > 0 ? t('search.results', { count }) : ''}
       </p>
     </div>

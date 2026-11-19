@@ -60,23 +60,38 @@ test('customer-menu-no-hero', async ({ page, baseURL }) => {
 test('customer-menu-scrolled', async ({ page, baseURL }) => {
   await heroDismissed(page.context(), baseURL!);
   await page.goto('/');
-  const tea = page
+  // The frames are scrolled to *Milk tea*; the layout differs per width, so the chip is tapped
+  // again after each resize.
+  const chip = page
     .getByRole('navigation', { name: 'Categories' })
-    .getByRole('link', { name: 'Tea', exact: true });
-  await tea.click();
-  await expect(tea).toHaveAttribute('aria-current', 'true');
-  await look(page, 'customer-menu-scrolled', { keepScroll: true });
+    .getByRole('link', { name: 'Milk tea', exact: true });
+  const tap = async () => {
+    await chip.click();
+    await expect(chip).toHaveAttribute('aria-current', 'true');
+    await expect.poll(scrollStill(page)).toBe(true);
+  };
+  await tap();
+  await look(page, 'customer-menu-scrolled', { keepScroll: true, atWidth: tap });
 });
 
 test('customer-menu-photos', async ({ page, baseURL }) => {
   await heroDismissed(page.context(), baseURL!);
-  const product = await seeded('Iced milk coffee');
+  // The frames' four photos; each put back as it was, innermost first.
+  const names = ['Iced milk coffee', 'Salted cream coffee', 'Egg coffee', 'Latte'];
   const png = readFileSync(new URL('../../public/icon-512.png', import.meta.url));
-  await withPhoto(product.id, png, async () => {
+  const drawn = async () => {
     await page.goto('/');
-    await expect(page.getByRole('img', { name: product.name.en, exact: true })).toBeVisible();
+    for (const name of names)
+      await expect(page.getByRole('img', { name, exact: true })).toBeVisible();
     await look(page, 'customer-menu-photos');
-  });
+  };
+  let body = drawn;
+  for (const name of names) {
+    const inner = body;
+    const { id } = await seeded(name);
+    body = () => withPhoto(id, png, inner);
+  }
+  await body();
 });
 
 test('customer-menu-all-sold-out', async ({ page }) => {

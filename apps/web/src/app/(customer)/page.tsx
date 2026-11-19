@@ -42,7 +42,7 @@ export default async function MenuPage() {
 
   return (
     <MenuQueryProvider>
-      <div className="lg:grid lg:grid-cols-[13rem_1fr] lg:gap-10">
+      <div className="lg:grid lg:grid-cols-[12.5rem_1fr] lg:gap-6 lg:pt-7">
         <CategoryNav
           sections={sections}
           title={t('title')}
@@ -59,7 +59,7 @@ export default async function MenuPage() {
               className="bg-info text-info-content rounded-box mb-7 flex items-start gap-3 px-4 py-3.5"
             >
               <Info aria-hidden size={22} className="shrink-0" />
-              <p className="flex-1 text-[15px] leading-[22px] font-medium">{t('allSoldOut')}</p>
+              <p className="flex-1 text-[15px] leading-5.5 font-medium">{t('allSoldOut')}</p>
             </div>
           )}
           <MenuSections

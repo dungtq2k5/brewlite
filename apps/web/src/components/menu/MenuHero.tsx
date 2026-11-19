@@ -84,7 +84,7 @@ export function MenuHero({ variant }: Readonly<{ variant: HeroVariant }>) {
 
   if (variant === 'compact') {
     return (
-      <div className="bl-menu-hero bg-secondary rounded-box mb-4 flex items-center gap-3 py-1 pr-1 pl-4">
+      <div className="bl-menu-hero bg-secondary rounded-box mb-7 flex items-center gap-3 py-1 pr-1 pl-4">
         <TicketChip />
         <p className="flex-1 text-sm font-medium">{t('hero.compact')}</p>
         {close}
@@ -102,17 +102,21 @@ export function MenuHero({ variant }: Readonly<{ variant: HeroVariant }>) {
 
   // One grid: text, steps, action down a phone; on a desktop the steps take the right column.
   return (
-    <div className="bl-menu-hero bg-secondary rounded-box relative mb-4 grid p-4 lg:grid-cols-[1fr_20rem] lg:gap-x-8 lg:p-6">
-      <div className="absolute top-1 right-1">{close}</div>
-      <div>
-        <p className="pr-10 text-2xl leading-tight font-bold lg:text-3xl">{t('hero.headline')}</p>
-        <p className="mt-2 text-sm lg:text-base">{t('hero.line')}</p>
+    <div className="bl-menu-hero bg-secondary rounded-box relative mb-7 grid px-4 pt-3.5 pb-4 lg:grid-cols-[1fr_23.75rem] lg:gap-x-8 lg:pt-6 lg:pr-5 lg:pb-6 lg:pl-7">
+      <div className="absolute top-1 right-1 lg:top-2 lg:right-2">{close}</div>
+      <div className="pr-7 lg:pr-0">
+        <p className="text-[22px] leading-7 font-extrabold lg:text-3xl lg:leading-[38px]">
+          {t('hero.headline')}
+        </p>
+        <p className="mt-1 text-sm lg:mt-2 lg:text-base">{t('hero.line')}</p>
       </div>
-      <ol className="mt-4 grid grid-cols-3 gap-2 text-center lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:mt-0 lg:self-center">
+      <ol className="mt-3 grid grid-cols-3 gap-2 text-center lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:mt-0 lg:self-center">
         {STEPS.map((step) => (
-          <li key={step.key} className="flex flex-col items-center gap-1">
+          <li key={step.key} className="flex flex-col items-center gap-1.5">
             {step.icon}
-            <span className="text-sm font-semibold">{t(`hero.steps.${step.key}.name`)}</span>
+            <span className="text-[13px] leading-[18px] font-bold">
+              {t(`hero.steps.${step.key}.name`)}
+            </span>
             <span className="text-base-content/80 text-xs">{t(`hero.steps.${step.key}.line`)}</span>
           </li>
         ))}
@@ -120,7 +124,7 @@ export function MenuHero({ variant }: Readonly<{ variant: HeroVariant }>) {
       <a
         href="#menu"
         onClick={orderNow}
-        className="btn btn-primary mt-4 min-h-11 w-full lg:col-start-1 lg:w-auto lg:justify-self-start"
+        className="btn btn-primary mt-3 min-h-11 w-full lg:col-start-1 lg:mt-2 lg:px-5 lg:w-auto lg:justify-self-start"
       >
         {t('hero.orderNow')}
         <ArrowDown aria-hidden size={18} />
